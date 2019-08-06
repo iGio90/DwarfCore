@@ -1,0 +1,14 @@
+{
+  "compilerOptions": {
+    "target": "esnext",
+    "lib": ["esnext"],
+    "allowJs": true,
+    "noEmit": true,
+    "strict": false,
+    "esModuleInterop": true
+  },
+  "include": [
+    "src/**/*",
+    "dist/hook.d.ts"
+  ]
+}
