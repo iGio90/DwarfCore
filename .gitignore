@@ -5,5 +5,5 @@ package-lock.json
 compiled_agent.js
 dist
 _*
-docs
+docs*
 core.js
