@@ -3,6 +3,7 @@
   "version": "1.0.0",
   "description": "core of Dwarf",
   "main": "src/index.ts",
+  "types": "src/api.d.ts",
   "license": "LICENSE.md",
   "scripts": {
     "prepare": "npm run build",
