@@ -9,7 +9,7 @@ export class ThreadWrapper {
     static handler: NativePointer = NULL;
     static handlerFunction: Function | null = null;
     
-    static init() {
+    private static init() {
         // attempt to retrieve pthread_create
         ThreadWrapper.pthreadCreateAddress = Module.findExportByName(null, 'pthread_create');
         if (ThreadWrapper.pthreadCreateAddress != null && !ThreadWrapper.pthreadCreateAddress.isNull()) {

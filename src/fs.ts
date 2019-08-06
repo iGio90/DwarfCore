@@ -35,16 +35,25 @@ export class FileSystem {
         return null;
     }
 
+    /**
+     * Allocate the given size in the heap
+     */
     static allocateRw(size: number): NativePointer {
         const pt = Memory.alloc(size);
         Memory.protect(pt, size, 'rw-');
         return pt;
     };
 
+    /**
+     * Allocate and write the given string in the heap
+     */
     static allocateString(what: string): NativePointer {
         return Memory.allocUtf8String(what);
     };
 
+    /**
+     * Call native fopen with filePath and perm
+     */
     static fopen(filePath: string, perm: string): NativeReturnValue {
         if (FileSystem._fopen === null) {
             return NULL;
@@ -55,6 +64,9 @@ export class FileSystem {
         return FileSystem._fopen(filePathPtr, p);
     };
 
+    /**
+     * Call native popen with filePath and perm
+     */
     static popen(filePath: string, perm: string): NativeReturnValue {
         if (FileSystem._popen === null) {
             return NULL;
@@ -65,6 +77,9 @@ export class FileSystem {
         return FileSystem._popen(filePathPtr, p);
     };
 
+    /**
+     * Read a file as string
+     */
     static readStringFromFile(filePath: string): string {
         const fp = FileSystem.fopen(filePath, 'r');
         if (fp === NULL) {
@@ -80,6 +95,9 @@ export class FileSystem {
         return ret;
     };
 
+    /**
+     * Read string from descriptor
+     */
     static readStringFromFp(fp: NativePointer) {
         if (FileSystem._fgets === null) {
             return "";
@@ -97,6 +115,9 @@ export class FileSystem {
         return ret;
     };
 
+    /**
+     * Write string to file
+     */
     static writeStringToFile(filePath: string, content: string, append: boolean) {
         // use frida api
         if (typeof append === 'undefined') {

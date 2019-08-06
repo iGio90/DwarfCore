@@ -2,15 +2,15 @@ import {Dwarf} from "./dwarf";
 import {FileSystem} from "./fs";
 import {LogicBreakpoint} from "./logic_breakpoint";
 import {LogicJava} from "./logic_java";
+import {LogicInitialization} from "./logic_initialization";
 import {LogicStalker} from "./logic_stalker";
 import {LogicWatchpoint} from "./logic_watchpoint";
 import {ThreadWrapper} from "./thread_wrapper";
 import {Utils} from "./utils";
-import {LogicInitialization} from "./logic_initialization";
-import setExceptionHandler = Process.setExceptionHandler;
+import {MEMORY_ACCESS_EXECUTE, MEMORY_ACCESS_READ, MEMORY_ACCESS_WRITE} from "./watchpoint";
 
 export class Api {
-    private static internalMemoryScan(start, size, pattern) {
+    private static _internalMemoryScan(start, size, pattern) {
         if (size > 4096) {
             // scan in chunks of 4096
             let _start = parseInt(start);
@@ -36,7 +36,11 @@ export class Api {
         }
     };
 
-    static backtrace(context?) {
+    /**
+     * Shortcut to retrieve native backtrace
+     * @param context: the CpuContext object
+     */
+    static backtrace(context?: CpuContext): DebugSymbol[] | null {
         if (!Utils.isDefined(context)) {
             context = Dwarf.threadContexts[Process.getCurrentThreadId()];
             if (!Utils.isDefined(context)) {
@@ -48,16 +52,24 @@ export class Api {
             .map(DebugSymbol.fromAddress);
     };
 
-    static enumerateExports(module) {
+    /**
+     * Enumerate exports for the given module name or pointer
+     * @param module an hex/int address or string name
+     */
+    static enumerateExports(module: any): ModuleExportDetails[] {
         if (typeof module !== 'object') {
             module = Api.findModule(module);
         }
         if (module !== null) {
             return module.enumerateExports();
         }
-        return {};
+        return [];
     };
 
+    /**
+     * Enumerate imports for the given module name or pointer
+     * @param module an hex/int address or string name
+     */
     static enumerateImports(module) {
         if (typeof module !== 'object') {
             module = Api.findModule(module);
@@ -68,6 +80,10 @@ export class Api {
         return {};
     };
 
+    /**
+     * Enumerate java classes
+     * @param useCache false by default
+     */
     static enumerateJavaClasses(useCache?) {
         if (!Utils.isDefined(useCache)) {
             useCache = false;
@@ -107,7 +123,10 @@ export class Api {
         }
     };
 
-    static enumerateJavaMethods(className): void {
+    /**
+     * Enumerate method for the given class
+     */
+    static enumerateJavaMethods(className: string): void {
         if (Java.available) {
             const that = this;
             Java.performNow(function () {
@@ -128,6 +147,9 @@ export class Api {
         }
     };
 
+    /**
+     * Enumerate loaded modules
+     */
     static enumerateModules() {
         const modules = Process.enumerateModules();
         for (let i = 0; i < modules.length; i++) {
@@ -151,27 +173,38 @@ export class Api {
         return modules;
     };
 
-    static enumerateModuleInfo(m) {
+    /**
+     * Enumerate all information about the module (imports / exports / symbols)
+     * @param module object from frida-gum
+     */
+    static enumerateModuleInfo(module) {
         try {
-            m.imports = Api.enumerateImports(m);
-            m.exports = Api.enumerateExports(m);
-            m.symbols = Api.enumerateSymbols(m);
+            module.imports = Api.enumerateImports(module);
+            module.exports = Api.enumerateExports(module);
+            module.symbols = Api.enumerateSymbols(module);
         } catch(e) {}
 
-        m.entry = null;
-        const header = m.base.readByteArray(4);
+        module.entry = null;
+        const header = module.base.readByteArray(4);
         if (header[0] !== 0x7f && header[1] !== 0x45 && header[2] !== 0x4c && header[3] !== 0x46) {
             // Elf
-            m.entry = m.base.add(24).readPointer();
+            module.entry = module.base.add(24).readPointer();
         }
 
-        return m;
+        return module;
     };
 
-    static enumerateRanges() {
+    /**
+     * Enumerate all mapped ranges
+     */
+    static enumerateRanges(): RangeDetails[] {
         return Process.enumerateRanges('---');
     };
 
+    /**
+     * Enumerate symbols for the given module name or pointer
+     * @param module an hex/int address or string name
+     */
     static enumerateSymbols(module) {
         if (typeof module !== 'object') {
             module = Api.findModule(module);
@@ -182,6 +215,10 @@ export class Api {
         return {};
     };
 
+    /**
+     * Evaluate javascript. Used from the UI to inject javascript code into the process
+     * @param w
+     */
     static evaluate(w) {
         const Thread = ThreadWrapper;
         try {
@@ -192,6 +229,10 @@ export class Api {
         }
     };
 
+    /**
+     * Evaluate javascript. Used from the UI to inject javascript code into the process
+     * @param w
+     */
     static evaluateFunction(w) {
         try {
             const fn = new Function('Thread', w);
@@ -202,7 +243,11 @@ export class Api {
         }
     };
 
-    static evaluatePtr(w): NativePointer {
+    /**
+     * Evaluate any input and return a NativePointer
+     * @param w
+     */
+    static evaluatePtr(w: any): NativePointer {
         try {
             return ptr(eval(w));
         } catch (e) {
@@ -210,14 +255,28 @@ export class Api {
         }
     };
 
-    static findExport(name, module?) {
+    /**
+     * Shortcut to quickly retrieve an export
+     *
+     * ```javascript
+     * const openAddress = findExport('open');
+     * const myTargetAddress = findExport('target_func', 'target_module.so');
+     * ```
+     *
+     * @param name: the name of the export
+     * @param module: optional name of the module
+     */
+    static findExport(name, module?): NativePointer | null {
         if (typeof module === 'undefined') {
             module = null;
         }
         return Module.findExportByName(module, name);
     };
 
-    static findModule(module) {
+    /**
+     * Find a module providing any argument. Could be a string/int pointer or module name
+     */
+    static findModule(module: any): Module | Module[] | null {
         let _module;
         if (Utils.isString(module) && module.substring(0, 2) !== '0x') {
             _module = Process.findModuleByName(module);
@@ -238,7 +297,7 @@ export class Api {
                     if (modules.length === 1) {
                         return modules[0];
                     } else {
-                        return JSON.stringify(modules);
+                        return modules;
                     }
                 }
             }
@@ -249,13 +308,20 @@ export class Api {
             }
             return _module;
         }
-        return {};
+        return null;
     };
 
+    /**
+     * Find a symbol matching the given pattern
+     */
     static findSymbol(pattern) {
         return DebugSymbol.findFunctionsMatching(pattern);
     };
 
+    /**
+     * get telescope information for the given pointer argument
+     * @param p: pointer
+     */
     static getAddressTs(p) {
         const _ptr = ptr(p);
         const _range = Process.findRangeByAddress(_ptr);
@@ -278,7 +344,11 @@ export class Api {
         return [-1, p];
     };
 
-    static getDebugSymbols(ptrs) {
+    /**
+     * Return an array of DebugSymbol for the requested pointers
+     * @param ptrs: an array of NativePointer
+     */
+    static getDebugSymbols(ptrs): DebugSymbol[] {
         const symbols = [];
         if (Utils.isDefined(ptrs)) {
             try {
@@ -294,6 +364,9 @@ export class Api {
         return symbols;
     };
 
+    /**
+     * Shortcut to retrieve an Instruction object for the given address
+     */
     static getInstruction(address) {
         try {
             const instruction = Instruction.parse(ptr(address));
@@ -306,54 +379,123 @@ export class Api {
         return null;
     };
 
-    static getRange(pt) {
+    /**
+     * Return a RangeDetails object or null for the requested pointer
+     */
+    static getRange(pt): RangeDetails | null {
         try {
             pt = ptr(pt);
             if (pt === null || parseInt(pt) === 0) {
-                return [];
+                return null;
             }
             const ret = Process.findRangeByAddress(pt);
             if (ret == null) {
-                return [];
+                return null;
             }
             return ret;
         } catch (e) {
             Utils.logErr('getRange', e);
-            return [];
+            return null;
         }
     };
 
-    static getSymbolByAddress(pt) {
+    /**
+     * Return DebugSymbol or null for the given pointer
+     */
+    static getSymbolByAddress(pt): DebugSymbol | null {
         try {
             pt = ptr(pt);
             return DebugSymbol.fromAddress(pt);
         } catch (e) {
             Utils.logErr('getSymbolByAddress', e);
-            return {};
+            return null;
         }
     };
 
-    static hookAllJavaMethods(className: string, implementation: Function): boolean {
-        return LogicJava.hookAllJavaMethods(className, implementation);
+    /**
+     * Hook all the methods for the given java class
+     *
+     * ```javascript
+     * hookAllJavaMethods('android.app.Activity', function() {
+     *     console.log('hello from:', this.className, this.method);
+     * })
+     * ```
+     * @param className
+     * @param callback
+     */
+    static hookAllJavaMethods(className: string, callback: Function): boolean {
+        return LogicJava.hookAllJavaMethods(className, callback);
     };
 
-    static hookClassLoaderClassInitialization(clazz, callback?: Function): boolean {
-        return LogicJava.hookClassLoaderClassInitialization(clazz, callback);
+    /**
+     * Receive a callback whenever a java class is going to be loaded by the class loader.
+     *
+     * ```javascript
+     * hookClassLoaderClassInitialization('com.target.classname', function() {
+     *     console.log('target is being loaded');
+     * })
+     * ```
+     * @param className
+     * @param callback
+     */
+    static hookClassLoaderClassInitialization(className: string, callback: Function): boolean {
+        return LogicJava.hookClassLoaderClassInitialization(className, callback);
     };
 
-    static hookJavaConstructor(className, implementation: Function): boolean {
-        return LogicJava.hook(className, '$init', implementation);
+    /**
+     * Hook the constructor of the given java class
+     * ```javascript
+     * hookJavaConstructor('android.app.Activity', function() {
+     *     console.log('activity created');
+     * })
+     * ```
+     * @param className
+     * @param callback
+     */
+    static hookJavaConstructor(className: string, callback: Function): boolean {
+        return LogicJava.hook(className, '$init', callback);
     };
 
-    static hookJavaMethod(targetClassMethod, implementation: Function): boolean {
-        return LogicJava.hookJavaMethod(targetClassMethod, implementation);
+    /**
+     * Hook the constructor of the given java class
+     * ```javascript
+     * hookJavaConstructor('android.app.Activity.onCreate', function() {
+     *     console.log('activity created');
+     *     var savedInstanceState = arguments[0];
+     *     if (savedInstanceState !== null) {
+     *         return this.finish();
+     *     } else {
+     *         return this.overload.call(this, arguments);
+     *     }
+     * })
+     * ```
+     * @param targetClassMethod
+     * @param callback
+     */
+    static hookJavaMethod(targetClassMethod: string, callback: Function): boolean {
+        return LogicJava.hookJavaMethod(targetClassMethod, callback);
     };
 
+    /**
+     * Receive a callback when the native module is being loaded
+     * ```javascript
+     * hookModuleInitialization('libtarget.so', function() {
+     *     console.log('libtarget is being loaded');
+     * });
+     * ```
+     * @param moduleName
+     * @param callback
+     */
     static hookModuleInitialization(moduleName: string, callback: Function): boolean {
         return LogicInitialization.hookModuleInitialization(moduleName, callback);
     }
 
-    static injectBlob(name, blob) {
+    /**
+     * Map the given blob as hex string using memfd:create with the given name
+     *
+     * @return a negative integer if error or fd
+     */
+    static injectBlob(name: string, blob: string) {
         // arm syscall memfd_create
         let sys_num = 385;
         if (Process.arch === 'ia32') {
@@ -377,11 +519,11 @@ export class Api {
                     m.writeUtf8String(name);
                     const fd = syscall(sys_num, m, 0);
                     if (fd > 0) {
-                        blob = Utils.hex2a(blob);
-                        const blob_space = Memory.alloc(blob.length);
-                        Memory.protect(blob_space, blob.length, 'rwx');
-                        blob_space.writeByteArray(blob);
-                        write(fd, blob_space, blob.length);
+                        const hexArr = Utils.hex2a(blob);
+                        const blob_space = Memory.alloc(hexArr.length);
+                        Memory.protect(blob_space, hexArr.length, 'rwx');
+                        blob_space.writeByteArray(hexArr);
+                        write(fd, blob_space, hexArr.length);
                         m.writeUtf8String('/proc/' + Process.id + '/fd/' + fd);
                         return dlopen(m, 1);
                     } else {
@@ -398,12 +540,15 @@ export class Api {
         }
     };
 
-    static isAddressWatched(pt) {
+    /**
+     * @return a boolean indicating if the given pointer is currently watched
+     */
+    static isAddressWatched(pt: any): boolean {
         const watchpoint = LogicWatchpoint.memoryWatchpoints[ptr(pt).toString()];
         return Utils.isDefined(watchpoint);
     };
 
-    static isPrintable(char) {
+    private static isPrintable(char) {
         try {
             const isprint_ptr = Api.findExport('isprint');
             if (Utils.isDefined(isprint_ptr)) {
@@ -424,50 +569,45 @@ export class Api {
         }
     };
 
-    static isValidPointerfunction(pt) {
-        const _ptr = ptr(pt);
-        const _range = Process.findRangeByAddress(_ptr);
-        if (Utils.isDefined(_range)) {
-            if (_range.protection.indexOf('r') !== -1) {
-                try {
-                    _ptr.readPointer();
-                    return true;
-                } catch (e) { }
-            }
-        }
-        return false;
-    };
-
+    /**
+     * @return a java stack trace. Must be executed in JVM thread
+     */
     static javaBacktrace() {
         return LogicJava.backtrace();
     };
 
+    /**
+     * @return the explorer object for the given java handle
+     */
     static jvmExplorer(handle) {
         return LogicJava.jvmExplorer(handle);
     }
 
-    static log(what) {
+    /**
+     * log whatever to Dwarf console
+     */
+    static log(what): void {
         if (Utils.isDefined(what)) {
             Dwarf.loggedSend('log:::' + what);
         }
     };
 
-    static memoryScan(start, size, pattern) {
+    private static memoryScan(start, size, pattern) {
         let result = [];
         try {
-            result = Api.internalMemoryScan(ptr(start), size, pattern);
+            result = Api._internalMemoryScan(ptr(start), size, pattern);
         } catch (e) {
             Utils.logErr('memoryScan', e);
         }
         Dwarf.loggedSend('memoryscan_result:::' + JSON.stringify(result));
     };
 
-    static memoryScanList(ranges, pattern) {
+    private static memoryScanList(ranges, pattern) {
         ranges = JSON.parse(ranges);
         let result = [];
         for (let i = 0; i < ranges.length; i++) {
             try {
-                result = result.concat(Api.internalMemoryScan(ptr(ranges[i]['start']), ranges[i]['size'], pattern));
+                result = result.concat(Api._internalMemoryScan(ptr(ranges[i]['start']), ranges[i]['size'], pattern));
             } catch (e) {
                 Utils.logErr('memoryScanList', e);
             }
@@ -478,31 +618,105 @@ export class Api {
         Dwarf.loggedSend('memoryscan_result:::' + JSON.stringify(result));
     };
 
+    /**
+     * put a breakpoint on a native pointer or a java class with an optional evaluated condition
+     *
+     * ```javascript
+     * var nativeTarget = findExport('memcpy');
+     *
+     * putBreakpoint(nativeTarget);
+     *
+     * nativeTarget = findExport('open');
+     * putBreakpoint(target, function() {
+     *     if (this.context.x0.readUtf8String().indexOf('prefs.json') >= 0) {
+     *         return true;
+     *     }
+     *
+     *     return false;
+     * });
+     *
+     * var javaTarget = 'android.app.Activity.onCreate';
+     * putBreakpoint(javaTarget);
+     * ```
+     *
+     * @param address_or_class
+     * @param condition
+     */
     static putBreakpoint(address_or_class: any, condition?: string | Function): boolean {
         return LogicBreakpoint.putBreakpoint(address_or_class, condition);
     }
 
+    /**
+     * Put a java class initialization breakpoint
+     *
+     * ```javascript
+     * putJavaClassInitializationBreakpoint('android.app.Activity');
+     * ```
+     * @param className
+     */
     static putJavaClassInitializationBreakpoint(className: string): boolean {
         return LogicJava.putJavaClassInitializationBreakpoint(className);
     }
 
+    /**
+     * Put a native module initialization breakpoint
+     *
+     * ```javascript
+     * putModuleInitializationBreakpoint('libtarget.so');
+     * ```
+     * @param moduleName
+     */
     static putModuleInitializationBreakpoint(moduleName: string): boolean {
         return LogicInitialization.putModuleInitializationBreakpoint(moduleName);
     }
 
-    static putWatchpoint(address: NativePointer, flags: number, callback?: Function) {
-        return LogicWatchpoint.putWatchpoint(address, flags, callback);
+    /**
+     * Put a watchpoint on the given address
+     *
+     * ```javascript
+     * putWatchpoint(0x1000, 'r');
+     *
+     * var target = findExport('memcpy');
+     * Interceptor.attach(target, {
+     *     onLeave: function(ret) {
+     *         putWatchpoint(this.context.x0, 'rw', function() {
+     *            log(backtrace(this.context));
+     *         });
+     *     }
+     * });
+     * ```
+     * @param address
+     * @param flags
+     * @param callback
+     */
+    static putWatchpoint(address: any, flags: string, callback?: Function) {
+        let intFlags = 0;
+        if (flags.indexOf('r') >= 0) {
+            intFlags |= MEMORY_ACCESS_READ;
+        }
+        if (flags.indexOf('w') >= 0) {
+            intFlags |= MEMORY_ACCESS_WRITE;
+        }
+        if (flags.indexOf('x') >= 0) {
+            intFlags |= MEMORY_ACCESS_EXECUTE;
+        }
+
+        return LogicWatchpoint.putWatchpoint(address, intFlags, callback);
     };
 
-    static readString(pt, l?) {
+    /**
+     * A shortcut and secure way to read a string from a pointer with frida on any os
+     *
+     * @return the string pointed by address until termination or optional length
+     */
+    static readString(address, length?) {
         try {
-            pt = ptr(pt);
+            address = ptr(address);
             let fstring = "";
-            let length = -1;
-            if (Utils.isNumber(l)) {
-                length = l;
+            if (!Utils.isNumber(length)) {
+                length = -1;
             }
-            const range = Process.findRangeByAddress(pt);
+            const range = Process.findRangeByAddress(address);
             if (!Utils.isDefined(range)) {
                 return "";
             }
@@ -510,7 +724,7 @@ export class Api {
                 //Access violation
                 return "";
             }
-            const _np = new NativePointer(pt);
+            const _np = new NativePointer(address);
             if (!Utils.isDefined(_np)) {
                 return "";
             }
@@ -542,16 +756,21 @@ export class Api {
         }
     };
 
-    static readBytes(pt, l) {
+    /**
+     * A shortcut for safely reading from memory
+     *
+     * @return an ArrayBuffer of the given length filled with data starting from target address
+     */
+    static readBytes(address, length) {
         try {
-            pt = ptr(pt);
+            address = ptr(address);
 
             // make sure all involved ranges are read-able
             const ranges = [];
 
             let range;
-            let tmp = ptr(pt);
-            const tail = parseInt(tmp.add(l).toString(), 16);
+            let tmp = ptr(address);
+            const tail = parseInt(tmp.add(length).toString(), 16);
             while (true) {
                 try {
                     range = Process.findRangeByAddress(tmp);
@@ -573,7 +792,7 @@ export class Api {
                 }
             }
 
-            const data = ptr(pt).readByteArray(l);
+            const data = ptr(address).readByteArray(length);
 
             ranges.forEach(range => {
                 Memory.protect(range.base, range.size, range.protection);
@@ -586,6 +805,9 @@ export class Api {
         }
     };
 
+    /**
+     * @return a pointer from the given address
+     */
     static readPointer(pt) {
         try {
             return ptr(pt).readPointer();
@@ -595,15 +817,26 @@ export class Api {
         }
     };
 
-    static releaseFromJs(tid) {
+    /**
+     * resume the execution of the given thread id
+     */
+    static releaseFromJs(tid): void {
         Dwarf.loggedSend('release_js:::' + tid);
     };
 
-    static removeBreakpoint(address_or_class: any) {
+    /**
+     * Remove a breakpoint on address_or_class
+     * @return a boolean indicating if removal was successful
+     */
+    static removeBreakpoint(address_or_class: any): boolean {
         return LogicBreakpoint.removeBreakpoint(address_or_class);
     }
 
-    static removeJavaClassInitializationBreakpoint(moduleName: string) {
+    /**
+     * Remove a java class initialization breakpoint on moduleName
+     * @return a boolean indicating if removal was successful
+     */
+    static removeJavaClassInitializationBreakpoint(moduleName: string): boolean {
         const ret = LogicJava.removeModuleInitializationBreakpoint(moduleName);
         if (ret) {
             Dwarf.loggedSend('breakpoint_deleted:::java_class_initialization:::' + moduleName);
@@ -611,7 +844,11 @@ export class Api {
         return ret;
     }
 
-    static removeModuleInitializationBreakpoint(moduleName: string) {
+    /**
+     * Remove a module initialization breakpoint on moduleName
+     * @return a boolean indicating if removal was successful
+     */
+    static removeModuleInitializationBreakpoint(moduleName: string): boolean {
         const ret = LogicInitialization.removeModuleInitializationBreakpoint(moduleName);
         if (ret) {
             Dwarf.loggedSend('breakpoint_deleted:::module_initialization:::' + moduleName);
@@ -619,10 +856,19 @@ export class Api {
         return ret;
     }
 
-    static removeWatchpoint(address: NativePointer) {
+    /**
+     * Remove a watchpoint on the given address
+     * @return a boolean indicating if removal was successful
+     */
+    static removeWatchpoint(address: any): boolean {
         return LogicWatchpoint.removeWatchpoint(address);
     }
 
+    /**
+     * Restart the application
+     *
+     * Android only
+     */
     static restart(): boolean {
         if (LogicJava.available) {
             return LogicJava.restartApplication();
@@ -631,7 +877,7 @@ export class Api {
         return false;
     };
 
-    static resume() {
+    private static resume() {
         if (Dwarf.PROC_RESUMED) {
             Dwarf.PROC_RESUMED = true;
             Dwarf.loggedSend('resume:::0');
@@ -640,10 +886,21 @@ export class Api {
         }
     };
 
-    static setBreakpointCondition(address_or_class: any, condition?: string | Function): boolean {
+    private static setBreakpointCondition(address_or_class: any, condition?: string | Function): boolean {
         return LogicBreakpoint.setBreakpointCondition(address_or_class, condition);
     }
 
+    /**
+     * Send whatever to the data panel
+     *
+     * ```javascript
+     * var sendCount = 0;
+     * Interceptor.attach(findExport('send'), function() {
+     *     setData(sendCount + '', this.context.x1.readByteArray(parseInt(this.context.x2)))
+     *     sendCount++;
+     * });
+     * ```
+     */
     static setData(key, data) {
         if (typeof key !== 'string' && key.length < 1) {
             return;
@@ -659,10 +916,28 @@ export class Api {
         }
     };
 
-    static startJavaTracer(classes, callback) {
+    /**
+     * Start the java tracer on the given classes
+     */
+    static startJavaTracer(classes: string[], callback: Function) {
         return LogicJava.startTrace(classes, callback);
     };
 
+    /**
+     * Start the native tracer on the current thread
+     *
+     * ```javascript
+     * startNativeTracer(function() {
+     *     log('===============');
+     *     log(this.instruction);
+     *     log(this.context);
+     *     log('===============');
+     *     if (shouldStopTracer) {
+     *         this.stop();
+     *     }
+     * });
+     * ```
+     */
     static startNativeTracer(callback) {
         const stalkerInfo = LogicStalker.stalk();
         if (stalkerInfo !== null) {
@@ -673,16 +948,19 @@ export class Api {
         return false;
     };
 
-    static stopJavaTracer() {
+    /**
+     * Stop the java tracer
+     */
+    static stopJavaTracer(): boolean {
         return LogicJava.stopTrace();
     };
 
-    static updateModules() {
+    private static updateModules() {
         const modules = Api.enumerateModules();
         Dwarf.loggedSend('update_modules:::' + Process.getCurrentThreadId() + ':::' + JSON.stringify(modules));
     };
 
-    static updateRanges() {
+    private static updateRanges() {
         try {
             Dwarf.loggedSend('update_ranges:::' + Process.getCurrentThreadId() + ':::' +
                 JSON.stringify(Process.enumerateRanges('---')))
@@ -691,7 +969,7 @@ export class Api {
         }
     };
 
-    static updateSearchableRanges() {
+    private static updateSearchableRanges() {
         try {
             Dwarf.loggedSend('update_searchable_ranges:::' + Process.getCurrentThreadId() + ':::' +
                 JSON.stringify(Process.enumerateRanges('r--')))
@@ -700,13 +978,16 @@ export class Api {
         }
     };
 
-    static writeBytes(pt, what) {
+    /**
+     * Write the given hex string or ArrayBuffer into the given address
+     */
+    static writeBytes(address: any, what: string | ArrayBuffer) {
         try {
-            pt = ptr(pt);
+            address = ptr(address);
             if (typeof what === 'string') {
-                Api.writeUtf8(pt, Utils.hex2a(what));
+                Api.writeUtf8(address, Utils.hex2a(what));
             } else {
-                pt.writeByteArray(what);
+                address.writeByteArray(what);
             }
             return true;
         } catch (e) {
@@ -715,10 +996,10 @@ export class Api {
         }
     };
 
-    static writeUtf8(pt, str) {
+    private static writeUtf8(address: any, str: any) {
         try {
-            pt = ptr(pt);
-            pt.writeUtf8String(str);
+            address = ptr(address);
+            address.writeUtf8String(str);
             return true;
         } catch (e) {
             Utils.logErr('writeUtf8', e);
