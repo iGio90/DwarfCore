@@ -6,3 +6,4 @@ compiled_agent.js
 dist
 _*
 docs
+core.js
