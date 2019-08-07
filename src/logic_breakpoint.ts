@@ -25,28 +25,12 @@ export class LogicBreakpoint {
             return;
         }
 
-        const threadContext = new ThreadContext(tid);
-        threadContext.context = context;
-        threadContext.javaHandle = java_handle;
-        Dwarf.threadContexts[tid] = threadContext;
-
-        if (Utils.isDefined(condition)) {
-            if (typeof condition === "string") {
-                condition = new Function(condition);
-            }
-
-            if (!condition()) {
-                delete Dwarf.threadContexts[tid];
-                return;
-            }
-        }
-
         if (!Utils.isDefined(reason)) {
             reason = LogicBreakpoint.REASON_BREAKPOINT;
         }
 
         if (Dwarf.DEBUG) {
-            Utils.logDebug('[' + tid + '] break ' + address_or_class + ' - reason: ' + reason);
+            Utils.logDebug('[' + tid + '] breakpoint ' + address_or_class + ' - reason: ' + reason);
         }
 
         const that = {};
@@ -73,6 +57,22 @@ export class LogicBreakpoint {
 
         if (Dwarf.DEBUG) {
             Utils.logDebug('[' + tid + '] break ' + address_or_class + ' - creating dwarf context');
+        }
+
+        const threadContext = new ThreadContext(tid);
+        threadContext.context = context;
+        threadContext.javaHandle = java_handle;
+        Dwarf.threadContexts[tid] = threadContext;
+
+        if (Utils.isDefined(condition)) {
+            if (typeof condition === "string") {
+                condition = new Function(condition);
+            }
+
+            if (!condition.call(that)) {
+                delete Dwarf.threadContexts[tid];
+                return;
+            }
         }
 
         if (!threadContext.preventSleep) {
