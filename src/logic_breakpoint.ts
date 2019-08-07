@@ -25,12 +25,18 @@ export class LogicBreakpoint {
             return;
         }
 
+        const threadContext = new ThreadContext(tid);
+        threadContext.context = context;
+        threadContext.javaHandle = java_handle;
+        Dwarf.threadContexts[tid] = threadContext;
+
         if (Utils.isDefined(condition)) {
             if (typeof condition === "string") {
                 condition = new Function(condition);
             }
 
             if (!condition()) {
+                delete Dwarf.threadContexts[tid];
                 return;
             }
         }
@@ -68,11 +74,6 @@ export class LogicBreakpoint {
         if (Dwarf.DEBUG) {
             Utils.logDebug('[' + tid + '] break ' + address_or_class + ' - creating dwarf context');
         }
-
-        const threadContext = new ThreadContext(tid);
-        threadContext.context = context;
-        threadContext.javaHandle = java_handle;
-        Dwarf.threadContexts[tid] = threadContext;
 
         if (!threadContext.preventSleep) {
             if (Dwarf.DEBUG) {
