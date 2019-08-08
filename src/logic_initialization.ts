@@ -136,15 +136,12 @@ export class LogicInitialization {
                     if (call_constructors != NULL) {
                         function attachCallConstructors() {
                             const interceptor = Interceptor.attach(call_constructors, function (args) {
-                                interceptor.detach();
                                 try {
                                     LogicInitialization.hitModuleLoading.apply(this, [args[4].readUtf8String()]);
                                 } catch (e) {
                                 }
-                                attachCallConstructors();
                             });
                         }
-
                         attachCallConstructors();
                     }
                 }

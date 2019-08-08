@@ -1,12 +1,11 @@
-import {Api} from "./api";
-import {Breakpoint} from "./breakpoint";
-import {Dwarf} from "./dwarf";
-import {ThreadContext} from "./thread_context";
-import {Utils} from "./utils";
-import {LogicStalker} from "./logic_stalker";
-import {ThreadApi} from "./thread_api";
-import {LogicJava} from "./logic_java";
-import isDefined = Utils.isDefined;
+import { Api } from "./api";
+import { Breakpoint } from "./breakpoint";
+import { Dwarf } from "./dwarf";
+import { LogicJava } from "./logic_java";
+import { LogicStalker } from "./logic_stalker";
+import { ThreadApi } from "./thread_api";
+import { ThreadContext } from "./thread_context";
+import { Utils } from "./utils";
 
 export class LogicBreakpoint {
     static REASON_SET_INITIAL_CONTEXT = -1;
@@ -20,11 +19,6 @@ export class LogicBreakpoint {
     static breakpoint(reason, address_or_class, context, java_handle?, condition?) {
         const tid = Process.getCurrentThreadId();
 
-        if (Utils.isDefined(Dwarf.threadContexts[tid])) {
-            console.log('thread ' + tid + ' is already break');
-            return;
-        }
-
         if (!Utils.isDefined(reason)) {
             reason = LogicBreakpoint.REASON_BREAKPOINT;
         }
@@ -33,43 +27,14 @@ export class LogicBreakpoint {
             Utils.logDebug('[' + tid + '] breakpoint ' + address_or_class + ' - reason: ' + reason);
         }
 
-        const that = {};
-        let proxiedContext = null;
-
-        if (context !== null) {
-            proxiedContext = new Proxy(context, {
-                get: function (object, prop) {
-                    return object[prop];
-                },
-                set: function (object, prop, value) {
-                    if (Dwarf.DEBUG) {
-                        Utils.logDebug('[' + tid + '] setting context ' + prop.toString() + ': ' + value);
-                    }
-                    send('set_context_value:::' + prop.toString() + ':::' + value);
-                    object[prop] = value;
-                    return true;
-                }
-            });
-        }
-
-        that['context'] = proxiedContext;
-        that['handle'] = java_handle;
-
-        if (Dwarf.DEBUG) {
-            Utils.logDebug('[' + tid + '] break ' + address_or_class + ' - creating dwarf context');
-        }
-
-        const threadContext = new ThreadContext(tid);
-        threadContext.context = context;
-        threadContext.javaHandle = java_handle;
-        Dwarf.threadContexts[tid] = threadContext;
+        const threadContext: ThreadContext = Dwarf.threadContexts[tid];
 
         if (Utils.isDefined(condition)) {
             if (typeof condition === "string") {
                 condition = new Function(condition);
             }
 
-            if (!condition.call(that)) {
+            if (!condition.call(threadContext)) {
                 delete Dwarf.threadContexts[tid];
                 return;
             }
@@ -86,7 +51,7 @@ export class LogicBreakpoint {
                 Utils.logDebug('[' + tid + '] break ' + address_or_class + ' - sleeping context. goodnight!');
             }
 
-            LogicBreakpoint.loopApi(that);
+            LogicBreakpoint.loopApi(threadContext);
 
             if (Dwarf.DEBUG) {
                 Utils.logDebug('[' + tid + '] ThreadContext has been released');
@@ -94,8 +59,6 @@ export class LogicBreakpoint {
 
             Dwarf.loggedSend('release:::' + tid + ':::' + reason);
         }
-
-        delete Dwarf.threadContexts[tid];
     }
 
     private static loopApi(that) {
@@ -111,7 +74,7 @@ export class LogicBreakpoint {
 
         const threadContext: ThreadContext = Dwarf.threadContexts[tid];
 
-        if (isDefined(threadContext)) {
+        if (Utils.isDefined(threadContext)) {
             while (threadContext.apiQueue.length === 0) {
                 if (Dwarf.DEBUG) {
                     Utils.logDebug('[' + tid + '] waiting api queue to be populated');

@@ -1,9 +1,10 @@
-import {LogicBreakpoint} from "./logic_breakpoint";
-import {Utils} from "./utils";
 import {Api} from "./api";
+import {LogicBreakpoint} from "./logic_breakpoint";
+import {DwarfInterceptor} from "./interceptor";
 import {LogicJava} from "./logic_java";
 import {LogicInitialization} from "./logic_initialization";
 import {LogicWatchpoint} from "./logic_watchpoint";
+import {Utils} from "./utils";
 
 export class Dwarf {
     static DEBUG: boolean;
@@ -24,6 +25,7 @@ export class Dwarf {
         }
 
         LogicInitialization.init();
+        DwarfInterceptor.init();
 
         // register all api as global
         const exclusions = ['constructor', 'length', 'name', 'prototype'];
