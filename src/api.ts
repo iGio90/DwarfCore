@@ -48,7 +48,7 @@ export class Api {
             }
         }
 
-        return Thread.backtrace(context, Backtracer.ACCURATE)
+        return Thread.backtrace(context, Backtracer.FUZZY)
             .map(DebugSymbol.fromAddress);
     };
 
