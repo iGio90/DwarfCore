@@ -40,7 +40,7 @@ export class LogicBreakpoint {
             }
         }
 
-        if (!threadContext.preventSleep) {
+        if (!Utils.isDefined(threadContext) || !threadContext.preventSleep) {
             if (Dwarf.DEBUG) {
                 Utils.logDebug('[' + tid + '] break ' + address_or_class + ' - dispatching context info');
             }
