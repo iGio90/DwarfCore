@@ -15,6 +15,8 @@ export class Dwarf {
 
     static threadContexts = {};
 
+    static modulesBlacklist = [];
+
     static init(breakStart, debug, spawned) {
         Dwarf.BREAK_START = breakStart;
         Dwarf.DEBUG = debug;
@@ -34,6 +36,18 @@ export class Dwarf {
                 global[prop] = Api[prop];
             }
         });
+
+        if(Process.platform === 'windows') {
+            this.modulesBlacklist.push('ntdll.dll');
+            if (Process.arch === 'x64') {
+                //TODO: debug later why module needs blacklisted on x64 targets only
+                this.modulesBlacklist.push('win32u.dll');
+            }
+        } else if(Process.platform === 'linux') {
+            if(Utils.isDefined(LogicJava) && LogicJava.sdk <= 23) {
+                this.modulesBlacklist.push('app_process');
+            }
+        }
 
         Process.setExceptionHandler(Dwarf.handleException);
 

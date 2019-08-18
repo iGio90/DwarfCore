@@ -1,8 +1,8 @@
-import {Api} from "./api";
-import {Dwarf} from "./dwarf";
-import {LogicBreakpoint} from "./logic_breakpoint";
-import {LogicJava} from "./logic_java";
-import {Utils} from "./utils";
+import { Api } from "./api";
+import { Dwarf } from "./dwarf";
+import { LogicBreakpoint } from "./logic_breakpoint";
+import { LogicJava } from "./logic_java";
+import { Utils } from "./utils";
 
 export class LogicInitialization {
     static nativeModuleInitializationCallbacks = {};
@@ -12,48 +12,35 @@ export class LogicInitialization {
             return;
         }
 
-        if (Process.platform === 'windows') {
-            if (moduleName === 'ntdll.dll') {
-                return;
-            }
-        } else if (Process.platform === 'linux') {
-            if (LogicJava !== null) {
-                if (LogicJava.sdk <= 23) {
-                    if (moduleName === 'app_process') {
-                        return;
-                    }
-                }
-            }
+        if(Dwarf.modulesBlacklist.indexOf(moduleName) >= 0) {
+            return;
         }
 
-        let m: object = Process.findModuleByName(moduleName);
-        if (m === null) {
-            m = {
-                'name': moduleName, 'base': NULL, 'size': 0, 'path': '', 'entry': NULL,
-                'imports': [], 'exports': [], 'symbols': []
-            };
+        const module: Module = Process.findModuleByName(moduleName);
+        if (module === null) {
             return;
-        } else {
-            m = Api.enumerateModuleInfo(m);
         }
+
+        const moduleInfo = Api.enumerateModuleInfo(module);
 
         const tid = Process.getCurrentThreadId();
-        Dwarf.loggedSend('module_initialized:::' + tid + ':::' + JSON.stringify(m));
-        Object.keys(LogicInitialization.nativeModuleInitializationCallbacks).forEach(ownModuleName => {
-            if (moduleName.indexOf(ownModuleName) >= 0) {
-                const userCallback = LogicInitialization.nativeModuleInitializationCallbacks[ownModuleName];
-                if (Utils.isDefined(userCallback)) {
-                    userCallback.call(this);
-                } else {
-                    Dwarf.loggedSend("breakpoint_module_initialization_callback:::" + tid + ':::' + JSON.stringify({
-                        'module': ownModuleName, 'moduleBase': m['base'], 'moduleEntry': m['entry']
-                    }));
-
-                    LogicBreakpoint.breakpoint(LogicBreakpoint.REASON_BREAKPOINT_INITIALIZATION,
-                        this['context'].pc, this['context']);
-                }
-            }
+        Dwarf.loggedSend('module_initialized:::' + tid + ':::' + JSON.stringify(moduleInfo));
+        const modIndex = Object.keys(LogicInitialization.nativeModuleInitializationCallbacks).findIndex(function (ownModuleName) {
+            return (ownModuleName === moduleName);
         });
+        if (modIndex !== -1) {
+            const userCallback = LogicInitialization.nativeModuleInitializationCallbacks[modIndex];
+            if (Utils.isDefined(userCallback)) {
+                userCallback.call(this);
+            } else {
+                Dwarf.loggedSend("breakpoint_module_initialization_callback:::" + tid + ':::' + JSON.stringify({
+                    'module': moduleInfo['name'], 'moduleBase': moduleInfo['base'], 'moduleEntry': moduleInfo['entry']
+                }));
+
+                LogicBreakpoint.breakpoint(LogicBreakpoint.REASON_BREAKPOINT_INITIALIZATION,
+                    this['context'].pc, this['context']);
+            }
+        }
     }
 
     static init() {
@@ -124,25 +111,15 @@ export class LogicInitialization {
                 const module = Process.findModuleByName(Process.arch.indexOf('64') >= 0 ? 'linker64' : "linker");
                 if (module !== null) {
                     const symbols = module.enumerateSymbols();
-                    let call_constructors = NULL;
+                    const call_constructors = symbols.find(symbol => symbol.name === 'call_constructors');
 
-                    symbols.forEach(symbol => {
-                        if (symbol.name.indexOf("call_constructors") >= 0) {
-                            call_constructors = symbol.address;
-                            return;
-                        }
-                    });
-
-                    if (call_constructors != NULL) {
-                        function attachCallConstructors() {
-                            const interceptor = Interceptor.attach(call_constructors, function (args) {
-                                try {
-                                    LogicInitialization.hitModuleLoading.apply(this, [args[4].readUtf8String()]);
-                                } catch (e) {
-                                }
-                            });
-                        }
-                        attachCallConstructors();
+                    if (Utils.isDefined(call_constructors)) {
+                        Interceptor.attach(call_constructors.address, function (args) {
+                            try {
+                                LogicInitialization.hitModuleLoading.apply(this, [args[4].readUtf8String()]);
+                            } catch (e) {
+                            }
+                        });
                     }
                 }
             } else {

@@ -1,13 +1,13 @@
-import {Dwarf} from "./dwarf";
-import {FileSystem} from "./fs";
-import {LogicBreakpoint} from "./logic_breakpoint";
-import {LogicJava} from "./logic_java";
-import {LogicInitialization} from "./logic_initialization";
-import {LogicStalker} from "./logic_stalker";
-import {LogicWatchpoint} from "./logic_watchpoint";
-import {ThreadWrapper} from "./thread_wrapper";
-import {Utils} from "./utils";
-import {MEMORY_ACCESS_EXECUTE, MEMORY_ACCESS_READ, MEMORY_ACCESS_WRITE} from "./watchpoint";
+import { Dwarf } from "./dwarf";
+import { FileSystem } from "./fs";
+import { LogicBreakpoint } from "./logic_breakpoint";
+import { LogicJava } from "./logic_java";
+import { LogicInitialization } from "./logic_initialization";
+import { LogicStalker } from "./logic_stalker";
+import { LogicWatchpoint } from "./logic_watchpoint";
+import { ThreadWrapper } from "./thread_wrapper";
+import { Utils } from "./utils";
+import { MEMORY_ACCESS_EXECUTE, MEMORY_ACCESS_READ, MEMORY_ACCESS_WRITE } from "./watchpoint";
 
 export class Api {
     private static _internalMemoryScan(start, size, pattern) {
@@ -56,11 +56,14 @@ export class Api {
      * Enumerate exports for the given module name or pointer
      * @param module an hex/int address or string name
      */
-    static enumerateExports(module: any): ModuleExportDetails[] {
+    static enumerateExports(module: any): Array<ModuleExportDetails> {
         if (typeof module !== 'object') {
             module = Api.findModule(module);
         }
         if (module !== null) {
+            if (Dwarf.modulesBlacklist.indexOf(module.name) >= 0) {
+                return [];
+            }
             return module.enumerateExports();
         }
         return [];
@@ -70,14 +73,17 @@ export class Api {
      * Enumerate imports for the given module name or pointer
      * @param module an hex/int address or string name
      */
-    static enumerateImports(module) {
+    static enumerateImports(module): Array<ModuleExportDetails> {
         if (typeof module !== 'object') {
             module = Api.findModule(module);
         }
         if (module !== null) {
+            if (Dwarf.modulesBlacklist.indexOf(module.name) >= 0) {
+                return [];
+            }
             return module.enumerateImports();
         }
-        return {};
+        return [];
     };
 
     /**
@@ -153,19 +159,8 @@ export class Api {
     static enumerateModules() {
         const modules = Process.enumerateModules();
         for (let i = 0; i < modules.length; i++) {
-            // skip ntdll on windoof (access_violation)
-            if (Process.platform === 'windows') {
-                if (modules[i].name === 'ntdll.dll') {
-                    continue;
-                }
-            } else if (Process.platform === 'linux') {
-                if (LogicJava !== null) {
-                    if (LogicJava.sdk <= 23) {
-                        if (modules[i].name === 'app_process') {
-                            continue;
-                        }
-                    }
-                }
+            if (Dwarf.modulesBlacklist.indexOf(modules[i].name) >= 0) {
+                continue;
             }
 
             modules[i] = Api.enumerateModuleInfo(modules[i]);
@@ -175,23 +170,46 @@ export class Api {
 
     /**
      * Enumerate all information about the module (imports / exports / symbols)
-     * @param module object from frida-gum
+     * @param fridaModule object from frida-gum
      */
-    static enumerateModuleInfo(module) {
-        try {
-            module.imports = Api.enumerateImports(module);
-            module.exports = Api.enumerateExports(module);
-            module.symbols = Api.enumerateSymbols(module);
-        } catch(e) {}
+    /*
+        TODO: recheck! when doc says object from frida-gum it shouldnt used by dwarf with string
+              fix on pyside and remove the string stuff here
+              return should also DwarfModule as Module is altered
 
-        module.entry = null;
-        const header = module.base.readByteArray(4);
-        if (header[0] !== 0x7f && header[1] !== 0x45 && header[2] !== 0x4c && header[3] !== 0x46) {
-            // Elf
-            module.entry = module.base.add(24).readPointer();
+        module_info.py
+        def update_details(self, dwarf, base_info):
+            details = dwarf.dwarf_api('enumerateModuleInfo', base_info['name'])
+    */
+    static enumerateModuleInfo(fridaModule: Module | string): Module {
+        let _module: Module = null;
+
+        if (Utils.isString(fridaModule)) {
+            _module = Process.findModuleByName(fridaModule as string);
+        } else {
+            _module = fridaModule as Module;
         }
 
-        return module;
+        if (Dwarf.modulesBlacklist.indexOf(_module.name) >= 0) {
+            Api.log('Error: Module ' + _module.name + ' is blacklisted');
+            return _module;
+        }
+        try {
+            _module['imports'] = _module.enumerateImports();
+            _module['exports'] = _module.enumerateExports();
+            _module['symbols'] = _module.enumerateSymbols();
+        } catch (e) {
+            return _module;
+        }
+
+        _module['entry'] = null;
+        const header = _module.base.readByteArray(4);
+        if (header[0] !== 0x7f && header[1] !== 0x45 && header[2] !== 0x4c && header[3] !== 0x46) {
+            // Elf
+            _module['entry'] = _module.base.add(24).readPointer();
+        }
+
+        return _module;
     };
 
     /**
@@ -205,14 +223,17 @@ export class Api {
      * Enumerate symbols for the given module name or pointer
      * @param module an hex/int address or string name
      */
-    static enumerateSymbols(module) {
+    static enumerateSymbols(module): Array<ModuleSymbolDetails> {
         if (typeof module !== 'object') {
             module = Api.findModule(module);
         }
         if (module !== null) {
+            if (Dwarf.modulesBlacklist.indexOf(module.name) >= 0) {
+                return [];
+            }
             return module.enumerateSymbols();
         }
-        return {};
+        return [];
     };
 
     /**
@@ -336,7 +357,7 @@ export class Api {
                 try {
                     const ptrVal = _ptr.readPointer();
                     return [1, ptrVal];
-                } catch(e) {
+                } catch (e) {
                 }
                 return [2, p];
             }
