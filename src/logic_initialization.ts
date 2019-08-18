@@ -31,7 +31,7 @@ export class LogicInitialization {
         if (modIndex !== -1) {
             const userCallback = LogicInitialization.nativeModuleInitializationCallbacks[modIndex];
             if (Utils.isDefined(userCallback)) {
-                userCallback.call(this);
+                userCallback.call(this); //TODO: this == this class == LogicInitialization
             } else {
                 Dwarf.loggedSend("breakpoint_module_initialization_callback:::" + tid + ':::' + JSON.stringify({
                     'module': moduleInfo['name'], 'moduleBase': moduleInfo['base'], 'moduleEntry': moduleInfo['entry']
