@@ -191,17 +191,6 @@ export class Api {
      * Enumerate all information about the module (imports / exports / symbols)
      * @param fridaModule object from frida-gum
      */
-<<<<<<< HEAD
-    static enumerateModuleInfo(module) {
-        if (typeof module === 'string') {
-            module = Api.findModule(module);
-        }
-        
-        if (module === null) {
-            return null;
-        }
-        
-=======
     /*
         TODO: recheck! when doc says object from frida-gum it shouldnt used by dwarf with string
               fix on pyside and remove the string stuff here
@@ -224,7 +213,7 @@ export class Api {
             Api.log('Error: Module ' + _module.name + ' is blacklisted');
             return _module;
         }
->>>>>>> 28d9ee921ed7c176c1187541d692b8abceae7cdd
+
         try {
             _module['imports'] = _module.enumerateImports();
             _module['exports'] = _module.enumerateExports();
