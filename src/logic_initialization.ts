@@ -25,10 +25,13 @@ export class LogicInitialization {
 
         const tid = Process.getCurrentThreadId();
         Dwarf.loggedSend('module_initialized:::' + tid + ':::' + JSON.stringify(moduleInfo));
-        const modIndex = Object.keys(LogicInitialization.nativeModuleInitializationCallbacks).findIndex(function (ownModuleName) {
-            return (ownModuleName === moduleName);
+        const modIndex = Object.keys(LogicInitialization.nativeModuleInitializationCallbacks).find(function (ownModuleName) {
+            if (ownModuleName === moduleName) {
+                return moduleName;
+            }
         });
-        if (modIndex !== -1) {
+        
+        if (Utils.isDefined(modIndex)) {
             const userCallback = LogicInitialization.nativeModuleInitializationCallbacks[modIndex];
             if (Utils.isDefined(userCallback)) {
                 userCallback.call(this); //TODO: this == this class == LogicInitialization
