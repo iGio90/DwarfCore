@@ -150,25 +150,29 @@ export class Api {
     /**
      * Enumerate loaded modules
      */
-    static enumerateModules() {
+    static enumerateModules(fillInformation?: boolean) {
+        fillInformation = fillInformation || false;
+
         const modules = Process.enumerateModules();
-        for (let i = 0; i < modules.length; i++) {
-            // skip ntdll on windoof (access_violation)
-            if (Process.platform === 'windows') {
-                if (modules[i].name === 'ntdll.dll') {
-                    continue;
-                }
-            } else if (Process.platform === 'linux') {
-                if (LogicJava !== null) {
-                    if (LogicJava.sdk <= 23) {
-                        if (modules[i].name === 'app_process') {
-                            continue;
+        if (fillInformation) {
+            for (let i = 0; i < modules.length; i++) {
+                // skip ntdll on windoof (access_violation)
+                if (Process.platform === 'windows') {
+                    if (modules[i].name === 'ntdll.dll') {
+                        continue;
+                    }
+                } else if (Process.platform === 'linux') {
+                    if (LogicJava !== null) {
+                        if (LogicJava.sdk <= 23) {
+                            if (modules[i].name === 'app_process') {
+                                continue;
+                            }
                         }
                     }
                 }
-            }
 
-            modules[i] = Api.enumerateModuleInfo(modules[i]);
+                modules[i] = Api.enumerateModuleInfo(modules[i]);
+            }
         }
         return modules;
     };
@@ -178,6 +182,14 @@ export class Api {
      * @param module object from frida-gum
      */
     static enumerateModuleInfo(module) {
+        if (typeof module === 'string') {
+            module = Api.findModule(module);
+        }
+        
+        if (module === null) {
+            return null;
+        }
+        
         try {
             module.imports = Api.enumerateImports(module);
             module.exports = Api.enumerateExports(module);
