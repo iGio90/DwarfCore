@@ -12,7 +12,7 @@ export class LogicInitialization {
             return;
         }
 
-        if(Dwarf.modulesBlacklist.indexOf(moduleName) >= 0) {
+        if (Dwarf.modulesBlacklist.indexOf(moduleName) >= 0) {
             return;
         }
 
@@ -111,7 +111,7 @@ export class LogicInitialization {
                 const module = Process.findModuleByName(Process.arch.indexOf('64') >= 0 ? 'linker64' : "linker");
                 if (module !== null) {
                     const symbols = module.enumerateSymbols();
-                    const call_constructors = symbols.find(symbol => symbol.name === 'call_constructors');
+                    const call_constructors = symbols.find(symbol => symbol.name.indexOf('call_constructors') >= 0);
 
                     if (Utils.isDefined(call_constructors)) {
                         Interceptor.attach(call_constructors.address, function (args) {
