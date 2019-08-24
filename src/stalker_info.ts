@@ -8,6 +8,7 @@ export class StalkerInfo {
     currentMode = null;
     lastBlockInstruction = null;
     lastCallJumpInstruction = null;
+    instructionsFilter: string[] = [];
 
     constructor(tid) {
         this.tid = tid;

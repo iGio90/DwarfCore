@@ -27,7 +27,13 @@ export class LogicBreakpoint {
             Utils.logDebug('[' + tid + '] breakpoint ' + address_or_class + ' - reason: ' + reason);
         }
 
-        const threadContext: ThreadContext = Dwarf.threadContexts[tid];
+        let threadContext: ThreadContext = Dwarf.threadContexts[tid];
+
+        if (!Utils.isDefined(threadContext) && Utils.isDefined(context)) {
+            threadContext = new ThreadContext(tid);
+            threadContext.context = context;
+            Dwarf.threadContexts[tid] = threadContext;
+        }
 
         if (Utils.isDefined(condition)) {
             if (typeof condition === "string") {

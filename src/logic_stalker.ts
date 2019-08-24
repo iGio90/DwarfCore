@@ -14,7 +14,7 @@ export class LogicStalker {
         }
     }
 
-    static stalk(): StalkerInfo | null {
+    static stalk(threadId?: number): StalkerInfo | null {
         LogicStalker.hitPreventRelease();
 
         const arch = Process.arch;
@@ -25,7 +25,12 @@ export class LogicStalker {
             return null;
         }
 
-        const tid = Process.getCurrentThreadId();
+        let tid;
+        if (Utils.isDefined(threadId)) {
+            tid = threadId;
+        } else {
+            tid = Process.getCurrentThreadId();
+        }
 
         let stalkerInfo = LogicStalker.stalkerInfoMap[tid];
         if (!Utils.isDefined(stalkerInfo)) {
@@ -94,19 +99,15 @@ export class LogicStalker {
 
                                 calloutHandled = true;
                                 firstBlockCallout = true;
-                                iterator.putCallout(LogicStalker.stalkerCallout);
+
+                                LogicStalker.putCalloutIfNeeded(iterator, stalkerInfo, instruction);
                             }
 
                             if (instruction.mnemonic === 'ret') {
                                 retCount++;
                             }
                         } else {
-                            if (Dwarf.DEBUG) {
-                                Utils.logDebug('[' + tid + '] stalk: '  + 'executing instruction',
-                                    instruction.address.toString(), instruction.toString());
-                            }
-
-                            iterator.putCallout(LogicStalker.stalkerCallout);
+                            LogicStalker.putCalloutIfNeeded(iterator, stalkerInfo, instruction);
                         }
                     }
 
@@ -138,6 +139,22 @@ export class LogicStalker {
         }
 
         return stalkerInfo;
+    }
+    
+    private static putCalloutIfNeeded(iterator, stalkerInfo: StalkerInfo, instruction: Instruction): void {
+        let putCallout = true;
+        if (stalkerInfo.instructionsFilter.length > 0 && 
+            stalkerInfo.instructionsFilter.indexOf(instruction.mnemonic) < 0) {
+            putCallout = false;
+        }
+        if (putCallout) {
+            if (Dwarf.DEBUG) {
+                Utils.logDebug('[' + Process.getCurrentThreadId() + '] stalk: '  + 'executing instruction',
+                    instruction.address.toString(), instruction.toString());
+            }
+
+            iterator.putCallout(LogicStalker.stalkerCallout);
+        }
     }
 
     static stalkerCallout(context) {

@@ -995,6 +995,19 @@ export class Api {
     static stopJavaTracer(): boolean {
         return LogicJava.stopTrace();
     };
+    
+    static strace(callback): boolean {
+        Process.enumerateThreads().forEach(thread => {
+            const stalkerInfo = LogicStalker.stalk(thread.id);
+            if (stalkerInfo !== null) {
+                stalkerInfo.instructionsFilter.push('svc');
+                stalkerInfo.instructionsFilter.push('int');
+                stalkerInfo.currentMode = callback;
+            }
+        });
+        
+        return true;
+    }
 
     private static updateModules() {
         const modules = Api.enumerateModules();
