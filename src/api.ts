@@ -155,29 +155,22 @@ export class Api {
     };
 
     /**
+     * Enumerate modules for ObjC inspector panel
+     */
+    static enumerateObjCModules(className: string): void {
+        const modules = Process.enumerateModules();
+		const names = modules.map(m => m.name);
+        Dwarf.loggedSend('enumerate_objc_modules:::' + JSON.stringify(names));
+    };
+
+    /**
      * Enumerate objc classes
      * @param useCache false by default
      */
-    static enumerateObjCClasses(useCache?) {
-        if (!Utils.isDefined(useCache)) {
-            useCache = false;
-        }
-
-        if (useCache && LogicObjC !== null && LogicObjC.objcClasses.length > 0) {
-            Dwarf.loggedSend('enumerate_objc_classes_start:::');
-            for (let i = 0; i < LogicObjC.objcClasses.length; i++) {
-                send('enumerate_objc_classes_match:::' + LogicObjC.objcClasses[i]);
-            }
-            Dwarf.loggedSend('enumerate_objc_classes_complete:::');
-        } else {
-            // invalidate cache
-            if (LogicObjC !== null) {
-                LogicObjC.objcClasses = [];
-            }
-
+    static enumerateObjCClasses(moduleName: string) {
             Dwarf.loggedSend('enumerate_objc_classes_start:::');
             try {
-                ObjC.enumerateLoadedClasses({
+                ObjC.enumerateLoadedClasses({ ownedBy: new ModuleMap((m) => { return moduleName ===  m['name']; }) },{
                     onMatch: function (className) {
                         if (LogicObjC !== null) {
                             LogicObjC.objcClasses.push(className);
@@ -192,7 +185,6 @@ export class Api {
                 Utils.logErr('enumerateObjCClasses', e);
                 Dwarf.loggedSend('enumerate_objc_classes_complete:::');
             }
-        }
     };
 
     /**
