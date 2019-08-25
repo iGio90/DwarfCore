@@ -2,6 +2,7 @@ import { Dwarf } from "./dwarf";
 import { FileSystem } from "./fs";
 import { LogicBreakpoint } from "./logic_breakpoint";
 import { LogicJava } from "./logic_java";
+import { LogicObjC } from "./logic_objc";
 import { LogicInitialization } from "./logic_initialization";
 import { LogicStalker } from "./logic_stalker";
 import { LogicWatchpoint } from "./logic_watchpoint";
@@ -150,6 +151,64 @@ export class Api {
                 Dwarf.loggedSend('enumerate_java_methods_complete:::' + className + ':::' +
                     JSON.stringify(result));
             });
+        }
+    };
+
+    /**
+     * Enumerate objc classes
+     * @param useCache false by default
+     */
+    static enumerateObjCClasses(useCache?) {
+        if (!Utils.isDefined(useCache)) {
+            useCache = false;
+        }
+
+        if (useCache && LogicObjC !== null && LogicObjC.objcClasses.length > 0) {
+            Dwarf.loggedSend('enumerate_objc_classes_start:::');
+            for (let i = 0; i < LogicObjC.objcClasses.length; i++) {
+                send('enumerate_objc_classes_match:::' + LogicObjC.objcClasses[i]);
+            }
+            Dwarf.loggedSend('enumerate_objc_classes_complete:::');
+        } else {
+            // invalidate cache
+            if (LogicObjC !== null) {
+                LogicObjC.objcClasses = [];
+            }
+
+            Dwarf.loggedSend('enumerate_objc_classes_start:::');
+            try {
+                ObjC.enumerateLoadedClasses({
+                    onMatch: function (className) {
+                        if (LogicObjC !== null) {
+                            LogicObjC.objcClasses.push(className);
+                        }
+                        send('enumerate_objc_classes_match:::' + className);
+                    },
+                    onComplete: function () {
+                        send('enumerate_objc_classes_complete:::');
+                    }
+                });
+            } catch (e) {
+                Utils.logErr('enumerateObjCClasses', e);
+                Dwarf.loggedSend('enumerate_objc_classes_complete:::');
+            }
+        }
+    };
+
+    /**
+     * Enumerate method for the given class
+     */
+    static enumerateObjCMethods(className: string): void {
+        if (ObjC.available) {
+            Dwarf.loggedSend('enumerate_objc_methods_start:::');            
+            const that = this;
+            const clazz = ObjC.classes[className];
+            const methods = clazz.$ownMethods;
+
+            methods.forEach(function (method) {
+                send('enumerate_objc_methods_match:::' + method);
+            });
+            Dwarf.loggedSend('enumerate_objc_methods_complete:::');
         }
     };
 
