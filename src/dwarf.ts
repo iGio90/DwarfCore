@@ -91,6 +91,7 @@ export class Dwarf {
             data['arch'] = Process.arch;
             data['platform'] = Process.platform;
             data['java'] = Java.available;
+            data['objc'] = ObjC.available;
             data['pid'] = Process.id;
             data['pointerSize'] = Process.pointerSize;
         }
