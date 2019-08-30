@@ -423,13 +423,13 @@ export class Api {
     /**
      * Return a RangeDetails object or null for the requested pointer
      */
-    static getRange(pt): RangeDetails | null {
+    static getRange(address: any): RangeDetails | null {
         try {
-            pt = ptr(pt);
-            if (pt === null || parseInt(pt) === 0) {
+            const nativeAddress = ptr(address);
+            if (nativeAddress === null || parseInt(nativeAddress.toString()) === 0) {
                 return null;
             }
-            const ret = Process.findRangeByAddress(pt);
+            const ret = Process.findRangeByAddress(nativeAddress);
             if (ret == null) {
                 return null;
             }
@@ -995,18 +995,12 @@ export class Api {
     static stopJavaTracer(): boolean {
         return LogicJava.stopTrace();
     };
-    
+
+    /**
+     * start strace
+     */
     static strace(callback): boolean {
-        Process.enumerateThreads().forEach(thread => {
-            const stalkerInfo = LogicStalker.stalk(thread.id);
-            if (stalkerInfo !== null) {
-                stalkerInfo.instructionsFilter.push('svc');
-                stalkerInfo.instructionsFilter.push('int');
-                stalkerInfo.currentMode = callback;
-            }
-        });
-        
-        return true;
+        return LogicStalker.strace(callback);
     }
 
     private static updateModules() {

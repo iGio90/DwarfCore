@@ -5,6 +5,7 @@ import {Utils} from "./utils";
 
 export class LogicStalker {
     static stalkerInfoMap = {};
+    static straceCallback: Function | null = null;
 
     static hitPreventRelease() {
         const tid = Process.getCurrentThreadId();
@@ -143,10 +144,7 @@ export class LogicStalker {
     
     private static putCalloutIfNeeded(iterator, stalkerInfo: StalkerInfo, instruction: Instruction): void {
         let putCallout = true;
-        if (stalkerInfo.instructionsFilter.length > 0 && 
-            stalkerInfo.instructionsFilter.indexOf(instruction.mnemonic) < 0) {
-            putCallout = false;
-        }
+        // todo: add conditions
         if (putCallout) {
             if (Dwarf.DEBUG) {
                 Utils.logDebug('[' + Process.getCurrentThreadId() + '] stalk: '  + 'executing instruction',
@@ -240,5 +238,50 @@ export class LogicStalker {
         if (!stalkerInfo.didFistJumpOut) {
             stalkerInfo.initialContextAddress = stalkerInfo.initialContextAddress.add(insn.size);
         }
+    }
+
+    static strace(callback: Function): boolean {
+        if (LogicStalker.straceCallback !== null) {
+            return false;
+        }
+
+        LogicStalker.straceCallback = callback;
+        if (typeof callback === 'function') {
+            Process.enumerateThreads().forEach(thread => {
+                Stalker.follow(thread.id, {
+                    transform: function (iterator) {
+                        let instruction;
+                        while ((instruction = iterator.next()) !== null) {
+                            iterator.keep();
+                            if (instruction.mnemonic === 'svc' ||
+                                instruction.mnemonic === 'int') {
+                                iterator.putCallout(LogicStalker.straceCallout);
+                            }
+                        }
+                        if (LogicStalker.straceCallback === null) {
+                            Stalker.flush();
+                            Stalker.unfollow(thread.id);
+                            Stalker.garbageCollect();
+                        }
+                    }
+                });
+            });
+
+            return true;
+        }
+
+        return false;
+    }
+
+    static straceCallout(context) {
+        const that = {
+            context: context,
+            instruction: Instruction.parse(context.pc),
+            stop: function () {
+                LogicStalker.straceCallback = null;
+            }
+        };
+
+        LogicStalker.straceCallback.apply(that);
     }
 }
