@@ -143,7 +143,13 @@ export class LogicBreakpoint {
                 }
                 return added;
             } else if (target.indexOf('.') >= 0 && LogicObjC.available) {
-				const parts = target.split('.');
+                /*const added = LogicObjC.putBreakpoint(target, condition);
+                if (added) {
+                    Dwarf.loggedSend('breakpoint_objc_callback:::' + target + ':::' +
+                        (Utils.isDefined(condition) ? condition.toString() : ''));
+                }
+                return added;*/
+                const parts = target.split('.');
                 target = ptr(ObjC.classes[parts[0]][parts[1]].implementation.toString());
             }
         } else if (typeof target === 'number') {
@@ -201,12 +207,19 @@ export class LogicBreakpoint {
                     Dwarf.loggedSend('breakpoint_deleted:::java:::' + target);
                 }
                 return removed;
+            } else if (target.indexOf('.') >= 0 && LogicObjC.available) {
+                const removed = LogicObjC.removeBreakpoint(target);
+                if (removed) {
+                    Dwarf.loggedSend('breakpoint_deleted:::objc:::' + target);
+                }
+                return removed;
             }
         } else if (typeof target === 'number') {
             target = ptr(target)
         }
 
         let breakpoint = LogicBreakpoint.breakpoints[target.toString()];
+        console.log(breakpoint.interceptor);
         if (Utils.isDefined(breakpoint)) {
             if (Utils.isDefined(breakpoint.interceptor)) {
                 breakpoint.interceptor.detach();

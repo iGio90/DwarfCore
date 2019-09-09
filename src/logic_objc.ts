@@ -1,7 +1,7 @@
-import {Breakpoint} from "./breakpoint";
-import {Dwarf} from "./dwarf";
-import {LogicBreakpoint} from "./logic_breakpoint";
-import {Utils} from "./utils";
+import { Breakpoint } from "./breakpoint";
+import { Dwarf } from "./dwarf";
+import { LogicBreakpoint } from "./logic_breakpoint";
+import { Utils } from "./utils";
 import isDefined = Utils.isDefined;
 
 export class LogicObjC {
@@ -86,20 +86,6 @@ export class LogicObjC {
         Dwarf.loggedSend('Not implemented');
     };
 
-    static hook(className, method, implementation): boolean {
-        /*if (!LogicObjC.available) {
-            return false;
-        }
-
-        ObjC.performNow(function() {
-            LogicObjC.hookInJVM(className, method, implementation);
-        });
-
-        return true;*/
-        Dwarf.loggedSend('Not implemented');
-        return false;
-    };
-
     static hookAllObjCMethods(className, implementation): boolean {
         /*if (!ObjC.available) {
             return false;
@@ -122,7 +108,7 @@ export class LogicObjC {
             });
             const result = Utils.uniqueBy(parsedMethods);
             result.forEach(method => {
-                LogicObjC.hookInJVM(className, method, implementation);
+                LogicObjC.hook(className, method, implementation);
             });
             clazz.$dispose();
         });
@@ -139,20 +125,19 @@ export class LogicObjC {
         LogicObjC.objcClassLoaderCallbacks[clazz] = callback;
         return true;*/
         Dwarf.loggedSend('Not implemented');
-		return false;
+        return false;
     }
 
-    static hookInJVM(className, method, implementation) {
-        /*let handler = null;
+    static hook(className, method, implementation): boolean {
+        if (!LogicObjC.available) {
+            return false;
+        }
+
+        let handler = ObjC.classes[className];
 
         try {
-            handler = ObjC.use(className);
+            handler = ObjC.classes[className];
         } catch (err) {
-            try {
-                className = className + '.' + method;
-                method = '$init';
-                handler = ObjC.use(className);
-            } catch (err) { }
 
             Utils.logErr('LogicObjC.hook', err);
             if (handler === null) {
@@ -192,14 +177,12 @@ export class LogicObjC {
                 }
             }
         }
-
-        handler.$dispose();*/
-        Dwarf.loggedSend('Not implemented');
+        return true;
     };
 
     static hookObjCMethod(targetClassMethod, implementation): boolean {
-        /*if (Utils.isDefined(targetClassMethod)) {
-            const delim = targetClassMethod.lastIndexOf(".");
+        if (Utils.isDefined(targetClassMethod)) {
+            const delim = targetClassMethod.indexOf(".");
             if (delim === -1) {
                 return false;
             }
@@ -209,8 +192,6 @@ export class LogicObjC {
             LogicObjC.hook(targetClass, targetMethod, implementation);
             return true;
         }
-        return false;*/
-        Dwarf.loggedSend('Not implemented');
         return false;
     }
 
@@ -225,13 +206,13 @@ export class LogicObjC {
             if (Dwarf.SPAWNED && Dwarf.BREAK_START) {
                 if (LogicObjC.sdk >= 23) {
                     // attach to commonInit for init debugging
-                    LogicObjC.hookInJVM('com.android.internal.os.RuntimeInit',
+                    LogicObjC.hook('com.android.internal.os.RuntimeInit',
                         'commonInit', function () {
                             LogicObjC.jvmBreakpoint.call(this, 'com.android.internal.os.RuntimeInit',
                             'commonInit', arguments, this.overload.argumentTypes)
                     });
                 } else {
-                    LogicObjC.hookInJVM('android.app.Application', 'onCreate',
+                    LogicObjC.hook('android.app.Application', 'onCreate',
                         function () {
                             LogicObjC.jvmBreakpoint.call(this, 'android.app.Application',
                                 'onCreate', arguments, this.overload.argumentTypes)
@@ -440,11 +421,13 @@ export class LogicObjC {
     }
 
     static putBreakpoint(target: string, condition?: string | Function): boolean {
-        /*if (!Utils.isString(target) || Utils.isDefined(LogicObjC.breakpoints[target])) {
+        if (!Utils.isString(target) || Utils.isDefined(LogicObjC.breakpoints[target])) {
             return false;
         }
 
-        const breakpoint = new Breakpoint(target);
+        const parts = target.split('.');
+        const targetAddress = ptr(ObjC.classes[parts[0]][parts[1]].implementation.toString());
+        const breakpoint = new Breakpoint(targetAddress);
 
         if (!Utils.isDefined(condition)) {
             condition = null;
@@ -452,19 +435,24 @@ export class LogicObjC {
         breakpoint.condition = condition;
 
         LogicObjC.breakpoints[target] = breakpoint;
-        if (target.endsWith('.$init')) {
-            LogicObjC.hook(target, '$init', function () {
-                LogicObjC.jvmBreakpoint(this.className, this.method, arguments, this.overload.argumentTypes, condition);
-            });
-        } else {
-            LogicObjC.hookObjCMethod(target, function () {
-                LogicObjC.jvmBreakpoint(this.className, this.method, arguments, this.overload.argumentTypes, condition);
-            });
-        }
+        return LogicObjC.putObjCBreakpoint(breakpoint, target);
+    }
 
-        return true;*/
-        Dwarf.loggedSend('Not implemented');
-        return false;
+    private static putObjCBreakpoint(breakpoint: Breakpoint, target: string): boolean {
+        const interceptor = Interceptor.attach(breakpoint.target as NativePointer, function () {
+            interceptor.detach();
+            Interceptor['flush']();
+
+            breakpoint.interceptor = interceptor;
+
+            LogicBreakpoint.breakpoint(LogicBreakpoint.REASON_BREAKPOINT, this.context.pc,
+                this.context, null, breakpoint.condition);
+
+            if (typeof LogicObjC.breakpoints[target] !== 'undefined') {
+                LogicObjC.putObjCBreakpoint(breakpoint, target);
+            }
+        });
+        return true;
     }
 
     static putObjCClassInitializationBreakpoint(className: string): boolean {
@@ -478,19 +466,18 @@ export class LogicObjC {
     }
 
     static removeBreakpoint(target: string): boolean {
-        /*if (!Utils.isString(target)) {
+        if (!Utils.isString(target)) {
             return false;
         }
 
         let breakpoint: Breakpoint = LogicObjC.breakpoints[target];
         if (Utils.isDefined(breakpoint)) {
-            delete LogicBreakpoint.breakpoints[target.toString()];
-            LogicObjC.hookObjCMethod(breakpoint.target, null);
+            breakpoint.interceptor.detach();
+            delete LogicObjC.breakpoints[target.toString()];
+            //LogicObjC.hookObjCMethod(target, null);
             return true;
         }
 
-        return false;*/
-        Dwarf.loggedSend('Not implemented');
         return false;
     }
 
