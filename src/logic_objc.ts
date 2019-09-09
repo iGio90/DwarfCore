@@ -439,11 +439,9 @@ export class LogicObjC {
     }
 
     private static putObjCBreakpoint(breakpoint: Breakpoint, target: string): boolean {
-        const interceptor = Interceptor.attach(breakpoint.target as NativePointer, function () {
-            interceptor.detach();
+        breakpoint.interceptor = Interceptor.attach(breakpoint.target as NativePointer, function () {
+            breakpoint.interceptor.detach();
             Interceptor['flush']();
-
-            breakpoint.interceptor = interceptor;
 
             LogicBreakpoint.breakpoint(LogicBreakpoint.REASON_BREAKPOINT, this.context.pc,
                 this.context, null, breakpoint.condition);

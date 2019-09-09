@@ -143,14 +143,12 @@ export class LogicBreakpoint {
                 }
                 return added;
             } else if (target.indexOf('.') >= 0 && LogicObjC.available) {
-                /*const added = LogicObjC.putBreakpoint(target, condition);
+                const added = LogicObjC.putBreakpoint(target, condition);
                 if (added) {
                     Dwarf.loggedSend('breakpoint_objc_callback:::' + target + ':::' +
                         (Utils.isDefined(condition) ? condition.toString() : ''));
                 }
-                return added;*/
-                const parts = target.split('.');
-                target = ptr(ObjC.classes[parts[0]][parts[1]].implementation.toString());
+                return added;
             }
         } else if (typeof target === 'number') {
             target = ptr(target)
