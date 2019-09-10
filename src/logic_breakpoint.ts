@@ -2,6 +2,7 @@ import { Api } from "./api";
 import { Breakpoint } from "./breakpoint";
 import { Dwarf } from "./dwarf";
 import { LogicJava } from "./logic_java";
+import { LogicObjC } from "./logic_objc";
 import { LogicStalker } from "./logic_stalker";
 import { ThreadApi } from "./thread_api";
 import { ThreadContext } from "./thread_context";
@@ -141,6 +142,13 @@ export class LogicBreakpoint {
                         (Utils.isDefined(condition) ? condition.toString() : ''));
                 }
                 return added;
+            } else if (target.indexOf('.') >= 0 && LogicObjC.available) {
+                const added = LogicObjC.putBreakpoint(target, condition);
+                if (added) {
+                    Dwarf.loggedSend('breakpoint_objc_callback:::' + target + ':::' +
+                        (Utils.isDefined(condition) ? condition.toString() : ''));
+                }
+                return added;
             }
         } else if (typeof target === 'number') {
             target = ptr(target)
@@ -197,12 +205,19 @@ export class LogicBreakpoint {
                     Dwarf.loggedSend('breakpoint_deleted:::java:::' + target);
                 }
                 return removed;
+            } else if (target.indexOf('.') >= 0 && LogicObjC.available) {
+                const removed = LogicObjC.removeBreakpoint(target);
+                if (removed) {
+                    Dwarf.loggedSend('breakpoint_deleted:::objc:::' + target);
+                }
+                return removed;
             }
         } else if (typeof target === 'number') {
             target = ptr(target)
         }
 
         let breakpoint = LogicBreakpoint.breakpoints[target.toString()];
+        console.log(breakpoint.interceptor);
         if (Utils.isDefined(breakpoint)) {
             if (Utils.isDefined(breakpoint.interceptor)) {
                 breakpoint.interceptor.detach();
