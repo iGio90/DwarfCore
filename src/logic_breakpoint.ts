@@ -7,6 +7,8 @@ import { LogicStalker } from "./logic_stalker";
 import { ThreadApi } from "./thread_api";
 import { ThreadContext } from "./thread_context";
 import { Utils } from "./utils";
+import {StalkerInfo} from "./stalker_info";
+import {kStringMaxLength} from "buffer";
 
 export class LogicBreakpoint {
     static REASON_SET_INITIAL_CONTEXT = -1;
@@ -111,11 +113,14 @@ export class LogicBreakpoint {
                 }
                 threadApi.consumed = true;
 
+                let stalkerInfo = LogicStalker.stalkerInfoMap[tid];
                 if (threadApi.apiFunction === '_step') {
+                    if (!Utils.isDefined(stalkerInfo)) {
+                        LogicStalker.stalk(tid);
+                    }
                     release = true;
                     break
                 } else if (threadApi.apiFunction === 'release') {
-                    const stalkerInfo = LogicStalker.stalkerInfoMap[tid];
                     if (Utils.isDefined(stalkerInfo)) {
                         stalkerInfo.terminated = true;
                     }

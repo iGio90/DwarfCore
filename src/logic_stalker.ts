@@ -44,7 +44,7 @@ export class LogicStalker {
             stalkerInfo = new StalkerInfo(tid);
             LogicStalker.stalkerInfoMap[tid] = stalkerInfo;
 
-            const initialContextAddress = ptr(parseInt(context.pc));
+            const initialContextAddress = ptr(parseInt(context.context.pc));
 
             // this will maybe be replaced in the future
             // when we start stepping, the first basic block is copied into frida space and executed there
