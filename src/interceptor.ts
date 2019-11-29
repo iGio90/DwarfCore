@@ -39,7 +39,7 @@ export class DwarfInterceptor {
 
     static init() {
         const clone = Object.assign({}, Interceptor);
-        clone.attach = function attach(target: NativePointer, callbacks): InvocationListener {
+        clone.attach = function attach(target: NativePointer, callbacks, data): InvocationListener {
             target.readU8();
             let replacement;
             if (typeof callbacks === 'function') {
@@ -67,7 +67,7 @@ export class DwarfInterceptor {
                     replacement = callbacks;
                 }
             }
-            return Interceptor['_attach'](target, replacement);
+            return Interceptor['_attach'](target, replacement, data);
         };
         global['Interceptor'] = clone;
     }
