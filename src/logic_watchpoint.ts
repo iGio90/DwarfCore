@@ -16,15 +16,15 @@
  **/
 
 
-import {Dwarf} from "./dwarf";
+import { Dwarf } from "./dwarf";
 import {
     MEMORY_ACCESS_EXECUTE,
     MEMORY_ACCESS_READ,
     MEMORY_ACCESS_WRITE,
     MEMORY_WATCH_SINGLE_SHOT, Watchpoint
 } from "./watchpoint";
-import {Utils} from "./utils";
-import {LogicBreakpoint} from "./logic_breakpoint";
+import { Utils } from "./utils";
+import { LogicBreakpoint } from "./logic_breakpoint";
 import isDefined = Utils.isDefined;
 
 export class LogicWatchpoint {
@@ -33,7 +33,7 @@ export class LogicWatchpoint {
     static attachMemoryAccessMonitor() {
         const monitorAddresses = [];
         Object.keys(LogicWatchpoint.memoryWatchpoints).forEach(pt => {
-            monitorAddresses.push({'base': ptr(pt), 'size': 1})
+            monitorAddresses.push({ 'base': ptr(pt), 'size': 1 })
         });
         MemoryAccessMonitor.enable(monitorAddresses, { onAccess: LogicWatchpoint.onMemoryAccess });
     }

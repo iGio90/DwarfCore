@@ -16,10 +16,10 @@
  **/
 
 
-import {Dwarf} from "./dwarf";
-import {LogicBreakpoint} from "./logic_breakpoint";
-import {StalkerInfo} from "./stalker_info";
-import {Utils} from "./utils";
+import { Dwarf } from "./dwarf";
+import { LogicBreakpoint } from "./logic_breakpoint";
+import { StalkerInfo } from "./stalker_info";
+import { Utils } from "./utils";
 
 export class LogicStalker {
     static stalkerInfoMap = {};
@@ -74,7 +74,7 @@ export class LogicStalker {
             let calloutHandled = false;
 
             if (Dwarf.DEBUG) {
-                Utils.logDebug('[' + tid + '] stalk: '  + 'attaching stalker')
+                Utils.logDebug('[' + tid + '] stalk: ' + 'attaching stalker')
             }
 
             Stalker.follow(tid, {
@@ -82,16 +82,16 @@ export class LogicStalker {
                     let instruction;
 
                     if (Dwarf.DEBUG) {
-                        Utils.logDebug('[' + tid + '] stalk: '  + 'transform begin')
+                        Utils.logDebug('[' + tid + '] stalk: ' + 'transform begin')
                     }
 
                     while ((instruction = iterator.next()) !== null) {
                         iterator.keep();
 
                         if (instruction.groups.indexOf('jump') < 0 && instruction.groups.indexOf('call') < 0) {
-                            stalkerInfo.lastBlockInstruction = {groups: instruction.groups, address: instruction.address};
+                            stalkerInfo.lastBlockInstruction = { groups: instruction.groups, address: instruction.address };
                         } else {
-                            stalkerInfo.lastCallJumpInstruction = {groups: instruction.groups, address: instruction.address};
+                            stalkerInfo.lastCallJumpInstruction = { groups: instruction.groups, address: instruction.address };
                         }
 
                         if (!calloutHandled) {
@@ -102,7 +102,7 @@ export class LogicStalker {
 
                                 if (!firstInstructionExec) {
                                     if (Dwarf.DEBUG) {
-                                        Utils.logDebug('[' + tid + '] stalk: '  + 'executing first instruction',
+                                        Utils.logDebug('[' + tid + '] stalk: ' + 'executing first instruction',
                                             instruction.address.toString(), instruction.toString());
                                     }
 
@@ -112,7 +112,7 @@ export class LogicStalker {
                                 }
 
                                 if (Dwarf.DEBUG) {
-                                    Utils.logDebug('[' + tid + '] stalk: '  + 'executing first basic block instructions',
+                                    Utils.logDebug('[' + tid + '] stalk: ' + 'executing first basic block instructions',
                                         instruction.address.toString(), instruction.toString());
                                 }
 
@@ -131,12 +131,12 @@ export class LogicStalker {
                     }
 
                     if (Dwarf.DEBUG) {
-                        Utils.logDebug('[' + tid + '] stalk: '  + 'transform done')
+                        Utils.logDebug('[' + tid + '] stalk: ' + 'transform done')
                     }
 
                     if (stalkerInfo.terminated) {
                         if (Dwarf.DEBUG) {
-                            Utils.logDebug('[' + tid + '] stopStep: '  + 'unfollowing tid');
+                            Utils.logDebug('[' + tid + '] stopStep: ' + 'unfollowing tid');
                         }
 
                         Stalker.flush();
@@ -159,13 +159,13 @@ export class LogicStalker {
 
         return stalkerInfo;
     }
-    
+
     private static putCalloutIfNeeded(iterator, stalkerInfo: StalkerInfo, instruction: Instruction): void {
         let putCallout = true;
         // todo: add conditions
         if (putCallout) {
             if (Dwarf.DEBUG) {
-                Utils.logDebug('[' + Process.getCurrentThreadId() + '] stalk: '  + 'executing instruction',
+                Utils.logDebug('[' + Process.getCurrentThreadId() + '] stalk: ' + 'executing instruction',
                     instruction.address.toString(), instruction.toString());
             }
 

@@ -16,7 +16,7 @@
  **/
 
 
-import {Dwarf} from "./dwarf";
+import { Dwarf } from "./dwarf";
 
 export class ThreadWrapper {
     static onCreateCallback = null;
@@ -26,7 +26,7 @@ export class ThreadWrapper {
 
     static handler: NativePointer = NULL;
     static handlerFunction: Function | null = null;
-    
+
     private static init() {
         // attempt to retrieve pthread_create
         ThreadWrapper.pthreadCreateAddress = Module.findExportByName(null, 'pthread_create');
@@ -64,7 +64,7 @@ export class ThreadWrapper {
             });
         }
     }
-    
+
     static backtrace(context, backtracer) {
         return Thread.backtrace(context, backtracer);
     }
@@ -74,12 +74,12 @@ export class ThreadWrapper {
         if (ThreadWrapper.pthreadCreateAddress !== null) {
             return 1;
         }
-    
+
         // check if fn is a valid function
         if (typeof fn !== 'function') {
             return 2;
         }
-    
+
         // alocate space for struct pthread_t
         const pthread_t = Memory.alloc(Process.pointerSize);
         // set necessary permissions
@@ -89,11 +89,11 @@ export class ThreadWrapper {
         // spawn the thread
         return ThreadWrapper.pthreadCreateImplementation(pthread_t, ptr(0), ThreadWrapper.handler, ptr(0));
     };
-    
+
     static sleep(delay) {
         Thread.sleep(delay);
     };
-    
+
     // set a callback for thread creation
     static onCreate(callback) {
         ThreadWrapper.onCreateCallback = callback;

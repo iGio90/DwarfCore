@@ -48,7 +48,7 @@ export class LogicInitialization {
                 return moduleName;
             }
         });
-        
+
         if (Utils.isDefined(modIndex)) {
             const userCallback = LogicInitialization.nativeModuleInitializationCallbacks[modIndex];
             if (Utils.isDefined(userCallback)) {

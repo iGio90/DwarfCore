@@ -16,7 +16,7 @@
  **/
 
 
-import {Api} from "./api";
+import { Api } from "./api";
 
 export class FileSystem {
     private static _fclose: NativeFunction | null;

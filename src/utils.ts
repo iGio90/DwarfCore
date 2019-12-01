@@ -73,7 +73,7 @@ export module Utils {
         });
     }
 
-    export function logDebug(... data) {
+    export function logDebug(...data) {
         const date = new Date();
         const now = date['getHourMinuteSecond']();
         let to_log = '';

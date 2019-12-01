@@ -16,10 +16,10 @@
  **/
 
 
-import {Api} from "./api";
-import {Dwarf} from "./dwarf";
-import {ThreadApi} from "./thread_api";
-import {Utils} from "./utils";
+import { Api } from "./api";
+import { Dwarf } from "./dwarf";
+import { ThreadApi } from "./thread_api";
+import { Utils } from "./utils";
 import isDefined = Utils.isDefined;
 
 Date.prototype['getTwoDigitHour'] = function () {
@@ -85,7 +85,7 @@ rpc.exports = {
     init: function (breakStart, debug, spawned) {
         Dwarf.init(breakStart, debug, spawned);
     },
-    keywords: function() {
+    keywords: function () {
         const map = [];
         Object.getOwnPropertyNames(global).forEach(function (name) {
             map.push(name);

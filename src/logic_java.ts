@@ -16,10 +16,10 @@
  **/
 
 
-import {Breakpoint} from "./breakpoint";
-import {Dwarf} from "./dwarf";
-import {LogicBreakpoint} from "./logic_breakpoint";
-import {Utils} from "./utils";
+import { Breakpoint } from "./breakpoint";
+import { Dwarf } from "./dwarf";
+import { LogicBreakpoint } from "./logic_breakpoint";
+import { Utils } from "./utils";
 import isDefined = Utils.isDefined;
 
 export class LogicJava {
@@ -106,7 +106,7 @@ export class LogicJava {
             return false;
         }
 
-        Java.performNow(function() {
+        Java.performNow(function () {
             LogicJava.hookInJVM(className, method, implementation);
         });
 
@@ -221,7 +221,7 @@ export class LogicJava {
     }
 
     static init() {
-        Java.performNow(function() {
+        Java.performNow(function () {
             LogicJava.sdk = Java.use('android.os.Build$VERSION')['SDK_INT']['value'];
             if (Dwarf.DEBUG) {
                 Utils.logDebug('[' + Process.getCurrentThreadId() + '] ' +
@@ -234,8 +234,8 @@ export class LogicJava {
                     LogicJava.hookInJVM('com.android.internal.os.RuntimeInit',
                         'commonInit', function () {
                             LogicJava.jvmBreakpoint.call(this, 'com.android.internal.os.RuntimeInit',
-                            'commonInit', arguments, this.overload.argumentTypes)
-                    });
+                                'commonInit', arguments, this.overload.argumentTypes)
+                        });
                 } else {
                     LogicJava.hookInJVM('android.app.Application', 'onCreate',
                         function () {
@@ -248,7 +248,7 @@ export class LogicJava {
             // attach to ClassLoader to notify for new loaded class
             const handler = Java.use('java.lang.ClassLoader');
             const overload = handler.loadClass.overload('java.lang.String', 'boolean');
-            overload.implementation = function(clazz, resolve) {
+            overload.implementation = function (clazz, resolve) {
                 if (LogicJava.javaClasses.indexOf(clazz) === -1) {
                     LogicJava.javaClasses.push(clazz);
                     Dwarf.loggedSend('class_loader_loading_class:::' + Process.getCurrentThreadId() + ':::' + clazz);

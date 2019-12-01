@@ -15,14 +15,14 @@
  along with this program.  If not, see <https://www.gnu.org/licenses/>
  **/
 
- 
-import {Api} from "./api";
-import {LogicBreakpoint} from "./logic_breakpoint";
-import {DwarfInterceptor} from "./interceptor";
-import {LogicJava} from "./logic_java";
-import {LogicInitialization} from "./logic_initialization";
-import {LogicWatchpoint} from "./logic_watchpoint";
-import {Utils} from "./utils";
+
+import { Api } from "./api";
+import { LogicBreakpoint } from "./logic_breakpoint";
+import { DwarfInterceptor } from "./interceptor";
+import { LogicJava } from "./logic_java";
+import { LogicInitialization } from "./logic_initialization";
+import { LogicWatchpoint } from "./logic_watchpoint";
+import { Utils } from "./utils";
 
 export class Dwarf {
     static DEBUG: boolean;
@@ -55,14 +55,14 @@ export class Dwarf {
             }
         });
 
-        if(Process.platform === 'windows') {
+        if (Process.platform === 'windows') {
             this.modulesBlacklist.push('ntdll.dll');
             if (Process.arch === 'x64') {
                 //TODO: debug later why module needs blacklisted on x64 targets only
                 this.modulesBlacklist.push('win32u.dll');
             }
-        } else if(Process.platform === 'linux') {
-            if(Utils.isDefined(LogicJava) && LogicJava.sdk <= 23) {
+        } else if (Process.platform === 'linux') {
+            if (Utils.isDefined(LogicJava) && LogicJava.sdk <= 23) {
                 this.modulesBlacklist.push('app_process');
             }
         }

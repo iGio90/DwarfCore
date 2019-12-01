@@ -16,7 +16,7 @@
  **/
 
 
- export class ThreadContext {
+export class ThreadContext {
     tid: number;
     context = null;
     javaHandle = null;

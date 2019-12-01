@@ -25,8 +25,8 @@ import { LogicStalker } from "./logic_stalker";
 import { ThreadApi } from "./thread_api";
 import { ThreadContext } from "./thread_context";
 import { Utils } from "./utils";
-import {StalkerInfo} from "./stalker_info";
-import {kStringMaxLength} from "buffer";
+import { StalkerInfo } from "./stalker_info";
+import { kStringMaxLength } from "buffer";
 
 export class LogicBreakpoint {
     static REASON_SET_INITIAL_CONTEXT = -1;

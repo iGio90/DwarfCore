@@ -15,7 +15,7 @@
  along with this program.  If not, see <https://www.gnu.org/licenses/>
  **/
 
- import { Dwarf } from "./dwarf";
+import { Dwarf } from "./dwarf";
 import { FileSystem } from "./fs";
 import { LogicBreakpoint } from "./logic_breakpoint";
 import { LogicJava } from "./logic_java";
@@ -176,7 +176,7 @@ export class Api {
      */
     static enumerateObjCModules(className: string): void {
         const modules = Process.enumerateModules();
-		const names = modules.map(m => m.name);
+        const names = modules.map(m => m.name);
         Dwarf.loggedSend('enumerate_objc_modules:::' + JSON.stringify(names));
     };
 
@@ -185,23 +185,23 @@ export class Api {
      * @param useCache false by default
      */
     static enumerateObjCClasses(moduleName: string) {
-            Dwarf.loggedSend('enumerate_objc_classes_start:::');
-            try {
-                ObjC.enumerateLoadedClasses({ ownedBy: new ModuleMap((m) => { return moduleName ===  m['name']; }) },{
-                    onMatch: function (className) {
-                        if (LogicObjC !== null) {
-                            LogicObjC.objcClasses.push(className);
-                        }
-                        send('enumerate_objc_classes_match:::' + className);
-                    },
-                    onComplete: function () {
-                        send('enumerate_objc_classes_complete:::');
+        Dwarf.loggedSend('enumerate_objc_classes_start:::');
+        try {
+            ObjC.enumerateLoadedClasses({ ownedBy: new ModuleMap((m) => { return moduleName === m['name']; }) }, {
+                onMatch: function (className) {
+                    if (LogicObjC !== null) {
+                        LogicObjC.objcClasses.push(className);
                     }
-                });
-            } catch (e) {
-                Utils.logErr('enumerateObjCClasses', e);
-                Dwarf.loggedSend('enumerate_objc_classes_complete:::');
-            }
+                    send('enumerate_objc_classes_match:::' + className);
+                },
+                onComplete: function () {
+                    send('enumerate_objc_classes_complete:::');
+                }
+            });
+        } catch (e) {
+            Utils.logErr('enumerateObjCClasses', e);
+            Dwarf.loggedSend('enumerate_objc_classes_complete:::');
+        }
     };
 
     /**
@@ -209,7 +209,7 @@ export class Api {
      */
     static enumerateObjCMethods(className: string): void {
         if (ObjC.available) {
-            Dwarf.loggedSend('enumerate_objc_methods_start:::');            
+            Dwarf.loggedSend('enumerate_objc_methods_start:::');
             const that = this;
             const clazz = ObjC.classes[className];
             const methods = clazz.$ownMethods;
