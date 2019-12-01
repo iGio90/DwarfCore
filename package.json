@@ -14,7 +14,7 @@
         "build": "npm run build_core && npm run build_docs && npm run build_types",
         "build_core": "frida-compile --no-sourcemap ./src/index.ts -o ./dist/core.js && python ./place_dwarf_license.py",
         "build_docs": "typedoc --hideGenerator --out dist/docs ./src",
-        "build_types": "tsc -d --declarationDir ./dwarf-typings --emitDeclarationOnly",
+        "build_types": "tsc -d --removeComments false --declarationDir ./dwarf-typings --emitDeclarationOnly",
         "watch": "frida-compile --no-sourcemap ./src/index.ts -o ./dist/core.js -w"
     },
     "devDependencies": {
