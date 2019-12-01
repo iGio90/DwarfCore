@@ -10,6 +10,9 @@
         "src/_copyright.ts",
         "src/**/*"
     ],
+    "files": [
+        "./src/extfrida.d.ts"
+      ],
     "typedocOptions": {
         "mode": "modules",
         "name": "DwarfCore",

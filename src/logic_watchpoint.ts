@@ -28,23 +28,23 @@ import { LogicBreakpoint } from "./logic_breakpoint";
 import isDefined = Utils.isDefined;
 
 export class LogicWatchpoint {
-    static memoryWatchpoints = {};
+    static memoryWatchpoints: { [index: string]: Watchpoint } = {};
 
     static attachMemoryAccessMonitor() {
-        const monitorAddresses = [];
+        let monitorAddresses: Array<MemoryAccessRange> = new Array<MemoryAccessRange>();
         Object.keys(LogicWatchpoint.memoryWatchpoints).forEach(pt => {
             monitorAddresses.push({ 'base': ptr(pt), 'size': 1 })
         });
         MemoryAccessMonitor.enable(monitorAddresses, { onAccess: LogicWatchpoint.onMemoryAccess });
     }
 
-    static handleException(exception) {
+    static handleException(exception: ExceptionDetails) {
         const tid = Process.getCurrentThreadId();
         let watchpoint: Watchpoint | null = null;
         if (Object.keys(LogicWatchpoint.memoryWatchpoints).length > 0) {
             // make sure it's access violation
-            if (exception['type'] === 'access-violation') {
-                watchpoint = LogicWatchpoint.memoryWatchpoints[exception['memory']['address']];
+            if (exception.type === 'access-violation') {
+                watchpoint = LogicWatchpoint.memoryWatchpoints[exception.memory.address.toString()];
                 if (Utils.isDefined(watchpoint)) {
                     const operation = exception.memory.operation;
                     if (Utils.isDefined(operation)) {
@@ -71,9 +71,9 @@ export class LogicWatchpoint {
         }
 
         if (watchpoint !== null) {
-            const interceptor = Interceptor.attach(exception.address, function (args) {
-                interceptor.detach();
-                Interceptor['flush']();
+            const invocationListener = Interceptor.attach(exception.address, function (args) {
+                invocationListener.detach();
+                Interceptor.flush();
 
                 if (watchpoint.callback !== null) {
                     watchpoint.callback.call(this, args);
@@ -81,7 +81,7 @@ export class LogicWatchpoint {
                     LogicBreakpoint.breakpoint(LogicBreakpoint.REASON_WATCHPOINT, this.context.pc, this.context);
                 }
 
-                if (isDefined(LogicWatchpoint.memoryWatchpoints[exception.memory.address]) &&
+                if (isDefined(LogicWatchpoint.memoryWatchpoints[exception.memory.address.toString()]) &&
                     !(watchpoint.flags & MEMORY_WATCH_SINGLE_SHOT)) {
                     watchpoint.watch();
                 }
@@ -91,17 +91,17 @@ export class LogicWatchpoint {
         return watchpoint;
     }
 
-    static onMemoryAccess(details) {
+    static onMemoryAccess(details: MemoryAccessDetails) {
         const tid = Process.getCurrentThreadId();
-        const operation = details.operation; // 'read' - 'write' - 'execute'
-        const fromPtr = details.from;
-        const address = details.address;
+        const operation: MemoryOperation = details.operation; // 'read' - 'write' - 'execute'
+        const fromPtr: NativePointer = details.from;
+        const address: NativePointer = details.address;
 
-        let watchpoint = null;
+        let watchpoint: Watchpoint | null = null;
 
         // watchpoints
         if (Object.keys(LogicWatchpoint.memoryWatchpoints).length > 0) {
-            watchpoint = LogicWatchpoint.memoryWatchpoints[address];
+            watchpoint = LogicWatchpoint.memoryWatchpoints[address.toString()];
             if (typeof watchpoint !== 'undefined') {
                 const returnval = { 'memory': { 'operation': operation, 'address': address } };
                 if ((watchpoint.flags & MEMORY_ACCESS_READ) && (operation === 'read')) {
@@ -122,9 +122,9 @@ export class LogicWatchpoint {
         }
 
         if (watchpoint !== null) {
-            const interceptor = Interceptor.attach(fromPtr, function (args) {
-                interceptor.detach();
-                Interceptor['flush']();
+            const invocationListener = Interceptor.attach(fromPtr, function (args) {
+                invocationListener.detach();
+                Interceptor.flush();
 
                 if (watchpoint.callback !== null) {
                     watchpoint.callback.call(this, args);
@@ -132,7 +132,7 @@ export class LogicWatchpoint {
                     LogicBreakpoint.breakpoint(LogicBreakpoint.REASON_WATCHPOINT, this.context.pc, this.context);
                 }
 
-                if (isDefined(LogicWatchpoint.memoryWatchpoints[address]) &&
+                if (isDefined(LogicWatchpoint.memoryWatchpoints[address.toString()]) &&
                     !(watchpoint.flags & MEMORY_WATCH_SINGLE_SHOT)) {
                     LogicWatchpoint.attachMemoryAccessMonitor();
                 }
@@ -141,31 +141,35 @@ export class LogicWatchpoint {
         return watchpoint !== null;
     }
 
-    static putWatchpoint(address: any, flags?, callback?: Function): Watchpoint {
-        address = ptr(address);
+    static putWatchpoint(address: NativePointer | string, flags: number = (MEMORY_ACCESS_READ | MEMORY_ACCESS_WRITE), callback?: Function): Watchpoint {
+        let memPtr: NativePointer;
 
-        let range;
-        let watchpoint;
+        if (typeof address === 'string') {
+            memPtr = ptr(address as string);
+        } else {
+            memPtr = address;
+        }
+
+        if (memPtr.isNull()) {
+            throw new Error('putWatchpoint: Invalid PointerValue!');
+        }
+
+        let watchpoint: Watchpoint | null = null;
 
         if (typeof callback === 'undefined') {
             callback = null;
         }
 
-        // default '--?'
-        if (!Utils.isNumber(flags)) {
-            flags = (MEMORY_ACCESS_READ | MEMORY_ACCESS_WRITE);
-        }
-
-        if (!Utils.isDefined(LogicWatchpoint.memoryWatchpoints[address.toString()])) {
-            range = Process.findRangeByAddress(address);
-            if (range === null) {
-                console.log('failed to find memory range for ' + address.toString());
+        if (!LogicWatchpoint.memoryWatchpoints.hasOwnProperty(memPtr.toString())) {
+            const rangeDetails = Process.findRangeByAddress(memPtr);
+            if (rangeDetails === null) {
+                console.log('failed to find memory range for ' + memPtr.toString());
                 return null;
             }
 
-            watchpoint = new Watchpoint(address, flags, range.protection, callback);
-            LogicWatchpoint.memoryWatchpoints[address.toString()] = watchpoint;
-            Dwarf.loggedSend('watchpoint_added:::' + address.toString() + ':::' +
+            watchpoint = new Watchpoint(memPtr, flags, rangeDetails.protection, callback);
+            LogicWatchpoint.memoryWatchpoints[memPtr.toString()] = watchpoint;
+            Dwarf.loggedSend('watchpoint_added:::' + memPtr.toString() + ':::' +
                 flags + ':::' + JSON.stringify(watchpoint.debugSymbol));
 
             if (Process.platform === 'windows') {
@@ -178,23 +182,38 @@ export class LogicWatchpoint {
 
             return watchpoint;
         } else {
-            console.log(address.toString() + ' is already watched');
+            console.log(memPtr.toString() + ' is already watched');
             return null;
         }
     }
 
-    static removeWatchpoint(address: any) {
-        address = ptr(address);
-        const watchpoint = LogicWatchpoint.memoryWatchpoints[address.toString()];
-        if (!Utils.isDefined(watchpoint)) {
-            return false;
+    static removeWatchpoint(address: NativePointer | string) {
+        let memPtr: NativePointer;
+
+        if (typeof address === 'string') {
+            memPtr = ptr(address as string);
+        } else {
+            memPtr = address;
+        }
+
+        if (memPtr.isNull()) {
+            throw new Error('removeWatchpoint: Invalid PointerValue!');
+        }
+
+        if (!LogicWatchpoint.memoryWatchpoints.hasOwnProperty(memPtr.toString())) {
+            throw new Error('removeWatchpoint: No Watchpoint for given address!');
+        }
+
+        const watchpoint = LogicWatchpoint.memoryWatchpoints[memPtr.toString()];
+        if (Process.platform === 'windows') {
+            MemoryAccessMonitor.disable();
         }
         watchpoint.restore();
-        delete LogicWatchpoint.memoryWatchpoints[address.toString()];
+        delete LogicWatchpoint.memoryWatchpoints[memPtr.toString()];
         if (Process.platform === 'windows') {
             LogicWatchpoint.attachMemoryAccessMonitor();
         }
-        Dwarf.loggedSend('watchpoint_removed:::' + address.toString());
+        Dwarf.loggedSend('watchpoint_removed:::' + memPtr.toString());
         return true;
     }
 }
