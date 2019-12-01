@@ -987,7 +987,7 @@ export class Api {
     };
 
     private static resume() {
-        if (Dwarf.PROC_RESUMED) {
+        if (!Dwarf.PROC_RESUMED) {
             Dwarf.PROC_RESUMED = true;
             Dwarf.loggedSend('resume:::0');
         } else {
