@@ -16,18 +16,34 @@
  **/
 
 
-export class StalkerInfo {
-    tid: number;
-    context = null;
-    initialContextAddress = NULL;
-    lastContextAddress = NULL;
-    didFistJumpOut = false;
-    terminated = false;
-    currentMode = null;
-    lastBlockInstruction = null;
-    lastCallJumpInstruction = null;
+const enum DwarfArch {
+    ARCH_X86 = 1,
+    ARCH_X64 = 2,
+    ARCH_ARM = 3,
+    ARCH_ARM64 = 4
+}
 
-    constructor(tid) {
-        this.tid = tid;
-    }
+const enum DwarfBits {
+    BITS_32 = 1,
+    BITS_64 = 2
+}
+
+const enum DwarfEndian {
+    LITTLE = 1,
+    BIG = 2
+}
+
+const enum DwarfSessionType {
+    ANDROID = 1,
+    LOCAL = 2,
+    IOS = 3,
+    REMOTE = 4
+}
+
+const enum DwarfBreakpointType {
+    NATIVE = 1,
+    JAVA = 2,
+    INITIALIZATION = 3, // TODO: remove - use internal flag
+    OBJC = 4,
+    MEMORY = 5
 }

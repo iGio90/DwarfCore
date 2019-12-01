@@ -1,10 +1,8 @@
 node_modules
 *.iml
-package-lock.json
 .idea
 compiled_agent.js
 dist
-_*
 docs*
 core.js
 typed*

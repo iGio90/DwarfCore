@@ -1,6 +1,24 @@
-import {Utils} from "./utils";
-import {Dwarf} from "./dwarf";
-import {ThreadContext} from "./thread_context";
+/**
+ Dwarf - Copyright (C) 2019 Giovanni Rocca (iGio90)
+
+ This program is free software: you can redistribute it and/or modify
+ it under the terms of the GNU General Public License as published by
+ the Free Software Foundation, either version 3 of the License, or
+ (at your option) any later version.
+
+ This program is distributed in the hope that it will be useful,
+ but WITHOUT ANY WARRANTY; without even the implied warranty of
+ MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ GNU General Public License for more details.
+
+ You should have received a copy of the GNU General Public License
+ along with this program.  If not, see <https://www.gnu.org/licenses/>
+ **/
+
+
+import { Utils } from "./utils";
+import { Dwarf } from "./dwarf";
+import { ThreadContext } from "./thread_context";
 
 export class DwarfInterceptor {
 
@@ -39,32 +57,33 @@ export class DwarfInterceptor {
 
     static init() {
         const clone = Object.assign({}, Interceptor);
-        clone.attach = function attach(target: NativePointer, callbacks, data): InvocationListener {
-            target.readU8();
+        clone.attach = function attach(target: NativePointerValue, callbacksOrProbe: InvocationListenerCallbacks | InstructionProbeCallback,
+            data?: NativePointerValue): InvocationListener {
+            Memory['_checkCodePointer'](target);
             let replacement;
-            if (typeof callbacks === 'function') {
+            if (typeof callbacksOrProbe === 'function') {
                 replacement = function () {
                     DwarfInterceptor.onAttach(this.context);
-                    const ret = callbacks.apply(this, arguments);
+                    const ret = callbacksOrProbe.apply(this, arguments);
                     DwarfInterceptor.onDetach();
                     return ret;
                 };
-            } else if (typeof callbacks === 'object') {
-                if (Utils.isDefined(callbacks['onEnter'])) {
+            } else if (typeof callbacksOrProbe === 'object') {
+                if (Utils.isDefined(callbacksOrProbe['onEnter'])) {
                     replacement = {
                         onEnter: function () {
                             DwarfInterceptor.onAttach(this.context);
-                            const ret = callbacks['onEnter'].apply(this, arguments);
+                            const ret = (callbacksOrProbe as ScriptInvocationListenerCallbacks)['onEnter'].apply(this, arguments);
                             DwarfInterceptor.onDetach();
                             return ret;
                         }
                     };
 
-                    if (Utils.isDefined(callbacks['onLeave'])) {
-                        replacement['onLeave'] = callbacks['onLeave'];
+                    if (Utils.isDefined(callbacksOrProbe['onLeave'])) {
+                        replacement['onLeave'] = callbacksOrProbe['onLeave'];
                     }
                 } else {
-                    replacement = callbacks;
+                    replacement = callbacksOrProbe;
                 }
             }
             return Interceptor['_attach'](target, replacement, data);

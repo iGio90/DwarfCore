@@ -1,18 +1,28 @@
 {
-  "name": "dwarf-core",
-  "version": "1.0.0",
-  "description": "core of Dwarf",
-  "main": "src/index.ts",
-  "types": "src/api.d.ts",
-  "license": "LICENSE.md",
-  "scripts": {
-    "prepare": "npm run build",
-    "build": "frida-compile src/index.ts -o core.js",
-    "watch": "frida-compile src/index.ts -o core.js -w"
-  },
-  "devDependencies": {
-    "@types/frida-gum": "^14.2.2",
-    "@types/node": "^12.12.14",
-    "frida-compile": "^9.0.8"
-  }
+    "name": "dwarf-core",
+    "version": "1.0.0",
+    "description": "core of Dwarf",
+    "main": "src/index.ts",
+    "types": "src/api.d.ts",
+    "license": "GPL-3.0-or-later",
+    "repository": {
+        "type": "git",
+        "url": "git://github.com/iGio90/DwarfCore.git"
+    },
+    "scripts": {
+        "prepare": "python ./change_theme_fontsize.py && npm run build",
+        "build": "npm run build_core && npm run build_docs && npm run build_types",
+        "build_core": "frida-compile --no-sourcemap ./src/index.ts -o ./dist/core.js && python ./place_dwarf_license.py",
+        "build_docs": "typedoc --hideGenerator --out dist/docs ./src",
+        "build_types": "tsc -d --declarationDir ./dwarf-typings --emitDeclarationOnly",
+        "watch": "frida-compile --no-sourcemap ./src/index.ts -o ./dist/core.js -w"
+    },
+    "devDependencies": {
+        "@types/frida-gum": "^14.2.2",
+        "@types/node": "^12.12.14",
+        "eledoc": "^0.2.1",
+        "frida-compile": "^9.0.8",
+        "typedoc": "^0.15.3",
+        "typescript": "^3.7.2"
+    }
 }
