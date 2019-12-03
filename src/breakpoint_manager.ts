@@ -19,6 +19,8 @@ import { DwarfBreakpoint } from "./types/dwarf_breakpoint"
 import { NativeBreakpoint } from "./types/native_breakpoint";
 import { JavaBreakpoint } from "./types/java_breakpoint";
 import { MemoryBreakpoint } from "./types/memory_breakpoint";
+import { DwarfCore } from "./dwarf";
+import { DwarfBreakpointType, DwarfMemoryAccessType, DwarfHaltReason } from "./consts";
 
 /**
  * DwarfBreakpointManager Singleton
@@ -85,6 +87,7 @@ export class DwarfBreakpointManager {
         try {
             const memBreakpoint = new MemoryBreakpoint(bpAddress, (DwarfMemoryAccessType.READ | DwarfMemoryAccessType.WRITE), bpEnabled);
             this.dwarfBreakpoints.push(memBreakpoint);
+            this.updateMemoryBreakpoints();
             return memBreakpoint;
         } catch (error) {
 
@@ -117,7 +120,7 @@ export class DwarfBreakpointManager {
      * @param  {NativePointer|string} bpAddress
      * @returns DwarfBreakpoint
      */
-    public getBreakpointByAddress = (bpAddress: NativePointer | string): DwarfBreakpoint | null => {
+    public getBreakpointByAddress = (bpAddress: NativePointer | string, checkEnabled: boolean = false, checkForType?: DwarfBreakpointType): DwarfBreakpoint | null => {
         let bpFindAddress;
         if (typeof bpAddress === 'string') {
             bpFindAddress = bpAddress;
@@ -130,6 +133,12 @@ export class DwarfBreakpointManager {
         let dwarfBreakpoint = null;
         for (let bp of this.dwarfBreakpoints) {
             if (bp.getAddress() === bpFindAddress) {
+                if (checkEnabled && !bp.isEnabled()) {
+                    continue;
+                }
+                if (checkForType && bp.getType() !== checkForType) {
+                    continue;
+                }
                 dwarfBreakpoint = bp;
                 break;
             }
@@ -172,5 +181,81 @@ export class DwarfBreakpointManager {
             dwarfBreakpoint.disable();
             return dwarfBreakpoint.isEnabled();
         }
+    }
+
+    /**
+     * Windows related stuff to handle MemoryBreakpoints
+     * Call it after something MemoryBreakpoint related changes
+     */
+    public updateMemoryBreakpoints(): void {
+        if (Process.platform === 'windows') {
+            MemoryAccessMonitor.disable();
+            let memoryBreakpoints;
+            for (let memBreakpoint of this.dwarfBreakpoints) {
+                if (memBreakpoint.getType() === DwarfBreakpointType.MEMORY) {
+                    if (memBreakpoint.isEnabled()) {
+                        memoryBreakpoints.push(memBreakpoint);
+                    }
+                }
+            }
+            if (memoryBreakpoints.length > 0) {
+                MemoryAccessMonitor.enable(memoryBreakpoints, { onAccess: this.handleMemoryAccessMonitorCallbacks });
+            }
+        }
+    }
+
+    /**
+     * Windows related stuff to handle MemoryBreakpoints
+     */
+    private handleMemoryAccessMonitorCallbacks = (details: MemoryAccessDetails) => {
+        const tid = Process.getCurrentThreadId();
+        const operation: MemoryOperation = details.operation;
+        const fromPtr: NativePointer = details.from;
+        const address: NativePointer = details.address;
+
+        const dwarfBreakpoint = this.getBreakpointByAddress(address, true, DwarfBreakpointType.MEMORY);
+
+        if (dwarfBreakpoint === null) {
+            return;
+        }
+
+        const memoryBreakpoint = dwarfBreakpoint as MemoryBreakpoint;
+
+        memoryBreakpoint.updateHitsCounter();
+
+        const returnval = { 'memory': { 'operation': operation, 'address': address } };
+        const bpFlags = memoryBreakpoint.getFlags();
+        if ((bpFlags & DwarfMemoryAccessType.READ) && (operation === 'read')) {
+            MemoryAccessMonitor.disable();
+            Dwarf.loggedSend('watchpoint:::' + JSON.stringify(returnval) + ':::' + tid);
+        } else if ((bpFlags & DwarfMemoryAccessType.WRITE) && (operation === 'write')) {
+            MemoryAccessMonitor.disable();
+            Dwarf.loggedSend('watchpoint:::' + JSON.stringify(returnval) + ':::' + tid);
+        } else if ((bpFlags & DwarfMemoryAccessType.EXECUTE) && (operation === 'execute')) {
+            MemoryAccessMonitor.disable();
+            Dwarf.loggedSend('watchpoint:::' + JSON.stringify(returnval) + ':::' + tid);
+        }
+
+        const invocationListener = Interceptor.attach(fromPtr, function (args) {
+            invocationListener.detach();
+            Interceptor.flush();
+
+            const memoryCallback = memoryBreakpoint.getCallback();
+            if (memoryCallback !== null) {
+                try {
+                    memoryCallback.call(this, args);
+                } catch(error) {
+                    logErr('MemoryBreakpoint::callback()', error);
+                }
+            } else {
+                //TODO: it halts only when no callback?
+                DwarfCore.getInstance().onBreakpoint(DwarfHaltReason.BREAKPOINT, this.context.pc, this.context);
+            }
+
+            //reattach when enabled and not singleshot
+            if (!memoryBreakpoint.isSingleShot() && memoryBreakpoint.isEnabled()) {
+                DwarfBreakpointManager.getInstance().updateMemoryBreakpoints();
+            }
+        });
     }
 }

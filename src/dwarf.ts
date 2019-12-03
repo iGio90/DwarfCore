@@ -22,6 +22,10 @@ import { DwarfApi } from "./api";
 import { LogicBreakpoint } from "./logic_breakpoint";
 import { LogicWatchpoint } from "./logic_watchpoint";
 import { DwarfBreakpointManager } from "./breakpoint_manager";
+import { ThreadContext } from "./thread_context";
+import { ThreadApi } from "./thread_api";
+import { LogicStalker } from "./logic_stalker";
+import { DwarfHaltReason } from "./consts";
 
 export class DwarfCore {
     BREAK_START: boolean;
@@ -278,5 +282,103 @@ export class DwarfCore {
         }
 
         return send(w, p);
+    }
+
+    onBreakpoint = (haltReason: DwarfHaltReason, address_or_class, context, java_handle?, condition?) => {
+        const tid = Process.getCurrentThreadId();
+
+
+        logDebug('[' + tid + '] breakpoint ' + address_or_class + ' - reason: ' + haltReason);
+
+        let threadContext: ThreadContext = this.threadContexts[tid];
+
+        if (!isDefined(threadContext) && isDefined(context)) {
+            threadContext = new ThreadContext(tid);
+            threadContext.context = context;
+            this.threadContexts[tid] = threadContext;
+        }
+
+        if (isDefined(condition)) {
+            if (typeof condition === "string") {
+                condition = new Function(condition);
+            }
+
+            if (!condition.call(threadContext)) {
+                delete this.threadContexts[tid];
+                return;
+            }
+        }
+
+        if (!isDefined(threadContext) || !threadContext.preventSleep) {
+            logDebug('[' + tid + '] break ' + address_or_class + ' - dispatching context info');
+            this.dispatchContextInfo(haltReason, address_or_class, context);
+
+            logDebug('[' + tid + '] break ' + address_or_class + ' - sleeping context. goodnight!');
+            this.loopApi(tid, threadContext);
+
+            logDebug('[' + tid + '] ThreadContext has been released');
+            this.loggedSend('release:::' + tid + ':::' + haltReason);
+        }
+    }
+
+    loopApi = (tid: number, that) => {
+
+        logDebug('[' + tid + '] looping api');
+
+        const op = recv('' + tid, function () {
+        });
+        op.wait();
+
+        const threadContext: ThreadContext = this.threadContexts[tid];
+
+        if (isDefined(threadContext)) {
+            while (threadContext.apiQueue.length === 0) {
+                logDebug('[' + tid + '] waiting api queue to be populated');
+                Thread.sleep(0.2);
+            }
+
+            let release = false;
+
+            while (threadContext.apiQueue.length > 0) {
+                const threadApi: ThreadApi = threadContext.apiQueue.shift();
+
+                logDebug('[' + tid + '] executing ' + threadApi.apiFunction);
+
+                try {
+                    if (isDefined(this.getApi()[threadApi.apiFunction])) {
+                        threadApi.result = this.getApi()[threadApi.apiFunction].apply(that, threadApi.apiArguments);
+                    } else {
+                        threadApi.result = null;
+                    }
+                } catch (e) {
+                    threadApi.result = null;
+                    if (DEBUG) {
+                        logDebug('[' + tid + '] error executing ' +
+                            threadApi.apiFunction + ':\n' + e);
+                    }
+                }
+                threadApi.consumed = true;
+
+                let stalkerInfo = LogicStalker.stalkerInfoMap[tid];
+                if (threadApi.apiFunction === '_step') {
+                    if (!isDefined(stalkerInfo)) {
+                        LogicStalker.stalk(tid);
+                    }
+                    release = true;
+                    break
+                } else if (threadApi.apiFunction === 'release') {
+                    if (isDefined(stalkerInfo)) {
+                        stalkerInfo.terminated = true;
+                    }
+
+                    release = true;
+                    break;
+                }
+            }
+
+            if (!release) {
+                this.loopApi(tid, that);
+            }
+        }
     }
 }

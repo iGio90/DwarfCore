@@ -16,31 +16,31 @@
 **/
 
 
-const enum DwarfArch {
+export const enum DwarfArch {
     ARCH_X86 = 1,
     ARCH_X64 = 2,
     ARCH_ARM = 3,
     ARCH_ARM64 = 4
 }
 
-const enum DwarfBits {
+export const enum DwarfBits {
     BITS_32 = 1,
     BITS_64 = 2
 }
 
-const enum DwarfEndian {
+export const enum DwarfEndian {
     LITTLE = 1,
     BIG = 2
 }
 
-const enum DwarfSessionType {
+export const enum DwarfSessionType {
     ANDROID = 1,
     LOCAL = 2,
     IOS = 3,
     REMOTE = 4
 }
 
-const enum DwarfBreakpointType {
+export const enum DwarfBreakpointType {
     NATIVE = 1,
     JAVA = 2,
     INITIALIZATION = 3, // TODO: remove - use internal flag
@@ -48,8 +48,14 @@ const enum DwarfBreakpointType {
     MEMORY = 5
 }
 
-const enum DwarfMemoryAccessType {
+export const enum DwarfMemoryAccessType {
     READ = 1,
     WRITE = 2,
     EXECUTE = 4
+}
+
+export const enum DwarfHaltReason {
+    INITIAL_CONTEXT = 1,
+    BREAKPOINT = 2,
+    STEP = 3
 }

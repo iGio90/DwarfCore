@@ -15,6 +15,8 @@
     along with this program.  If not, see <https://www.gnu.org/licenses/>
 **/
 
+import { DwarfBreakpointType } from "../consts";
+
 /**
  * DwarfBreakpoint
  */
@@ -115,6 +117,14 @@ export class DwarfBreakpoint {
      */
     public setSingleShot(singleShot: boolean = true) {
         this.bpSingleShot = singleShot;
+    }
+
+    public updateHitsCounter() {
+        this.bpHits++;
+    }
+
+    public resetHitsCounter() {
+        this.bpHits = 0;
     }
 
 }

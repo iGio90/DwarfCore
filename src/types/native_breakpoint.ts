@@ -16,6 +16,7 @@
 **/
 
 import { DwarfBreakpoint } from "./dwarf_breakpoint";
+import { DwarfBreakpointType } from "../consts";
 
 
 export class NativeBreakpoint extends DwarfBreakpoint {

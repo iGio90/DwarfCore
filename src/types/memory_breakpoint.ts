@@ -16,6 +16,8 @@
 **/
 
 import { DwarfBreakpoint } from "./dwarf_breakpoint";
+import { DwarfCore } from "../dwarf";
+import { DwarfMemoryAccessType, DwarfBreakpointType } from "../consts";
 
 export class MemoryBreakpoint extends DwarfBreakpoint {
     protected bpFlags: number;
@@ -82,10 +84,18 @@ export class MemoryBreakpoint extends DwarfBreakpoint {
         }
     }
 
+    public getFlags() {
+        return this.bpFlags;
+    }
+
     public setCallback(callbackFunction:Function):void {
         if(typeof callbackFunction === 'function') {
             this.callBackFunc = callbackFunction;
         }
+    }
+
+    public getCallback():Function|null {
+        return this.callBackFunc;
     }
 
     public removeCallback():void {
@@ -96,6 +106,12 @@ export class MemoryBreakpoint extends DwarfBreakpoint {
      * Enables dwarf breakpoint
      */
     public enable(): void {
+        if(Process.platform === 'windows') {
+            super.enable();
+            DwarfCore.getInstance().getBreakpointManager().updateMemoryBreakpoints();
+            return;
+        }
+
         let perm = '';
         if (this.bpFlags & DwarfMemoryAccessType.READ) {
             perm += '-';
@@ -127,6 +143,11 @@ export class MemoryBreakpoint extends DwarfBreakpoint {
      * Disables dwarf breakpoint
      */
     public disable(): void {
+        if(Process.platform === 'windows') {
+            super.disable();
+            DwarfCore.getInstance().getBreakpointManager().updateMemoryBreakpoints();
+            return;
+        }
         if (Memory.protect(this.bpAddress as NativePointer, 1, this.memOrgPermissions)) {
             super.disable();
         } else {
