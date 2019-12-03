@@ -19,10 +19,10 @@ import { DwarfBreakpoint } from "./dwarf_breakpoint";
 
 
 export class JavaBreakpoint extends DwarfBreakpoint {
-    constructor(bpAddress: string, condition?: Function | string) {
+    constructor(bpAddress: string, bpEnabled?: boolean) {
         if (typeof bpAddress !== 'string') {
             throw new Error('Invalid BreakpointAddress');
         }
-        super(DwarfBreakpointType.JAVA, bpAddress);
+        super(DwarfBreakpointType.JAVA, bpAddress, bpEnabled);
     }
 }

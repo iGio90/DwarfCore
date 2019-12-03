@@ -16,7 +16,7 @@
  **/
 
 
-import { Breakpoint, DwarfBreakpoint } from "./breakpoints";
+import { Breakpoint } from "./breakpoints";
 import { LogicJava } from "./logic_java";
 import { LogicObjC } from "./logic_objc";
 import { LogicStalker } from "./logic_stalker";

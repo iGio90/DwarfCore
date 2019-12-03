@@ -15,24 +15,29 @@
     along with this program.  If not, see <https://www.gnu.org/licenses/>
 **/
 
-
+/**
+ * DwarfBreakpoint
+ */
 export class DwarfBreakpoint {
     protected bpHits: number;
     protected bpEnabled: boolean;
     protected bpType: DwarfBreakpointType;
     protected bpAddress: NativePointer | string;
+    protected bpSingleShot: boolean;
 
     /**
      * Creates an instance of DwarfBreakpoint.
      *
      * @param  {DwarfBreakpointType} bpType
      * @param  {NativePointer|string} bpAddress
+     * @param  {boolean=true} bpEnabled
      */
-    constructor(bpType: DwarfBreakpointType, bpAddress: NativePointer | string, bpEnabled: boolean = true) {
+    public constructor(bpType: DwarfBreakpointType, bpAddress: NativePointer | string, bpEnabled: boolean = true) {
         if ((bpType < DwarfBreakpointType.NATIVE) || (bpType > DwarfBreakpointType.MEMORY)) {
             throw new Error('Invalid BreakpointType');
         }
         this.bpHits = 0;
+        this.bpSingleShot = false;
         this.bpEnabled = bpEnabled;
         this.bpType = bpType;
         this.bpAddress = bpAddress;
@@ -96,6 +101,20 @@ export class DwarfBreakpoint {
      */
     public getHits(): number {
         return this.bpHits;
+    }
+
+    /**
+     * @returns boolean
+     */
+    public isSingleShot(): boolean {
+        return this.bpSingleShot;
+    }
+
+    /**
+     * @param  {boolean=true} singleShot
+     */
+    public setSingleShot(singleShot: boolean = true) {
+        this.bpSingleShot = singleShot;
     }
 
 }

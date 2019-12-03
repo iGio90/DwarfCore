@@ -17,17 +17,17 @@
 
 import { DwarfBreakpoint } from "./dwarf_breakpoint";
 
-
 export class MemoryBreakpoint extends DwarfBreakpoint {
     protected bpFlags: number;
     protected memOrgPermissions: string;
+    protected callBackFunc:Function | null;
 
     /**
      * @param  {DwarfBreakpointType} bpType
      * @param  {NativePointer|string} bpAddress
      * @param  {number} bpFlags
      */
-    constructor(bpAddress: NativePointer | string, bpFlags: number = (DwarfMemoryAccessType.READ | DwarfMemoryAccessType.WRITE)) {
+    public constructor(bpAddress: NativePointer | string, bpFlags: number = (DwarfMemoryAccessType.READ | DwarfMemoryAccessType.WRITE), bpEnabled?: boolean, bpCallback?:Function) {
         let memPtr: NativePointer;
         if (typeof bpAddress === 'string') {
             memPtr = ptr(bpAddress);
@@ -51,10 +51,45 @@ export class MemoryBreakpoint extends DwarfBreakpoint {
             throw new Error('MemoryBreakpoint() -> Unable to find MemoryRange!');
         }
 
-        super(DwarfBreakpointType.MEMORY, memPtr);
+        super(DwarfBreakpointType.MEMORY, memPtr, bpEnabled);
 
         this.bpFlags = bpFlags;
         this.memOrgPermissions = rangeDetails.protection;
+        this.callBackFunc = bpCallback || null;
+
+        //Enable MemBP
+        if(this.isEnabled()) {
+            this.enable();
+        }
+    }
+
+    /**
+     * Change MemoryBreakpoint flags
+     *
+     * @param  {number} bpFlags - DwarfMemoryAccessType
+     */
+    public setFlags(bpFlags: number):void {
+        let wasEnabled = false;
+        if (this.isEnabled()) {
+            this.disable();
+            wasEnabled = true;
+        }
+
+        this.bpFlags = bpFlags;
+
+        if (wasEnabled) {
+            this.enable();
+        }
+    }
+
+    public setCallback(callbackFunction:Function):void {
+        if(typeof callbackFunction === 'function') {
+            this.callBackFunc = callbackFunction;
+        }
+    }
+
+    public removeCallback():void {
+        this.callBackFunc = null;
     }
 
     /**
@@ -103,8 +138,8 @@ export class MemoryBreakpoint extends DwarfBreakpoint {
      * Toggles active
      * @returns true if active
      */
-     public toggleActive(): boolean {
-        if(this.isEnabled()) {
+    public toggleActive(): boolean {
+        if (this.isEnabled()) {
             this.disable();
         } else {
             this.enable();

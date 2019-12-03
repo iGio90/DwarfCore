@@ -19,7 +19,8 @@ import { DwarfBreakpoint } from "./dwarf_breakpoint";
 
 
 export class NativeBreakpoint extends DwarfBreakpoint {
-    protected bpCallbacks: InvocationListenerCallbacks | null;
+    protected bpCallbacks: InvocationListenerCallbacks | Function | null;
+    protected bpDebugSymbol:DebugSymbol;
 
     /**
      * Creates an instance of DwarfBreakpoint.
@@ -27,7 +28,7 @@ export class NativeBreakpoint extends DwarfBreakpoint {
      * @param  {DwarfBreakpointType} bpType
      * @param  {NativePointer|string} bpAddress
      */
-    constructor(bpAddress: NativePointer | string, bpCallbacks?: InvocationListenerCallbacks, condition?: Function | string) {
+    constructor(bpAddress: NativePointer | string, bpEnabled?: boolean, bpCallback?: InvocationListenerCallbacks | Function) {
         let natPtr;
         if (typeof bpAddress === 'string') {
             natPtr = ptr(bpAddress);
@@ -46,13 +47,17 @@ export class NativeBreakpoint extends DwarfBreakpoint {
             throw new Error('NativeBreakpoint() -> Invalid Address!');
         }
 
-        super(DwarfBreakpointType.NATIVE, natPtr);
+        super(DwarfBreakpointType.NATIVE, natPtr, bpEnabled);
 
-        if (bpCallbacks) {
-            this.bpCallbacks = bpCallbacks;
-        } else {
-            this.bpCallbacks = null;
-        }
+        this.bpDebugSymbol = DebugSymbol.fromAddress(natPtr);
+        this.bpCallbacks = bpCallback || null;
+    }
 
+    public setCallback(bpCallback: InvocationListenerCallbacks | Function | null): void {
+        this.bpCallbacks = bpCallback;
+    }
+
+    public removeCallback(): void {
+        this.bpCallbacks = null;
     }
 }

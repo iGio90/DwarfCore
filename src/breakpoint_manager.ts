@@ -18,26 +18,58 @@
 import { DwarfBreakpoint } from "./types/dwarf_breakpoint"
 import { NativeBreakpoint } from "./types/native_breakpoint";
 import { JavaBreakpoint } from "./types/java_breakpoint";
-import { NOTIMP } from "dns";
+import { MemoryBreakpoint } from "./types/memory_breakpoint";
 
+/**
+ * DwarfBreakpointManager Singleton
+ *
+ * use Dwarf.getBreakpointManager() or DwarfBreakpointManager.getInstance()
+ */
 export class DwarfBreakpointManager {
+    private static instanceRef: DwarfBreakpointManager;
     protected dwarfBreakpoints: Array<DwarfBreakpoint>;
 
-    addBreakpoint = (bpType: DwarfBreakpointType, bpAddress: NativePointer | string) => {
-        switch (bpType) {
-            case DwarfBreakpointType.NATIVE:
-                return this.addNativeBreakpoint(bpAddress);
-            case DwarfBreakpointType.JAVA:
-                return this.addJavaBreakpoint(bpAddress as string);
-            case DwarfBreakpointType.OBJC:
-                return this.addObjCBreakpoint(bpAddress as string);
+    private constructor() {
+        if (DwarfBreakpointManager.instanceRef) {
+            throw new Error("DwarfBreakpointManager already exists! Use DwarfBreakpointManager.getInstance()/Dwarf.getBreakpointManager()");
         }
-
+        logDebug('DwarfBreakpointManager()');
+        this.dwarfBreakpoints = new Array<DwarfBreakpoint>();
     }
 
-    addNativeBreakpoint = (bpAddress: NativePointer | string) => {
+    static getInstance() {
+        if (!DwarfBreakpointManager.instanceRef) {
+            DwarfBreakpointManager.instanceRef = new this();
+        }
+        return DwarfBreakpointManager.instanceRef;
+    }
+
+    /**
+     * @param  {DwarfBreakpointType} bpType
+     * @param  {NativePointer|string} bpAddress
+     * @param  {boolean} bpEnabled?
+     */
+    public addBreakpoint = (bpType: DwarfBreakpointType, bpAddress: NativePointer | string, bpEnabled?: boolean) => {
+        switch (bpType) {
+            case DwarfBreakpointType.NATIVE:
+                return this.addNativeBreakpoint(bpAddress, bpEnabled);
+            case DwarfBreakpointType.JAVA:
+                return this.addJavaBreakpoint(bpAddress as string, bpEnabled);
+            case DwarfBreakpointType.OBJC:
+                return this.addObjCBreakpoint(bpAddress as string, bpEnabled);
+            case DwarfBreakpointType.MEMORY:
+                return this.addMemoryBreakpoint(bpAddress, (DwarfMemoryAccessType.READ | DwarfMemoryAccessType.WRITE), bpEnabled);
+        }
+        throw new Error('DwarfBreakpointManager::addBreakpoint() -> Unknown BreakpointType!');
+    }
+
+    /**
+     * @param  {NativePointer|string} bpAddress
+     * @param  {boolean} bpEnabled?
+     */
+    public addNativeBreakpoint = (bpAddress: NativePointer | string, bpEnabled?: boolean) => {
         try {
-            const nativeBreakpoint = new NativeBreakpoint(bpAddress);
+            const nativeBreakpoint = new NativeBreakpoint(bpAddress, bpEnabled);
             this.dwarfBreakpoints.push(nativeBreakpoint);
             return nativeBreakpoint;
         } catch (error) {
@@ -45,9 +77,27 @@ export class DwarfBreakpointManager {
         }
     }
 
-    addJavaBreakpoint = (bpAddress: string) => {
+    /**
+     * @param  {NativePointer|string} bpAddress
+     * @param  {number=(DwarfMemoryAccessType.READ|DwarfMemoryAccessType.WRITE} bpFlags
+     */
+    public addMemoryBreakpoint = (bpAddress: NativePointer | string, bpFlags: number = (DwarfMemoryAccessType.READ | DwarfMemoryAccessType.WRITE), bpEnabled?: boolean) => {
         try {
-            const javaBreakpoint = new JavaBreakpoint(bpAddress);
+            const memBreakpoint = new MemoryBreakpoint(bpAddress, (DwarfMemoryAccessType.READ | DwarfMemoryAccessType.WRITE), bpEnabled);
+            this.dwarfBreakpoints.push(memBreakpoint);
+            return memBreakpoint;
+        } catch (error) {
+
+        }
+    }
+
+    /**
+     * @param  {string} bpAddress
+     * @param  {boolean} bpEnabled?
+     */
+    public addJavaBreakpoint = (bpAddress: string, bpEnabled?: boolean) => {
+        try {
+            const javaBreakpoint = new JavaBreakpoint(bpAddress, bpEnabled);
             this.dwarfBreakpoints.push(javaBreakpoint);
             return javaBreakpoint;
         } catch (error) {
@@ -55,17 +105,25 @@ export class DwarfBreakpointManager {
         }
     }
 
-    addObjCBreakpoint = (bpAddress:string) => {
-        throw new Error('addObjCBreakpoint() -> Not implemented');
+    /**
+     * @param  {string} bpAddress
+     * @param  {boolean} bpEnabled?
+     */
+    public addObjCBreakpoint = (bpAddress: string, bpEnabled?: boolean) => {
+        throw new Error('DwarfBreakpointManager::addObjCBreakpoint() -> Not implemented');
     }
 
-    getBreakpointByAddress = (bpAddress: NativePointer | string): DwarfBreakpoint | null => {
+    /**
+     * @param  {NativePointer|string} bpAddress
+     * @returns DwarfBreakpoint
+     */
+    public getBreakpointByAddress = (bpAddress: NativePointer | string): DwarfBreakpoint | null => {
         let bpFindAddress;
         if (typeof bpAddress === 'string') {
             bpFindAddress = bpAddress;
         } else {
             if (bpAddress.isNull()) {
-                throw new Error('getBreakpointByAddress() -> Invalid Address!');
+                throw new Error('DwarfBreakpointManager::getBreakpointByAddress() -> Invalid Address!');
             }
             bpFindAddress = bpAddress.toString();
         }
@@ -80,25 +138,37 @@ export class DwarfBreakpointManager {
         return dwarfBreakpoint;
     }
 
-    toggleBreakpointAtAddress = (bpAddress: NativePointer | string): boolean => {
+    /**
+     * @param  {NativePointer|string} bpAddress
+     * @returns boolean
+     */
+    public toggleBreakpointAtAddress = (bpAddress: NativePointer | string): boolean => {
         let dwarfBreakpoint = this.getBreakpointByAddress(bpAddress);
-        if(dwarfBreakpoint !== null) {
+        if (dwarfBreakpoint !== null) {
             dwarfBreakpoint.toggleActive();
             return dwarfBreakpoint.isEnabled();
         }
     }
 
-    enableBreakpointAtAddress = (bpAddress: NativePointer | string): boolean => {
+    /**
+     * @param  {NativePointer|string} bpAddress
+     * @returns boolean
+     */
+    public enableBreakpointAtAddress = (bpAddress: NativePointer | string): boolean => {
         let dwarfBreakpoint = this.getBreakpointByAddress(bpAddress);
-        if(dwarfBreakpoint !== null) {
+        if (dwarfBreakpoint !== null) {
             dwarfBreakpoint.enable();
             return dwarfBreakpoint.isEnabled();
         }
     }
 
-    disableBreakpointAtAddress = (bpAddress: NativePointer | string): boolean => {
+    /**
+     * @param  {NativePointer|string} bpAddress
+     * @returns boolean
+     */
+    public disableBreakpointAtAddress = (bpAddress: NativePointer | string): boolean => {
         let dwarfBreakpoint = this.getBreakpointByAddress(bpAddress);
-        if(dwarfBreakpoint !== null) {
+        if (dwarfBreakpoint !== null) {
             dwarfBreakpoint.disable();
             return dwarfBreakpoint.isEnabled();
         }

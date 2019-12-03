@@ -21,6 +21,7 @@ import { DwarfInterceptor } from "./interceptor";
 import { DwarfApi } from "./api";
 import { LogicBreakpoint } from "./logic_breakpoint";
 import { LogicWatchpoint } from "./logic_watchpoint";
+import { DwarfBreakpointManager } from "./breakpoint_manager";
 
 export class DwarfCore {
     BREAK_START: boolean;
@@ -32,6 +33,7 @@ export class DwarfCore {
     modulesBlacklist = [];
 
     private dwarfApi: DwarfApi;
+    private dwarfBreakpointManager: DwarfBreakpointManager;
 
     private static instanceRef: DwarfCore;
 
@@ -49,8 +51,9 @@ export class DwarfCore {
             global.MAX_STACK_SIZE = i;
         }
         global.DEBUG = false;
-        console.log('DwarfCoreJS start');
+        logDebug('DwarfCoreJS start');
         this.dwarfApi = DwarfApi.getInstance();
+        this.dwarfBreakpointManager = DwarfBreakpointManager.getInstance();
     }
 
     /**
@@ -59,6 +62,7 @@ export class DwarfCore {
      * @returns DwarfCore
      */
     static getInstance() {
+        logDebug('Dwarf::getInstance()');
         if (!DwarfCore.instanceRef) {
             DwarfCore.instanceRef = new this();
         }
@@ -66,7 +70,13 @@ export class DwarfCore {
     }
 
     getApi = (): DwarfApi => {
+        logDebug('Dwarf::getApi()');
         return this.dwarfApi;
+    }
+
+    getBreakpointManager = (): DwarfBreakpointManager => {
+        logDebug('Dwarf::getBreakpointManager()');
+        return this.dwarfBreakpointManager;
     }
 
     enableDebug = (): void => {
