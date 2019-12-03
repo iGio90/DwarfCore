@@ -18,6 +18,8 @@
 
 import { LogicBreakpoint } from "./logic_breakpoint";
 import { LogicJava } from "./logic_java";
+import { DwarfHaltReason } from "./consts";
+import { DwarfCore } from "./dwarf";
 
 export class LogicInitialization {
     static nativeModuleInitializationCallbacks = {};
@@ -55,7 +57,7 @@ export class LogicInitialization {
                     'module': moduleInfo['name'], 'moduleBase': moduleInfo['base'], 'moduleEntry': moduleInfo['entry']
                 }));
 
-                LogicBreakpoint.breakpoint(LogicBreakpoint.REASON_BREAKPOINT_INITIALIZATION,
+                DwarfCore.getInstance().onBreakpoint(DwarfHaltReason.BP_INITIALIZATION,
                     this['context'].pc, this['context']);
             }
         }

@@ -18,6 +18,8 @@
 
 import { Breakpoint } from "./breakpoints";
 import { LogicBreakpoint } from "./logic_breakpoint";
+import { DwarfHaltReason } from "./consts";
+import { DwarfCore } from "./dwarf";
 
 export class LogicJava {
     static available = Java.available;
@@ -256,7 +258,7 @@ export class LogicJava {
                             userCallback.call(this);
                         } else {
                             Dwarf.loggedSend("java_class_initialization_callback:::" + clazz + ':::' + Process.getCurrentThreadId());
-                            LogicBreakpoint.breakpoint(LogicBreakpoint.REASON_BREAKPOINT, clazz, {}, this);
+                            DwarfCore.getInstance().onBreakpoint(DwarfHaltReason.BREAKPOINT, clazz, {}, this);
                         }
                     }
                 }
@@ -290,7 +292,7 @@ export class LogicJava {
             }
         }
 
-        LogicBreakpoint.breakpoint(LogicBreakpoint.REASON_BREAKPOINT, classMethod, newArgs, this, condition);
+        DwarfCore.getInstance().onBreakpoint(DwarfHaltReason.BREAKPOINT, classMethod, newArgs, this, condition);
     };
 
     static jvmExplorer(what?: any) {

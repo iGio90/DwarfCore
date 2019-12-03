@@ -21,24 +21,24 @@ import { LogicJava } from "./logic_java";
 import { LogicObjC } from "./logic_objc";
 import { LogicInitialization } from "./logic_initialization";
 import { LogicStalker } from "./logic_stalker";
-import { LogicWatchpoint } from "./logic_watchpoint";
 import { ThreadWrapper } from "./thread_wrapper";
-import { MEMORY_ACCESS_EXECUTE, MEMORY_ACCESS_READ, MEMORY_ACCESS_WRITE } from "./watchpoint";
-
-/// <reference path = "Dwarf.ts" />
+import { DwarfMemoryAccessType } from "./consts";
+import { DwarfCore } from "./dwarf";
+import { MemoryBreakpoint } from "./types/memory_breakpoint";
+import { DwarfBreakpointManager } from "./breakpoint_manager";
 
 export class DwarfApi {
-    private static instanceRef:DwarfApi;
+    private static instanceRef: DwarfApi;
 
     private constructor() {
-        if(DwarfApi.instanceRef) {
+        if (DwarfApi.instanceRef) {
             throw new Error("DwarfApi already exists! Use DwarfApi.getInstance()/Dwarf.getApi()");
         }
         logDebug('DwarfApi()');
     }
 
     static getInstance() {
-        if(!DwarfApi.instanceRef) {
+        if (!DwarfApi.instanceRef) {
             DwarfApi.instanceRef = new this();
         }
         return DwarfApi.instanceRef;
@@ -669,8 +669,11 @@ export class DwarfApi {
      * @return a boolean indicating if the given pointer is currently watched
      */
     isAddressWatched = (pt: any): boolean => {
-        const watchpoint = LogicWatchpoint.memoryWatchpoints[ptr(pt).toString()];
-        return isDefined(watchpoint);
+        const memoryBreakpoint = DwarfBreakpointManager.getInstance().getBreakpointByAddress(pt);
+        if (memoryBreakpoint.isEnabled()) {
+            return true;
+        }
+        return false;
     };
 
     private isPrintable = (char) => {
@@ -796,15 +799,15 @@ export class DwarfApi {
     }
 
     /**
-     * Put a watchpoint on the given address
+     * Create a MemoryBreakpoint on the given address
      *
      * ```javascript
-     * putWatchpoint(0x1000, 'r');
+     * addMemoryBreakpoint(0x1000, 'r');
      *
      * var target = findExport('memcpy');
      * Interceptor.attach(target, {
      *     onLeave: function(ret) {
-     *         putWatchpoint(this.context.x0, 'rw', function() {
+     *         addMemoryBreakpoint(this.context.x0, 'rw', function() {
      *            log(backtrace(this.context));
      *         });
      *     }
@@ -814,20 +817,41 @@ export class DwarfApi {
      * @param flags
      * @param callback
      */
-    putWatchpoint = (address: any, flags: string, callback?: Function) => {
+    addMemoryBreakpoint = (memoryAddress: NativePointer | string, bpFlags: string | number, bpCallback?: Function): MemoryBreakpoint => {
+        logDebug('DwarfApi::addMemoryBreakpoint');
+        if(typeof memoryAddress === 'string' || typeof memoryAddress === 'number') {
+            memoryAddress = ptr(memoryAddress);
+        }
         let intFlags = 0;
-        if (flags.indexOf('r') >= 0) {
-            intFlags |= MEMORY_ACCESS_READ;
-        }
-        if (flags.indexOf('w') >= 0) {
-            intFlags |= MEMORY_ACCESS_WRITE;
-        }
-        if (flags.indexOf('x') >= 0) {
-            intFlags |= MEMORY_ACCESS_EXECUTE;
+        if (typeof bpFlags === 'string') {
+            if (bpFlags.indexOf('r') >= 0) {
+                intFlags |= DwarfMemoryAccessType.READ;
+            }
+            if (bpFlags.indexOf('w') >= 0) {
+                intFlags |= DwarfMemoryAccessType.WRITE;
+            }
+            if (bpFlags.indexOf('x') >= 0) {
+                intFlags |= DwarfMemoryAccessType.EXECUTE;
+            }
+        } else if (typeof bpFlags === 'number') {
+            intFlags = bpFlags;
+        } else {
+            throw new Error('DwarfApi::addMemoryBreakpoint() -> Unknown FlagsType! (allowed string|number)');
         }
 
-        return LogicWatchpoint.putWatchpoint(address, intFlags, callback);
-    };
+        try {
+            const memoryBreakpoint = DwarfBreakpointManager.getInstance().addMemoryBreakpoint(memoryAddress, intFlags);
+            if (memoryBreakpoint !== null) {
+                if (bpCallback && typeof bpCallback === 'function') {
+                    memoryBreakpoint.setCallback(bpCallback);
+                }
+            }
+            return memoryBreakpoint;
+        } catch (error) {
+            logErr('DwarfApi::addMemoryBreakpoint()', error);
+            return null;
+        }
+    }
 
     /**
      * A shortcut and secure way to read a string from a pointer with frida on any os
@@ -855,11 +879,15 @@ export class DwarfApi {
             }
             if (Process.platform === 'windows') {
                 fstring = _np.readAnsiString(length);
+
+                if (fstring === null) {
+                    fstring = _np.readUtf16String(length);
+                }
             }
-            if (isString(fstring) && (fstring.length === 0)) {
+            if (fstring === null) {
                 fstring = _np.readCString(length);
             }
-            if (isString(fstring) && (fstring.length === 0)) {
+            if (fstring === null) {
                 fstring = _np.readUtf8String(length);
             }
             if (isString(fstring) && fstring.length) {
@@ -982,11 +1010,14 @@ export class DwarfApi {
     }
 
     /**
-     * Remove a watchpoint on the given address
+     * Remove a MemoryBreakpoint on the given address
      * @return a boolean indicating if removal was successful
      */
-    removeWatchpoint = (address: any): boolean => {
-        return LogicWatchpoint.removeWatchpoint(address);
+    removeMemoryBreakpoint = (memoryAddress: NativePointer | string): boolean => {
+        if(typeof memoryAddress === 'string' || typeof memoryAddress === 'number') {
+            memoryAddress = ptr(memoryAddress);
+        }
+        return DwarfBreakpointManager.getInstance().removeBreakpoint(memoryAddress);
     }
 
     /**

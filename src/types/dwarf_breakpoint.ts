@@ -53,11 +53,11 @@ export class DwarfBreakpoint {
         return this.bpType;
     }
 
-    public getAddress(): string {
+    public getAddress(): NativePointer | string | null {
         switch (this.bpType) {
             case DwarfBreakpointType.MEMORY:
             case DwarfBreakpointType.NATIVE:
-                return this.bpAddress.toString();
+                return this.bpAddress;
             case DwarfBreakpointType.JAVA:
             case DwarfBreakpointType.OBJC:
                 return this.bpAddress as string;

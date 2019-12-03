@@ -22,22 +22,25 @@ import { LogicObjC } from "./logic_objc";
 import { LogicStalker } from "./logic_stalker";
 import { ThreadApi } from "./thread_api";
 import { ThreadContext } from "./thread_context";
+import { DwarfHaltReason } from "./consts";
+import { DwarfCore } from "./dwarf";
 
 
 export class LogicBreakpoint {
-    static REASON_SET_INITIAL_CONTEXT = -1;
+    /*static REASON_SET_INITIAL_CONTEXT = -1;
     static REASON_BREAKPOINT = 0;
     static REASON_WATCHPOINT = 1;
     static REASON_BREAKPOINT_INITIALIZATION = 2;
-    static REASON_STEP = 3;
+    static REASON_STEP = 3;*/
 
     static breakpoints = {};
 
+    /*
     static breakpoint(reason, address_or_class, context, java_handle?, condition?) {
         const tid = Process.getCurrentThreadId();
 
         if (!isDefined(reason)) {
-            reason = LogicBreakpoint.REASON_BREAKPOINT;
+            reason = DwarfHaltReason.BREAKPOINT;
         }
 
         if (DEBUG) {
@@ -148,7 +151,7 @@ export class LogicBreakpoint {
                 LogicBreakpoint.loopApi(that);
             }
         }
-    }
+    }*/
 
     static putBreakpoint(target: any, condition?: string | Function): boolean {
         if (typeof target === 'string') {
@@ -204,8 +207,9 @@ export class LogicBreakpoint {
             breakpoint.interceptor.detach();
             Interceptor['flush']();
 
-            LogicBreakpoint.breakpoint(LogicBreakpoint.REASON_BREAKPOINT, this.context.pc,
-                this.context, null, breakpoint.condition);
+            //TODO: fix
+            DwarfCore.getInstance().onBreakpoint(DwarfHaltReason.BREAKPOINT, this.context.pc,
+                this.context, null, breakpoint.condition as Function);
 
             if (typeof LogicBreakpoint.breakpoints[breakpoint.target.toString()] !== 'undefined') {
                 LogicBreakpoint.putNativeBreakpoint(breakpoint);

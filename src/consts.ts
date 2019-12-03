@@ -56,6 +56,7 @@ export const enum DwarfMemoryAccessType {
 
 export const enum DwarfHaltReason {
     INITIAL_CONTEXT = 1,
-    BREAKPOINT = 2,
-    STEP = 3
+    BP_INITIALIZATION = 2,
+    BREAKPOINT = 3,
+    STEP = 4
 }

@@ -25,26 +25,24 @@ global.Dwarf = DwarfCore.getInstance();
 
 rpc.exports = {
     api: function (tid, apiFunction, apiArguments) {
-        if (DEBUG) {
-            logDebug('[' + tid + '] RPC-API: ' + apiFunction + ' | ' +
-                'args: ' + apiArguments + ' (' + Process.getCurrentThreadId() + ')');
-        }
+        logDebug('[' + tid + '] RPC-API: ' + apiFunction + ' | ' +
+            'args: ' + apiArguments + ' (' + Process.getCurrentThreadId() + ')');
 
         if (typeof apiArguments === 'undefined' || apiArguments === null) {
             apiArguments = [];
         }
 
-        if (Object.keys(Dwarf.threadContexts).length > 0) {
-            const threadContext = Dwarf.threadContexts[tid];
+        if (Object.keys(DwarfCore.getInstance().threadContexts).length > 0) {
+            const threadContext = DwarfCore.getInstance().threadContexts[tid];
             if (isDefined(threadContext)) {
                 const threadApi = new ThreadApi(apiFunction, apiArguments);
                 threadContext.apiQueue.push(threadApi);
                 const start = Date.now();
                 while (!threadApi.consumed) {
                     Thread.sleep(0.5);
-                    if (DEBUG) {
-                        logDebug('[' + tid + '] RPC-API: ' + apiFunction + ' waiting for api result');
-                    }
+
+                    logDebug('[' + tid + '] RPC-API: ' + apiFunction + ' waiting for api result');
+
                     if (Date.now() - start > 3 * 1000) {
                         threadApi.result = '';
                         break;
@@ -55,18 +53,18 @@ rpc.exports = {
                 if (!isDefined(ret)) {
                     ret = '';
                 }
-                if (DEBUG) {
-                    logDebug('[' + tid + '] RPC-API: ' + apiFunction + ' api result: ' + ret);
-                }
+
+                logDebug('[' + tid + '] RPC-API: ' + apiFunction + ' api result: ' + ret);
+
                 return ret;
             }
         }
 
-        return Dwarf.getApi()[apiFunction].apply(this, apiArguments)
+        return DwarfCore.getInstance().getApi()[apiFunction].apply(this, apiArguments)
     },
-    init: function (breakStart, debug, spawned, globalApiFuncs?:Array<string>) {
+    init: function (breakStart, debug, spawned, globalApiFuncs?: Array<string>) {
         //init dwarf
-        Dwarf.init(breakStart, debug, spawned, globalApiFuncs);
+        DwarfCore.getInstance().init(breakStart, debug, spawned, globalApiFuncs);
     },
     keywords: function () {
         const map = [];

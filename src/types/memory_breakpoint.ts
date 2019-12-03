@@ -30,9 +30,12 @@ export class MemoryBreakpoint extends DwarfBreakpoint {
      * @param  {number} bpFlags
      */
     public constructor(bpAddress: NativePointer | string, bpFlags: number = (DwarfMemoryAccessType.READ | DwarfMemoryAccessType.WRITE), bpEnabled?: boolean, bpCallback?: Function) {
+        logDebug('MemoryBreakpoint()');
         let memPtr: NativePointer;
         if (typeof bpAddress === 'string') {
             memPtr = ptr(bpAddress);
+        } else if (typeof bpAddress === 'number') {
+            bpAddress = ptr(bpAddress);
         } else {
             memPtr = bpAddress;
         }
@@ -106,6 +109,7 @@ export class MemoryBreakpoint extends DwarfBreakpoint {
      * Enables dwarf breakpoint
      */
     public enable(): void {
+        logDebug('MemoryBreakpoint::enable()');
         if (Process.platform === 'windows') {
             super.enable();
             DwarfCore.getInstance().getBreakpointManager().updateMemoryBreakpoints();
@@ -169,6 +173,7 @@ export class MemoryBreakpoint extends DwarfBreakpoint {
     }
 
     public onHit(details: ExceptionDetails | MemoryAccessDetails): boolean {
+        logDebug('MemoryBreakpoint::onHit');
         const _self = this;
         const tid = Process.getCurrentThreadId();
         let memOperation: MemoryOperation;

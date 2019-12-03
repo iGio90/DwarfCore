@@ -84,13 +84,15 @@ export class DwarfBreakpointManager {
      * @param  {number=(DwarfMemoryAccessType.READ|DwarfMemoryAccessType.WRITE} bpFlags
      */
     public addMemoryBreakpoint = (bpAddress: NativePointer | string, bpFlags: number = (DwarfMemoryAccessType.READ | DwarfMemoryAccessType.WRITE), bpEnabled?: boolean) => {
+        logDebug('DwarfBreakpointManager::addMemoryBreakpoint');
         try {
             const memBreakpoint = new MemoryBreakpoint(bpAddress, (DwarfMemoryAccessType.READ | DwarfMemoryAccessType.WRITE), bpEnabled);
             this.dwarfBreakpoints.push(memBreakpoint);
             this.updateMemoryBreakpoints();
+            DwarfCore.getInstance().loggedSend('watchpoint_added:::' + bpAddress.toString() + ':::' + bpFlags + ':::0');
             return memBreakpoint;
         } catch (error) {
-
+            logErr('DwarfBreakpointManager::addMemoryBreakpoint', error);
         }
     }
 
@@ -116,6 +118,17 @@ export class DwarfBreakpointManager {
         throw new Error('DwarfBreakpointManager::addObjCBreakpoint() -> Not implemented');
     }
 
+    public removeBreakpoint = (bpAddress: NativePointer | string): boolean => {
+        let dwarfBreakpoint = this.getBreakpointByAddress(bpAddress);
+        if (dwarfBreakpoint !== null) {
+            this.dwarfBreakpoints = this.dwarfBreakpoints.filter((breakpoint) => {
+                return breakpoint !== dwarfBreakpoint;
+            });
+            return true;
+        }
+        return false;
+    }
+
     /**
      * @param  {NativePointer|string} bpAddress
      * @returns DwarfBreakpoint
@@ -124,6 +137,8 @@ export class DwarfBreakpointManager {
         let bpFindAddress;
         if (typeof bpAddress === 'string') {
             bpFindAddress = bpAddress;
+        } else if (typeof bpAddress === 'number') {
+            bpFindAddress = ptr(bpAddress).toString();
         } else {
             if (bpAddress.isNull()) {
                 throw new Error('DwarfBreakpointManager::getBreakpointByAddress() -> Invalid Address!');
@@ -187,14 +202,15 @@ export class DwarfBreakpointManager {
      * Windows related stuff to handle MemoryBreakpoints
      * Call it after something MemoryBreakpoint related changes
      */
-    public updateMemoryBreakpoints(): void {
+    public updateMemoryBreakpoints = (): void => {
+        logDebug('DwarfBreakpointManager::updateMemoryBreakpoints()');
         if (Process.platform === 'windows') {
             MemoryAccessMonitor.disable();
-            let memoryBreakpoints;
+            let memoryBreakpoints: Array<MemoryAccessRange> = new Array<MemoryAccessRange>();
             for (let memBreakpoint of this.dwarfBreakpoints) {
                 if (memBreakpoint.getType() === DwarfBreakpointType.MEMORY) {
                     if (memBreakpoint.isEnabled()) {
-                        memoryBreakpoints.push(memBreakpoint);
+                        memoryBreakpoints.push({ 'base': (memBreakpoint.getAddress() as NativePointer), 'size': 1 });
                     }
                 }
             }
@@ -206,7 +222,7 @@ export class DwarfBreakpointManager {
 
     public handleMemoryBreakpoints = (details: ExceptionDetails | MemoryAccessDetails) => {
         let memoryAddress;
-        if(Process.platform === 'windows') {
+        if (Process.platform === 'windows') {
             memoryAddress = (details as MemoryAccessDetails).address;
         } else {
             memoryAddress = (details as ExceptionDetails).memory.address;

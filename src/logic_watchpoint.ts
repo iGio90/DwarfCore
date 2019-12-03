@@ -16,14 +16,7 @@
  **/
 
 
-
-import {
-    MEMORY_ACCESS_EXECUTE,
-    MEMORY_ACCESS_READ,
-    MEMORY_ACCESS_WRITE,
-    MEMORY_WATCH_SINGLE_SHOT, Watchpoint
-} from "./watchpoint";
-
+/*
 import { LogicBreakpoint } from "./logic_breakpoint";
 
 export class LogicWatchpoint {
@@ -215,4 +208,4 @@ export class LogicWatchpoint {
         Dwarf.loggedSend('watchpoint_removed:::' + memPtr.toString());
         return true;
     }
-}
+}*/

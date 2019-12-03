@@ -20,7 +20,6 @@ import { LogicInitialization } from "./logic_initialization";
 import { DwarfInterceptor } from "./interceptor";
 import { DwarfApi } from "./api";
 import { LogicBreakpoint } from "./logic_breakpoint";
-import { LogicWatchpoint } from "./logic_watchpoint";
 import { DwarfBreakpointManager } from "./breakpoint_manager";
 import { ThreadContext } from "./thread_context";
 import { ThreadApi } from "./thread_api";
@@ -66,10 +65,10 @@ export class DwarfCore {
      * @returns DwarfCore
      */
     static getInstance() {
-        logDebug('Dwarf::getInstance()');
         if (!DwarfCore.instanceRef) {
             DwarfCore.instanceRef = new this();
         }
+        logDebug('Dwarf::getInstance()');
         return DwarfCore.instanceRef;
     }
 
@@ -147,7 +146,7 @@ export class DwarfCore {
 
                     if (isDefined(address)) {
                         const startInterceptor = Interceptor.attach(address, function () {
-                            LogicBreakpoint.breakpoint(LogicBreakpoint.REASON_BREAKPOINT, this.context.pc, this.context);
+                            DwarfCore.getInstance().onBreakpoint(DwarfHaltReason.BREAKPOINT, this.context.pc, this.context);
                             startInterceptor.detach();
                         });
                         initialHook.detach();
@@ -156,7 +155,7 @@ export class DwarfCore {
             }
         }
 
-        this.dispatchContextInfo(LogicBreakpoint.REASON_SET_INITIAL_CONTEXT);
+        this.dispatchContextInfo(DwarfHaltReason.INITIAL_CONTEXT);
     }
 
     dispatchContextInfo = (reason, address_or_class?, context?) => {
@@ -168,7 +167,7 @@ export class DwarfCore {
             "ptr": address_or_class
         };
 
-        if (reason === LogicBreakpoint.REASON_SET_INITIAL_CONTEXT) {
+        if (reason === DwarfHaltReason.INITIAL_CONTEXT) {
             data['arch'] = Process.arch;
             data['platform'] = Process.platform;
             data['java'] = Java.available;
@@ -191,7 +190,7 @@ export class DwarfCore {
 
                 logDebug('[' + tid + '] sendInfos - preparing native backtrace');
 
-                data['backtrace'] = { 'bt': this.dwarfApi.backtrace(context), 'type': 'native' };
+                data['backtrace'] = { 'bt': this.getApi().backtrace(context), 'type': 'native' };
                 data['is_java'] = false;
 
                 logDebug('[' + tid + '] sendInfos - preparing context registers');
@@ -204,7 +203,7 @@ export class DwarfCore {
 
                     logDebug('[' + tid + '] getting register information:', reg, val);
 
-                    const ts = this.dwarfApi.getAddressTs(val);
+                    const ts = this.getApi().getAddressTs(val);
                     isValidPtr = ts[0] > 0;
                     newCtx[reg] = {
                         'value': val,
@@ -277,7 +276,7 @@ export class DwarfCore {
 
     loggedSend = (message: any, data?: ArrayBuffer | number[] | null):void => {
         logDebug('[' + Process.getCurrentThreadId() + '] send | ' + message);
-        send(message, data);
+        return send(message, data);
     }
 
     onBreakpoint = (haltReason: DwarfHaltReason, address_or_class, context, java_handle?, condition?: Function) => {

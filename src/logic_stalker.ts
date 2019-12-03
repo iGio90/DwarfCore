@@ -18,6 +18,8 @@
 
 import { LogicBreakpoint } from "./logic_breakpoint";
 import { StalkerInfo } from "./stalker_info";
+import { DwarfHaltReason } from "./consts";
+import { DwarfCore } from "./dwarf";
 
 export class LogicStalker {
     static stalkerInfoMap = {};
@@ -244,7 +246,7 @@ export class LogicStalker {
             stalkerInfo.context = context;
             stalkerInfo.lastContextAddress = context.pc;
 
-            LogicBreakpoint.breakpoint(LogicBreakpoint.REASON_STEP, pc, stalkerInfo.context, null);
+            DwarfCore.getInstance().onBreakpoint(DwarfHaltReason.STEP, pc, stalkerInfo.context, null);
 
             if (DEBUG) {
                 logDebug('[' + tid + '] callOut: ' + 'post onHook');

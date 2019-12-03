@@ -107,7 +107,7 @@ global.logDebug = function(...data) {
 
     const date = new Date();
     const now = date['getHourMinuteSecond']();
-    let to_log = '';
+    let to_log = '[JS DEBUG] ';
     Object.keys(data).forEach(argN => {
         let what = data[argN];
 

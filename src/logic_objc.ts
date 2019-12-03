@@ -18,6 +18,8 @@
 
 import { Breakpoint } from "./breakpoints";
 import { LogicBreakpoint } from "./logic_breakpoint";
+import { DwarfHaltReason } from "./consts";
+import { DwarfCore } from "./dwarf";
 
 
 export class LogicObjC {
@@ -459,8 +461,8 @@ export class LogicObjC {
             breakpoint.interceptor.detach();
             Interceptor['flush']();
 
-            LogicBreakpoint.breakpoint(LogicBreakpoint.REASON_BREAKPOINT, this.context.pc,
-                this.context, null, breakpoint.condition);
+            DwarfCore.getInstance().onBreakpoint(DwarfHaltReason.BREAKPOINT, this.context.pc,
+                this.context, null, breakpoint.condition as Function);
 
             if (typeof LogicObjC.breakpoints[target] !== 'undefined') {
                 LogicObjC.putObjCBreakpoint(breakpoint, target);
