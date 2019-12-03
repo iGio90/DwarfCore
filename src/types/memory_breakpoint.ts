@@ -17,7 +17,7 @@
 
 import { DwarfBreakpoint } from "./dwarf_breakpoint";
 import { DwarfCore } from "../dwarf";
-import { DwarfMemoryAccessType, DwarfBreakpointType } from "../consts";
+import { DwarfMemoryAccessType, DwarfBreakpointType, DwarfHaltReason } from "../consts";
 
 export class MemoryBreakpoint extends DwarfBreakpoint {
     protected bpFlags: number;
@@ -166,5 +166,58 @@ export class MemoryBreakpoint extends DwarfBreakpoint {
             this.enable();
         }
         return this.isEnabled();
+    }
+
+    public onHit(details:ExceptionDetails | MemoryAccessDetails) {
+        const _self = this;
+        const tid = Process.getCurrentThreadId();
+        let memOperation:MemoryOperation;
+        let fromPtr:NativePointer;
+        let memAddress:NativePointer;
+
+        this.disable();
+        this.updateHitsCounter();
+
+        if(Process.platform === 'windows') {
+            memOperation = (details as MemoryAccessDetails).operation;
+            fromPtr = (details as MemoryAccessDetails).from;
+            memAddress = (details as MemoryAccessDetails).address;
+        } else {
+            memOperation = (details as ExceptionDetails).memory.operation;
+            fromPtr = (details as ExceptionDetails).address;
+            memAddress = (details as ExceptionDetails).memory.address;
+        }
+
+        const returnval = { 'memory': { 'operation': memOperation, 'address': memAddress, 'from': fromPtr } };
+        if ((this.bpFlags & DwarfMemoryAccessType.READ) && (memOperation === 'read')) {
+            DwarfCore.getInstance().loggedSend('membp:::' + JSON.stringify(returnval) + ':::' + tid);
+        } else if ((this.bpFlags & DwarfMemoryAccessType.WRITE) && (memOperation === 'write')) {
+            DwarfCore.getInstance().loggedSend('membp:::' + JSON.stringify(returnval) + ':::' + tid);
+        } else if ((this.bpFlags & DwarfMemoryAccessType.EXECUTE) && (memOperation === 'execute')) {
+            DwarfCore.getInstance().loggedSend('membp:::' + JSON.stringify(returnval) + ':::' + tid);
+        }
+
+        const invocationListener = Interceptor.attach(fromPtr, function (args) {
+            const invocationContext:InvocationContext = this;
+            invocationListener.detach();
+            Interceptor.flush();
+
+            const memoryCallback = _self.callBackFunc;
+            if (memoryCallback !== null) {
+                try {
+                    memoryCallback.call(invocationContext, args);
+                } catch(error) {
+                    logErr('MemoryBreakpoint::callback()', error);
+                }
+            } else {
+                //TODO: it halts only when no callback?
+                DwarfCore.getInstance().onBreakpoint(DwarfHaltReason.BREAKPOINT, invocationContext.context.pc, invocationContext.context);
+            }
+
+            //reattach when enabled and not singleshot
+            if (!_self.isSingleShot()) {
+                _self.enable();
+            }
+        });
     }
 }

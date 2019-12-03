@@ -199,63 +199,29 @@ export class DwarfBreakpointManager {
                 }
             }
             if (memoryBreakpoints.length > 0) {
-                MemoryAccessMonitor.enable(memoryBreakpoints, { onAccess: this.handleMemoryAccessMonitorCallbacks });
+                MemoryAccessMonitor.enable(memoryBreakpoints, { onAccess: this.handleMemoryBreakpoints });
             }
         }
     }
 
-    /**
-     * Windows related stuff to handle MemoryBreakpoints
-     */
-    private handleMemoryAccessMonitorCallbacks = (details: MemoryAccessDetails) => {
-        const tid = Process.getCurrentThreadId();
-        const operation: MemoryOperation = details.operation;
-        const fromPtr: NativePointer = details.from;
-        const address: NativePointer = details.address;
+    public handleMemoryBreakpoints = (details: ExceptionDetails | MemoryAccessDetails) => {
+        let memoryAddress;
+        if(Process.platform === 'windows') {
+            memoryAddress = (details as MemoryAccessDetails).address;
+        } else {
+            memoryAddress = (details as ExceptionDetails).memory.address;
+        }
 
-        const dwarfBreakpoint = this.getBreakpointByAddress(address, true, DwarfBreakpointType.MEMORY);
+        const dwarfBreakpoint = this.getBreakpointByAddress(memoryAddress, true, DwarfBreakpointType.MEMORY);
 
         if (dwarfBreakpoint === null) {
-            return;
+            return false;
         }
 
         const memoryBreakpoint = dwarfBreakpoint as MemoryBreakpoint;
 
-        memoryBreakpoint.updateHitsCounter();
+        memoryBreakpoint.onHit(details);
 
-        const returnval = { 'memory': { 'operation': operation, 'address': address } };
-        const bpFlags = memoryBreakpoint.getFlags();
-        if ((bpFlags & DwarfMemoryAccessType.READ) && (operation === 'read')) {
-            MemoryAccessMonitor.disable();
-            Dwarf.loggedSend('watchpoint:::' + JSON.stringify(returnval) + ':::' + tid);
-        } else if ((bpFlags & DwarfMemoryAccessType.WRITE) && (operation === 'write')) {
-            MemoryAccessMonitor.disable();
-            Dwarf.loggedSend('watchpoint:::' + JSON.stringify(returnval) + ':::' + tid);
-        } else if ((bpFlags & DwarfMemoryAccessType.EXECUTE) && (operation === 'execute')) {
-            MemoryAccessMonitor.disable();
-            Dwarf.loggedSend('watchpoint:::' + JSON.stringify(returnval) + ':::' + tid);
-        }
-
-        const invocationListener = Interceptor.attach(fromPtr, function (args) {
-            invocationListener.detach();
-            Interceptor.flush();
-
-            const memoryCallback = memoryBreakpoint.getCallback();
-            if (memoryCallback !== null) {
-                try {
-                    memoryCallback.call(this, args);
-                } catch(error) {
-                    logErr('MemoryBreakpoint::callback()', error);
-                }
-            } else {
-                //TODO: it halts only when no callback?
-                DwarfCore.getInstance().onBreakpoint(DwarfHaltReason.BREAKPOINT, this.context.pc, this.context);
-            }
-
-            //reattach when enabled and not singleshot
-            if (!memoryBreakpoint.isSingleShot() && memoryBreakpoint.isEnabled()) {
-                DwarfBreakpointManager.getInstance().updateMemoryBreakpoints();
-            }
-        });
+        return true;
     }
 }

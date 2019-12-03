@@ -22,6 +22,7 @@ import { DwarfBreakpointType } from "../consts";
 export class NativeBreakpoint extends DwarfBreakpoint {
     protected bpCallbacks: InvocationListenerCallbacks | Function | null;
     protected bpDebugSymbol:DebugSymbol;
+    protected bpCondition:Function;
 
     /**
      * Creates an instance of DwarfBreakpoint.
@@ -60,5 +61,25 @@ export class NativeBreakpoint extends DwarfBreakpoint {
 
     public removeCallback(): void {
         this.bpCallbacks = null;
+    }
+
+    public setCondition(bpCondition: string | Function): void {
+        if(typeof bpCondition === 'string') {
+            this.bpCondition = new Function(bpCondition);
+        } else {
+            if(typeof bpCondition === 'function') {
+                this.bpCondition = bpCondition;
+            } else {
+                logDebug('NativeBreakpoint::setCondition() -> Unknown bpCondition!');
+            }
+        }
+    }
+
+    public getCondition():Function {
+        return this.bpCondition;
+    }
+
+    public removeCondition():void {
+        this.bpCondition = null;
     }
 }

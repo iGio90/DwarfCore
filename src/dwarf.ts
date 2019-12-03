@@ -246,7 +246,7 @@ export class DwarfCore {
         this.loggedSend('set_context:::' + JSON.stringify(data));
     }
 
-    handleException = (exception) => {
+    handleException = (exception: ExceptionDetails) => {
         if (DEBUG) {
             let dontLog = false;
             if (Process.platform === 'windows') {
@@ -266,14 +266,13 @@ export class DwarfCore {
             }
         }
 
-        if (Process.platform === 'windows') {
-            if (exception['type'] === 'access-violation') {
+        //handle MemoryBreakpoints
+        if (exception.type === 'access-violation') {
+            if (Process.platform === 'windows') {
                 return true;
             }
+            return this.getBreakpointManager().handleMemoryBreakpoints(exception);
         }
-
-        const watchpoint = LogicWatchpoint.handleException(exception);
-        return watchpoint !== null;
     }
 
     loggedSend = (w, p?) => {
@@ -284,7 +283,7 @@ export class DwarfCore {
         return send(w, p);
     }
 
-    onBreakpoint = (haltReason: DwarfHaltReason, address_or_class, context, java_handle?, condition?) => {
+    onBreakpoint = (haltReason: DwarfHaltReason, address_or_class, context, java_handle?, condition?: Function) => {
         const tid = Process.getCurrentThreadId();
 
 
@@ -299,10 +298,6 @@ export class DwarfCore {
         }
 
         if (isDefined(condition)) {
-            if (typeof condition === "string") {
-                condition = new Function(condition);
-            }
-
             if (!condition.call(threadContext)) {
                 delete this.threadContexts[tid];
                 return;
