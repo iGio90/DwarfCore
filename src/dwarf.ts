@@ -275,12 +275,9 @@ export class DwarfCore {
         }
     }
 
-    loggedSend = (w, p?) => {
-        if (DEBUG) {
-            console.log('[' + Process.getCurrentThreadId() + '] send | ' + w);
-        }
-
-        return send(w, p);
+    loggedSend = (message: any, data?: ArrayBuffer | number[] | null):void => {
+        logDebug('[' + Process.getCurrentThreadId() + '] send | ' + message);
+        send(message, data);
     }
 
     onBreakpoint = (haltReason: DwarfHaltReason, address_or_class, context, java_handle?, condition?: Function) => {

@@ -220,8 +220,6 @@ export class DwarfBreakpointManager {
 
         const memoryBreakpoint = dwarfBreakpoint as MemoryBreakpoint;
 
-        memoryBreakpoint.onHit(details);
-
-        return true;
+        return memoryBreakpoint.onHit(details);
     }
 }
