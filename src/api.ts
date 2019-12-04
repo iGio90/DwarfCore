@@ -818,7 +818,7 @@ export class DwarfApi {
      * @param callback
      */
     addMemoryBreakpoint = (memoryAddress: NativePointer | string, bpFlags: string | number, bpCallback?: Function): MemoryBreakpoint => {
-        logDebug('DwarfApi::addMemoryBreakpoint');
+        trace('DwarfApi::addMemoryBreakpoint()');
         if(typeof memoryAddress === 'string' || typeof memoryAddress === 'number') {
             memoryAddress = ptr(memoryAddress);
         }
@@ -1014,10 +1014,11 @@ export class DwarfApi {
      * @return a boolean indicating if removal was successful
      */
     removeMemoryBreakpoint = (memoryAddress: NativePointer | string): boolean => {
+        trace('DwarfApi::removeMemoryBreakpoint()');
         if(typeof memoryAddress === 'string' || typeof memoryAddress === 'number') {
             memoryAddress = ptr(memoryAddress);
         }
-        return DwarfBreakpointManager.getInstance().removeBreakpoint(memoryAddress);
+        return DwarfBreakpointManager.getInstance().removeBreakpointAtAddress(memoryAddress);
     }
 
     /**

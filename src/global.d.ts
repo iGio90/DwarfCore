@@ -28,6 +28,8 @@ declare namespace NodeJS {
         uniqueBy:any;
         logDebug:any;
         logErr:any;
+        makeNativePointer:any;
+        trace:any;
         Dwarf:any;
     }
 }
@@ -40,7 +42,9 @@ declare function hex2a(hex: string):[];
 declare function dethumbify(ptrValue:NativePointer):NativePointer;
 declare function uniqueBy(array: any[]);
 declare function logDebug(...data):void;
+declare function trace(...data):void;
 declare function logErr(tag, err):void;
+declare function makeNativePointer(value:any):NativePointer;
 declare var MAX_STACK_SIZE:number;
 declare var DEBUG:boolean;
 declare const Dwarf:any;

@@ -29,14 +29,16 @@ import { DwarfBreakpointType, DwarfMemoryAccessType, DwarfHaltReason } from "./c
  */
 export class DwarfBreakpointManager {
     private static instanceRef: DwarfBreakpointManager;
+    protected nextBPID: number;
     protected dwarfBreakpoints: Array<DwarfBreakpoint>;
 
     private constructor() {
         if (DwarfBreakpointManager.instanceRef) {
             throw new Error("DwarfBreakpointManager already exists! Use DwarfBreakpointManager.getInstance()/Dwarf.getBreakpointManager()");
         }
-        logDebug('DwarfBreakpointManager()');
+        trace('DwarfBreakpointManager()');
         this.dwarfBreakpoints = new Array<DwarfBreakpoint>();
+        this.nextBPID = 0;
     }
 
     static getInstance() {
@@ -46,12 +48,29 @@ export class DwarfBreakpointManager {
         return DwarfBreakpointManager.instanceRef;
     }
 
+    public getNextBreakpointID(): number {
+        this.nextBPID++;
+        return this.nextBPID;
+    }
+
+    private checkExists(bpAddress: any): void {
+        for (let dwarfBreakpoint of this.dwarfBreakpoints) {
+            if (dwarfBreakpoint.getAddress().toString() == bpAddress.toString()) {
+                throw new Error('DwarfBreakpointManager::addBreakpoint() -> Existing Breakpoint at given Address!')
+            }
+        }
+    }
+
     /**
      * @param  {DwarfBreakpointType} bpType
      * @param  {NativePointer|string} bpAddress
      * @param  {boolean} bpEnabled?
      */
     public addBreakpoint = (bpType: DwarfBreakpointType, bpAddress: NativePointer | string, bpEnabled?: boolean) => {
+        trace('DwarfBreakpointManager::addBreakpoint()');
+
+        this.checkExists(bpAddress);
+
         switch (bpType) {
             case DwarfBreakpointType.NATIVE:
                 return this.addNativeBreakpoint(bpAddress, bpEnabled);
@@ -70,9 +89,14 @@ export class DwarfBreakpointManager {
      * @param  {boolean} bpEnabled?
      */
     public addNativeBreakpoint = (bpAddress: NativePointer | string, bpEnabled?: boolean) => {
+        trace('DwarfBreakpointManager::addNativeBreakpoint()');
+
+        this.checkExists(bpAddress);
+
         try {
-            const nativeBreakpoint = new NativeBreakpoint(bpAddress, bpEnabled);
+            const nativeBreakpoint = new NativeBreakpoint(makeNativePointer(bpAddress), bpEnabled);
             this.dwarfBreakpoints.push(nativeBreakpoint);
+            this.update();
             return nativeBreakpoint;
         } catch (error) {
 
@@ -84,12 +108,15 @@ export class DwarfBreakpointManager {
      * @param  {number=(DwarfMemoryAccessType.READ|DwarfMemoryAccessType.WRITE} bpFlags
      */
     public addMemoryBreakpoint = (bpAddress: NativePointer | string, bpFlags: number = (DwarfMemoryAccessType.READ | DwarfMemoryAccessType.WRITE), bpEnabled?: boolean) => {
-        logDebug('DwarfBreakpointManager::addMemoryBreakpoint');
+        trace('DwarfBreakpointManager::addMemoryBreakpoint');
+
+        this.checkExists(bpAddress);
+
         try {
-            const memBreakpoint = new MemoryBreakpoint(bpAddress, (DwarfMemoryAccessType.READ | DwarfMemoryAccessType.WRITE), bpEnabled);
+            const memBreakpoint = new MemoryBreakpoint(makeNativePointer(bpAddress), (DwarfMemoryAccessType.READ | DwarfMemoryAccessType.WRITE), bpEnabled);
             this.dwarfBreakpoints.push(memBreakpoint);
             this.updateMemoryBreakpoints();
-            DwarfCore.getInstance().loggedSend('watchpoint_added:::' + bpAddress.toString() + ':::' + bpFlags + ':::0');
+            this.update();
             return memBreakpoint;
         } catch (error) {
             logErr('DwarfBreakpointManager::addMemoryBreakpoint', error);
@@ -101,9 +128,14 @@ export class DwarfBreakpointManager {
      * @param  {boolean} bpEnabled?
      */
     public addJavaBreakpoint = (bpAddress: string, bpEnabled?: boolean) => {
+        trace('DwarfBreakpointManager::addJavaBreakpoint()');
+
+        this.checkExists(bpAddress);
+
         try {
             const javaBreakpoint = new JavaBreakpoint(bpAddress, bpEnabled);
             this.dwarfBreakpoints.push(javaBreakpoint);
+            this.update();
             return javaBreakpoint;
         } catch (error) {
 
@@ -115,15 +147,51 @@ export class DwarfBreakpointManager {
      * @param  {boolean} bpEnabled?
      */
     public addObjCBreakpoint = (bpAddress: string, bpEnabled?: boolean) => {
+        trace('DwarfBreakpointManager::addObjCBreakpoint()');
+
+        this.checkExists(bpAddress);
+
+
         throw new Error('DwarfBreakpointManager::addObjCBreakpoint() -> Not implemented');
     }
 
-    public removeBreakpoint = (bpAddress: NativePointer | string): boolean => {
+    /**
+     * @param  {NativePointer|string} bpAddress
+     * @returns boolean
+     */
+    public removeBreakpointAtAddress = (bpAddress: NativePointer | string): boolean => {
+        trace('DwarfBreakpointManager::removeBreakpointAtAddress()');
         let dwarfBreakpoint = this.getBreakpointByAddress(bpAddress);
         if (dwarfBreakpoint !== null) {
             this.dwarfBreakpoints = this.dwarfBreakpoints.filter((breakpoint) => {
                 return breakpoint !== dwarfBreakpoint;
             });
+            this.update();
+            return true;
+        }
+        return false;
+    }
+
+    /**
+     * @param  {number} bpID
+     * @returns boolean
+     */
+    public removeBreakpointByID = (bpID: number): boolean => {
+        trace('DwarfBreakpointManager::removeBreakpointByID()');
+
+        let bpExisits = false;
+        for (let dwarfBreakpoint of this.dwarfBreakpoints) {
+            if (dwarfBreakpoint.getID() === bpID) {
+                bpExisits = true;
+                break;
+            }
+        }
+
+        if (bpExisits) {
+            this.dwarfBreakpoints = this.dwarfBreakpoints.filter((dwarfBreakpoint) => {
+                return dwarfBreakpoint.getID() !== bpID;
+            });
+            this.update();
             return true;
         }
         return false;
@@ -134,13 +202,14 @@ export class DwarfBreakpointManager {
      * @returns DwarfBreakpoint
      */
     public getBreakpointByAddress = (bpAddress: NativePointer | string, checkEnabled: boolean = false, checkForType?: DwarfBreakpointType): DwarfBreakpoint | null => {
+        trace('DwarfBreakpointManager::getBreakpointByAddress()');
         let bpFindAddress;
         if (typeof bpAddress === 'string') {
             bpFindAddress = bpAddress;
         } else if (typeof bpAddress === 'number') {
             bpFindAddress = ptr(bpAddress).toString();
         } else {
-            if (bpAddress.isNull()) {
+            if (bpAddress.constructor.name !== 'NativePointer' || bpAddress.isNull()) {
                 throw new Error('DwarfBreakpointManager::getBreakpointByAddress() -> Invalid Address!');
             }
             bpFindAddress = bpAddress.toString();
@@ -167,6 +236,7 @@ export class DwarfBreakpointManager {
      * @returns boolean
      */
     public toggleBreakpointAtAddress = (bpAddress: NativePointer | string): boolean => {
+        trace('DwarfBreakpointManager::toggleBreakpointAtAddress()');
         let dwarfBreakpoint = this.getBreakpointByAddress(bpAddress);
         if (dwarfBreakpoint !== null) {
             dwarfBreakpoint.toggleActive();
@@ -179,6 +249,7 @@ export class DwarfBreakpointManager {
      * @returns boolean
      */
     public enableBreakpointAtAddress = (bpAddress: NativePointer | string): boolean => {
+        trace('DwarfBreakpointManager::enableBreakpointAtAddress()');
         let dwarfBreakpoint = this.getBreakpointByAddress(bpAddress);
         if (dwarfBreakpoint !== null) {
             dwarfBreakpoint.enable();
@@ -191,6 +262,7 @@ export class DwarfBreakpointManager {
      * @returns boolean
      */
     public disableBreakpointAtAddress = (bpAddress: NativePointer | string): boolean => {
+        trace('DwarfBreakpointManager::disableBreakpointAtAddress()');
         let dwarfBreakpoint = this.getBreakpointByAddress(bpAddress);
         if (dwarfBreakpoint !== null) {
             dwarfBreakpoint.disable();
@@ -203,7 +275,7 @@ export class DwarfBreakpointManager {
      * Call it after something MemoryBreakpoint related changes
      */
     public updateMemoryBreakpoints = (): void => {
-        logDebug('DwarfBreakpointManager::updateMemoryBreakpoints()');
+        trace('DwarfBreakpointManager::updateMemoryBreakpoints()');
         if (Process.platform === 'windows') {
             MemoryAccessMonitor.disable();
             let memoryBreakpoints: Array<MemoryAccessRange> = new Array<MemoryAccessRange>();
@@ -221,6 +293,7 @@ export class DwarfBreakpointManager {
     }
 
     public handleMemoryBreakpoints = (details: ExceptionDetails | MemoryAccessDetails) => {
+        trace('DwarfBreakpointManager::handleMemoryBreakpoints()');
         let memoryAddress;
         if (Process.platform === 'windows') {
             memoryAddress = (details as MemoryAccessDetails).address;
@@ -231,11 +304,36 @@ export class DwarfBreakpointManager {
         const dwarfBreakpoint = this.getBreakpointByAddress(memoryAddress, true, DwarfBreakpointType.MEMORY);
 
         if (dwarfBreakpoint === null) {
-            return false;
+            if (Process.platform !== 'windows') {
+                return false;
+            }
         }
 
         const memoryBreakpoint = dwarfBreakpoint as MemoryBreakpoint;
 
-        return memoryBreakpoint.onHit(details);
+        if (Process.platform !== 'windows') {
+            return memoryBreakpoint.onHit(details);
+        } else {
+            memoryBreakpoint.onHit(details);
+        }
+    }
+
+    public getBreakpoints = (): Array<DwarfBreakpoint> => {
+        trace('DwarfBreakpointManager::getBreakpoints()');
+        const dwarfBreakpoints = this.dwarfBreakpoints.filter((breakpoint) => {
+            return !breakpoint.hasOwnProperty('internalBreakpoint');
+        });
+        return dwarfBreakpoints;
+    }
+
+    public update = () => {
+        trace('DwarfBreakpointManager::update()');
+        //remove singleshots
+        this.dwarfBreakpoints = this.dwarfBreakpoints.filter((dwarfBreakpoint) => {
+            return !(dwarfBreakpoint.isSingleShot() && (dwarfBreakpoint.getHits() > 0));
+        });
+
+        //sync ui
+        DwarfCore.getInstance().sync();
     }
 }

@@ -54,7 +54,7 @@ export class DwarfCore {
             global.MAX_STACK_SIZE = i;
         }
         global.DEBUG = false;
-        logDebug('DwarfCoreJS start');
+        trace('DwarfCoreJS start');
         this.dwarfApi = DwarfApi.getInstance();
         this.dwarfBreakpointManager = DwarfBreakpointManager.getInstance();
     }
@@ -68,31 +68,35 @@ export class DwarfCore {
         if (!DwarfCore.instanceRef) {
             DwarfCore.instanceRef = new this();
         }
-        logDebug('Dwarf::getInstance()');
+        trace('Dwarf::getInstance()');
         return DwarfCore.instanceRef;
     }
 
     getApi = (): DwarfApi => {
-        logDebug('Dwarf::getApi()');
+        trace('Dwarf::getApi()');
         return this.dwarfApi;
     }
 
     getBreakpointManager = (): DwarfBreakpointManager => {
-        logDebug('Dwarf::getBreakpointManager()');
+        trace('Dwarf::getBreakpointManager()');
         return this.dwarfBreakpointManager;
     }
 
     enableDebug = (): void => {
+        trace('DwarfCore::enableDebug()');
         DEBUG = true;
     }
     disableDebug = (): void => {
+        trace('DwarfCore::disableDebug()');
         DEBUG = false
     }
     toggleDebug = (): void => {
+        trace('DwarfCore::toggleDebug()');
         DEBUG = !DEBUG
     }
 
     init = (breakStart: boolean, debug: boolean, spawned: boolean, globalApiFuncs?: Array<string>): void => {
+        trace('DwarfCore::init()');
         this.BREAK_START = breakStart;
         if (debug) {
             DEBUG = true;
@@ -159,6 +163,7 @@ export class DwarfCore {
     }
 
     dispatchContextInfo = (reason, address_or_class?, context?) => {
+        trace('DwarfCore::dispatchContextInfo()');
         const tid = Process.getCurrentThreadId();
 
         const data = {
@@ -246,6 +251,7 @@ export class DwarfCore {
     }
 
     handleException = (exception: ExceptionDetails) => {
+        trace('DwarfCore::handleException()');
         if (DEBUG) {
             let dontLog = false;
             if (Process.platform === 'windows') {
@@ -275,11 +281,13 @@ export class DwarfCore {
     }
 
     loggedSend = (message: any, data?: ArrayBuffer | number[] | null):void => {
+        trace('DwarfCore::loggedSend()');
         logDebug('[' + Process.getCurrentThreadId() + '] send | ' + message);
         return send(message, data);
     }
 
     onBreakpoint = (haltReason: DwarfHaltReason, address_or_class, context, java_handle?, condition?: Function) => {
+        trace('DwarfCore::onBreakpoint()');
         const tid = Process.getCurrentThreadId();
 
 
@@ -313,6 +321,7 @@ export class DwarfCore {
     }
 
     loopApi = (tid: number, that) => {
+        trace('DwarfCore::loopApi()');
 
         logDebug('[' + tid + '] looping api');
 
@@ -371,5 +380,13 @@ export class DwarfCore {
                 this.loopApi(tid, that);
             }
         }
+    }
+
+    /** @internal */
+    sync = () => {
+        trace('DwarfCore::sync()');
+        let coreSyncMsg = { breakpoints: [] };
+        coreSyncMsg.breakpoints = this.getBreakpointManager().getBreakpoints();
+        send('coresync:::' + JSON.stringify(coreSyncMsg));
     }
 }

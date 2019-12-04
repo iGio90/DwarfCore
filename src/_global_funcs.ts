@@ -129,9 +129,29 @@ global.logDebug = function(...data) {
 }
 
 global.logErr = function(tag, err) {
-    logDebug('[ERROR-' + tag + '] ' + err);
+    console.log('[ERROR-' + tag + '] ' + err);
 }
 
+global.trace = function(str:string) {
+    //TODO: dont use DEBUG
+    if(DEBUG) {
+        const date = new Date();
+        const now = date['getHourMinuteSecond']();
+        console.log(now + ' [JS TRACE] -> ' + str);
+    }
+}
+
+global.makeNativePointer = function(value:any):NativePointer {
+    if(value.constructor.name === 'NativePointer') {
+        return value as NativePointer;
+    }
+
+    if(typeof value === 'string' || typeof value === 'number') {
+        return ptr(value);
+    }
+
+    return null;
+}
 
 Date.prototype['getTwoDigitHour'] = function () {
     return (this.getHours() < 10) ? '0' + this.getHours() : this.getHours();

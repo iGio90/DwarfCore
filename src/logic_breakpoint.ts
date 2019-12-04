@@ -203,6 +203,7 @@ export class LogicBreakpoint {
     }
 
     private static putNativeBreakpoint(breakpoint: Breakpoint): boolean {
+        logDebug('putNativeBreakpoint()');
         breakpoint.interceptor = Interceptor.attach(breakpoint.target as NativePointer, function () {
             breakpoint.interceptor.detach();
             Interceptor['flush']();
@@ -240,7 +241,6 @@ export class LogicBreakpoint {
         }
 
         let breakpoint = LogicBreakpoint.breakpoints[target.toString()];
-        console.log(breakpoint.interceptor);
         if (isDefined(breakpoint)) {
             if (isDefined(breakpoint.interceptor)) {
                 breakpoint.interceptor.detach();

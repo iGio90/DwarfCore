@@ -30,17 +30,10 @@ export class MemoryBreakpoint extends DwarfBreakpoint {
      * @param  {number} bpFlags
      */
     public constructor(bpAddress: NativePointer | string, bpFlags: number = (DwarfMemoryAccessType.READ | DwarfMemoryAccessType.WRITE), bpEnabled?: boolean, bpCallback?: Function) {
-        logDebug('MemoryBreakpoint()');
-        let memPtr: NativePointer;
-        if (typeof bpAddress === 'string') {
-            memPtr = ptr(bpAddress);
-        } else if (typeof bpAddress === 'number') {
-            bpAddress = ptr(bpAddress);
-        } else {
-            memPtr = bpAddress;
-        }
+        trace('MemoryBreakpoint()');
+        let memPtr: NativePointer = makeNativePointer(bpAddress);
 
-        if (memPtr.isNull()) {
+        if (memPtr === null || memPtr.isNull()) {
             throw new Error('MemoryBreakpoint() -> Invalid Address!');
         }
 
@@ -74,6 +67,7 @@ export class MemoryBreakpoint extends DwarfBreakpoint {
      * @param  {number} bpFlags - DwarfMemoryAccessType
      */
     public setFlags(bpFlags: number): void {
+        trace('MemoryBreakpoint::setFlags()');
         let wasEnabled = false;
         if (this.isEnabled()) {
             this.disable();
@@ -88,20 +82,24 @@ export class MemoryBreakpoint extends DwarfBreakpoint {
     }
 
     public getFlags() {
+        trace('MemoryBreakpoint::getFlags()');
         return this.bpFlags;
     }
 
     public setCallback(callbackFunction: Function): void {
+        trace('MemoryBreakpoint::setCallback()');
         if (typeof callbackFunction === 'function') {
             this.callBackFunc = callbackFunction;
         }
     }
 
     public getCallback(): Function | null {
+        trace('MemoryBreakpoint::getCallback()');
         return this.callBackFunc;
     }
 
     public removeCallback(): void {
+        trace('MemoryBreakpoint::removeCallback()');
         this.callBackFunc = null;
     }
 
@@ -109,7 +107,7 @@ export class MemoryBreakpoint extends DwarfBreakpoint {
      * Enables dwarf breakpoint
      */
     public enable(): void {
-        logDebug('MemoryBreakpoint::enable()');
+        trace('MemoryBreakpoint::enable()');
         if (Process.platform === 'windows') {
             super.enable();
             DwarfCore.getInstance().getBreakpointManager().updateMemoryBreakpoints();
@@ -147,6 +145,7 @@ export class MemoryBreakpoint extends DwarfBreakpoint {
      * Disables dwarf breakpoint
      */
     public disable(): void {
+        trace('MemoryBreakpoint::disable()');
         if (Process.platform === 'windows') {
             super.disable();
             DwarfCore.getInstance().getBreakpointManager().updateMemoryBreakpoints();
@@ -164,6 +163,7 @@ export class MemoryBreakpoint extends DwarfBreakpoint {
      * @returns true if active
      */
     public toggleActive(): boolean {
+        trace('MemoryBreakpoint::toggleActive()');
         if (this.isEnabled()) {
             this.disable();
         } else {
@@ -173,7 +173,7 @@ export class MemoryBreakpoint extends DwarfBreakpoint {
     }
 
     public onHit(details: ExceptionDetails | MemoryAccessDetails): boolean {
-        logDebug('MemoryBreakpoint::onHit');
+        trace('MemoryBreakpoint::onHit()');
         const _self = this;
         const tid = Process.getCurrentThreadId();
         let memOperation: MemoryOperation;
@@ -209,7 +209,7 @@ export class MemoryBreakpoint extends DwarfBreakpoint {
                 }
                 break;
             default:
-                logDebug('MemoryBreakpoint::onHit() -> Unknown Operation or Invalid Flags! (OP: ' + memOperation + ', FLAGS: ' + this.bpFlags.toString() + ')');
+                trace('MemoryBreakpoint::onHit() -> Unknown Operation or Invalid Flags! (OP: ' + memOperation + ', FLAGS: ' + this.bpFlags.toString() + ')');
         }
 
         if (!handleBp) {
@@ -222,7 +222,7 @@ export class MemoryBreakpoint extends DwarfBreakpoint {
 
         //Disable to allow access to mem
         this.disable();
-        this.updateHitsCounter();
+        this.bpHits++;
 
         const invocationListener = Interceptor.attach(fromPtr, function (args) {
             const invocationContext: InvocationContext = this;

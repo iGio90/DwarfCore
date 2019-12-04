@@ -16,11 +16,13 @@
 **/
 
 import { DwarfBreakpointType } from "../consts";
+import { DwarfCore } from "../dwarf";
 
 /**
  * DwarfBreakpoint
  */
 export class DwarfBreakpoint {
+    protected bpID:number;
     protected bpHits: number;
     protected bpEnabled: boolean;
     protected bpType: DwarfBreakpointType;
@@ -35,9 +37,11 @@ export class DwarfBreakpoint {
      * @param  {boolean=true} bpEnabled
      */
     public constructor(bpType: DwarfBreakpointType, bpAddress: NativePointer | string, bpEnabled: boolean = true) {
+        trace('DwarfBreakpoint()');
         if ((bpType < DwarfBreakpointType.NATIVE) || (bpType > DwarfBreakpointType.MEMORY)) {
             throw new Error('Invalid BreakpointType');
         }
+        this.bpID = DwarfCore.getInstance().getBreakpointManager().getNextBreakpointID();
         this.bpHits = 0;
         this.bpSingleShot = false;
         this.bpEnabled = bpEnabled;
@@ -45,15 +49,22 @@ export class DwarfBreakpoint {
         this.bpAddress = bpAddress;
     }
 
+    public getID():number {
+        trace('DwarfBreakpoint::getID()');
+        return this.bpID;
+    }
+
     /**
      * Gets type
      * @returns DwarfBreakpointType
      */
     public getType(): DwarfBreakpointType {
+        trace('DwarfBreakpoint::getType()');
         return this.bpType;
     }
 
     public getAddress(): NativePointer | string | null {
+        trace('DwarfBreakpoint::getAddress()');
         switch (this.bpType) {
             case DwarfBreakpointType.MEMORY:
             case DwarfBreakpointType.NATIVE:
@@ -70,6 +81,7 @@ export class DwarfBreakpoint {
      * Enables dwarf breakpoint
      */
     public enable(): void {
+        trace('DwarfBreakpoint::enable()');
         this.bpEnabled = true;
     }
 
@@ -77,6 +89,7 @@ export class DwarfBreakpoint {
      * Disables dwarf breakpoint
      */
     public disable(): void {
+        trace('DwarfBreakpoint::disable()');
         this.bpEnabled = false;
     }
 
@@ -85,6 +98,7 @@ export class DwarfBreakpoint {
      * @returns true if active
      */
     public toggleActive(): boolean {
+        trace('DwarfBreakpoint::toggleActive()');
         this.bpEnabled = !this.bpEnabled;
         return this.bpEnabled;
     }
@@ -94,6 +108,7 @@ export class DwarfBreakpoint {
      * @returns true if enabled
      */
     public isEnabled(): boolean {
+        trace('DwarfBreakpoint::isEnabled()');
         return (this.bpEnabled == true);
     }
 
@@ -102,6 +117,7 @@ export class DwarfBreakpoint {
      * @returns number of hits
      */
     public getHits(): number {
+        trace('DwarfBreakpoint::getHits()');
         return this.bpHits;
     }
 
@@ -109,6 +125,7 @@ export class DwarfBreakpoint {
      * @returns boolean
      */
     public isSingleShot(): boolean {
+        trace('DwarfBreakpoint::isSingleShot()');
         return this.bpSingleShot;
     }
 
@@ -116,14 +133,12 @@ export class DwarfBreakpoint {
      * @param  {boolean=true} singleShot
      */
     public setSingleShot(singleShot: boolean = true) {
+        trace('DwarfBreakpoint::setSingleShot()');
         this.bpSingleShot = singleShot;
     }
 
-    public updateHitsCounter() {
-        this.bpHits++;
-    }
-
     public resetHitsCounter() {
+        trace('DwarfBreakpoint::resetHitsCounter()');
         this.bpHits = 0;
     }
 
