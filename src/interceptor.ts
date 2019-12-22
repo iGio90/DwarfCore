@@ -59,7 +59,11 @@ export class DwarfInterceptor {
         const clone = Object.assign({}, Interceptor);
         clone.attach = function attach(target: NativePointerValue, callbacksOrProbe: InvocationListenerCallbacks | InstructionProbeCallback,
             data?: NativePointerValue): InvocationListener {
-            Memory['_checkCodePointer'](target);
+            if(target.hasOwnProperty('handle')) {
+                    (target as ObjectWrapper).handle.readU8();
+                } else {
+                    (target as NativePointer).readU8();
+                }
             let replacement;
             if (typeof callbacksOrProbe === 'function') {
                 replacement = function () {
