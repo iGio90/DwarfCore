@@ -114,7 +114,7 @@ export class DwarfObserver {
             nSize = this.getSizeForType(watchType);
         }
 
-        let storedValue: any = this.getValue(npAddress, watchType);
+        let storedValue: any = this.getValue(npAddress, watchType, nSize);
 
         //add to array
         this.observeLocations.push({
@@ -139,17 +139,12 @@ export class DwarfObserver {
         for (let location of this.observeLocations) {
             if (location.address === memAddress) {
                 let storedValue = location.storedValue;
-                let newValue:any = null;
 
                 if(!this.isAddressReadable(location.address)) {
                     return;
                 }
 
-                if(location.type === 'bytes') {
-                    newValue = this.getValue(location.address, location.type, location.size);
-                } else {
-                    newValue = this.getValue(location.address, location.type);
-                }
+                const newValue = this.getValue(location.address, location.type, location.size);
 
                 if (location.mode === 'changed') {
                     let hasChanged:boolean = false;
@@ -207,7 +202,7 @@ export class DwarfObserver {
         trace('DwarfObserver::getValue()');
         switch (valueType) {
             case 'bytes':
-                return npAddress.readByteArray(nSize);
+                return ba2hex(npAddress.readByteArray(nSize));
             case 'sbyte':
                 return npAddress.readS8();
             case 'byte':
