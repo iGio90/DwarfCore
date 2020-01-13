@@ -65,9 +65,12 @@ export class DwarfObserver {
         npAddress = makeNativePointer(npAddress);
 
         //check address
-        //TODO: add check for range permissions
         if (npAddress === null || npAddress.isNull()) {
             throw new Error('DwarfObserver::addLocation() => Invalid Address!');
+        }
+
+        if(!this.isAddressReadable(npAddress)) {
+            throw new Error('DwarfObserver::addLocation() => Unable to read given Address!');
         }
 
         //check type
@@ -108,7 +111,7 @@ export class DwarfObserver {
             throw new Error('DwarfObserver::addLocation() => Invalid Size!')
         } else {
             //throws error if wrong type
-            nSize = this.getRangeForType(watchType);
+            nSize = this.getSizeForType(watchType);
         }
 
         let storedValue: any = this.getValue(npAddress, watchType);
@@ -131,11 +134,16 @@ export class DwarfObserver {
     }
 
     handleMemoryAccess = (details: MemoryAccessDetails) => {
+        trace('DwarfObserver::handleMemoryAccess()');
         const memAddress = details.address;
         for (let location of this.observeLocations) {
             if (location.address === memAddress) {
                 let storedValue = location.storedValue;
                 let newValue:any = null;
+
+                if(!this.isAddressReadable(location.address)) {
+                    return;
+                }
 
                 if(location.type === 'bytes') {
                     newValue = this.getValue(location.address, location.type, location.size);
@@ -169,7 +177,8 @@ export class DwarfObserver {
         }
     }
 
-    private getRangeForType = (watchType: string): number => {
+    private getSizeForType = (watchType: string): number => {
+        trace('DwarfObserver::getSizeForType()');
         switch (watchType) {
             case 'byte':
             case 'bool':
@@ -195,6 +204,7 @@ export class DwarfObserver {
     }
 
     private getValue = (npAddress: NativePointer, valueType: string, nSize: number = 0): any => {
+        trace('DwarfObserver::getValue()');
         switch (valueType) {
             case 'bytes':
                 return npAddress.readByteArray(nSize);
@@ -228,13 +238,28 @@ export class DwarfObserver {
                 return npAddress.readPointer();
         }
         throw new Error('DwarfObserver::getRangeForType() => Invalid Type!');
-    };
+    }
+
+    private isAddressReadable = (npAddress:NativePointer):boolean => {
+        trace('DwarfObserver::isAddressReadable()');
+        const rangeDetails = Process.findRangeByAddress(npAddress);
+        if (rangeDetails === null) {
+            throw new Error('DwarfObserver::getRangePermissionsForAddress() -> Unable to find MemoryRange!');
+        }
+
+        if(rangeDetails.protection.indexOf('r') != -1) {
+            return true;
+        }
+
+        return false;
+    }
 
     /**
      * Helper to get our locations in MemoryAccessMonitor
      * @returns Array
      */
     getLocationsInternal = (): Array<MemoryAccessRange> => {
+        trace('DwarfObserver::getLocationsInternal()');
         let locations: Array<MemoryAccessRange> = new Array<MemoryAccessRange>();
         for (let location of this.observeLocations) {
             locations.push({
