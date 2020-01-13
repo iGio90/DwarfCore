@@ -152,24 +152,8 @@ export class DwarfApi {
         DwarfCore.getInstance().sync({ bookmark: { address: bmAddress, note: bmNote } });
     }
 
-    addObserve = (npAddress:NativePointer | string, type:string, watchType:number, expression:string | Function) => {
-        if(!isString(type)) {
-            throw new Error('Api::addObserve() => Invalid Argument: type!=string!');
-        }
-        let nSize: number = 0;
-        switch(type) {
-            case 'int':
-                nSize = 4;
-                break;
-        }
-
-        if(nSize) {
-            return this.addObserveLocation(npAddress, nSize, watchType, expression);
-        }
-    }
-
-    addObserveLocation = (npAddress: NativePointer | string, nSize: number, watchType: number, expression: string | Function) => {
-        return DwarfObserver.getInstance().addLocation(npAddress, nSize, watchType, expression);
+    addObserveLocation = (npAddress: NativePointer | string, watchType: string, nSize: number = 0, watchMode: string, expression: string | Function) => {
+        return DwarfObserver.getInstance().addLocation(npAddress, watchType, nSize, watchMode, expression);
     }
 
     private _internalMemoryScan(start, size, pattern) {
