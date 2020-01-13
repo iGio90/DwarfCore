@@ -219,7 +219,7 @@ export class LogicJava {
         return false;
     }
 
-    static init() {
+    static init(breakAtStart:boolean=false) {
         Java.performNow(function () {
             LogicJava.sdk = Java.use('android.os.Build$VERSION')['SDK_INT']['value'];
             if (DEBUG) {
@@ -227,7 +227,7 @@ export class LogicJava {
                     'initializing logicJava with sdk: ' + LogicJava.sdk);
             }
 
-            if (Dwarf.SPAWNED && Dwarf.BREAK_START) {
+            if (DwarfCore.getInstance().getProcessInfo().wasSpawned && breakAtStart) {
                 if (LogicJava.sdk >= 23) {
                     // attach to commonInit for init debugging
                     LogicJava.hookInJVM('com.android.internal.os.RuntimeInit',

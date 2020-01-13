@@ -16,7 +16,8 @@
 **/
 
 import { DwarfBreakpoint } from "./dwarf_breakpoint";
-import { DwarfBreakpointType } from "../consts";
+import { DwarfBreakpointType, DwarfHaltReason } from "../consts";
+import { DwarfCore } from "../dwarf";
 
 
 export class NativeBreakpoint extends DwarfBreakpoint {
@@ -53,6 +54,23 @@ export class NativeBreakpoint extends DwarfBreakpoint {
 
         this.bpDebugSymbol = DebugSymbol.fromAddress(natPtr);
         this.bpCallbacks = bpCallback || null;
+
+        const self = this;
+        const invocationListener = Interceptor.attach(natPtr, function () {
+            const invocationContext = this;
+            invocationListener.detach();
+            Interceptor.flush();
+
+            self.bpHits++;
+
+            DwarfCore.getInstance().onBreakpoint(DwarfHaltReason.BREAKPOINT, invocationContext.context.pc,
+                invocationContext.context, null, self.bpCondition);
+
+            if (self.isSingleShot()) {
+                invocationListener.detach();
+                DwarfCore.getInstance().getBreakpointManager().update();
+            }
+        });
     }
 
     public setCallback(bpCallback: InvocationListenerCallbacks | Function | null): void {

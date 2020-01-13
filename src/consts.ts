@@ -15,6 +15,19 @@
     along with this program.  If not, see <https://www.gnu.org/licenses/>
 **/
 
+export const enum DwarfLogType {
+    PRINT = 1,
+    DEBUG = 2,
+    WARNING = 3,
+    ERROR = 4
+}
+
+export const enum DwarfPlatform {
+    OS_WINDOWS = 1,
+    OS_DARWIN = 2,
+    OS_LINUX = 3,
+    OS_QNX = 4
+}
 
 export const enum DwarfArch {
     ARCH_X86 = 1,
@@ -29,8 +42,8 @@ export const enum DwarfBits {
 }
 
 export const enum DwarfEndian {
-    LITTLE = 1,
-    BIG = 2
+    LITTLE_ENDIAN = 1,
+    BIG_ENDIAN = 2
 }
 
 export const enum DwarfSessionType {
@@ -43,9 +56,8 @@ export const enum DwarfSessionType {
 export const enum DwarfBreakpointType {
     NATIVE = 1,
     JAVA = 2,
-    INITIALIZATION = 3, // TODO: remove - use internal flag
-    OBJC = 4,
-    MEMORY = 5
+    OBJC = 3,
+    MEMORY = 4
 }
 
 export const enum DwarfMemoryAccessType {

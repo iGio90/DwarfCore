@@ -19,12 +19,18 @@ import "./_global_funcs"
 
 import { DwarfCore } from "./dwarf";
 import { ThreadApi } from "./thread_api";
-
+import { ELF_File } from "./types/elf_file"
 
 global.Dwarf = DwarfCore.getInstance();
+global['ELF_File'] = ELF_File;
 
 rpc.exports = {
     api: function (tid, apiFunction, apiArguments) {
+        trace('RPC::API() -> ' + apiFunction);
+
+        if(!DwarfCore.getInstance().getApi().hasOwnProperty(apiFunction)) {
+            throw new Error('Unknown ApiFunction!');
+        }
         logDebug('[' + tid + '] RPC-API: ' + apiFunction + ' | ' +
             'args: ' + apiArguments + ' (' + Process.getCurrentThreadId() + ')');
 
@@ -62,9 +68,9 @@ rpc.exports = {
 
         return DwarfCore.getInstance().getApi()[apiFunction].apply(this, apiArguments)
     },
-    init: function (breakStart, debug, spawned, globalApiFuncs?: Array<string>) {
+    init: function (proc_name, breakStart, debug, spawned, globalApiFuncs?: Array<string>) {
         //init dwarf
-        DwarfCore.getInstance().init(breakStart, debug, spawned, globalApiFuncs);
+        DwarfCore.getInstance().init(proc_name, spawned, breakStart, debug, globalApiFuncs);
     },
     keywords: function () {
         const map = [];

@@ -15,17 +15,18 @@
     along with this program.  If not, see <https://www.gnu.org/licenses/>
 **/
 
-import { FileSystem } from "./fs";
+import { DwarfFS } from "./DwarfFS";
 import { LogicBreakpoint } from "./logic_breakpoint";
 import { LogicJava } from "./logic_java";
 import { LogicObjC } from "./logic_objc";
 import { LogicInitialization } from "./logic_initialization";
 import { LogicStalker } from "./logic_stalker";
 import { ThreadWrapper } from "./thread_wrapper";
-import { DwarfMemoryAccessType } from "./consts";
+import { DwarfMemoryAccessType, DwarfBreakpointType } from "./consts";
 import { DwarfCore } from "./dwarf";
 import { MemoryBreakpoint } from "./types/memory_breakpoint";
 import { DwarfBreakpointManager } from "./breakpoint_manager";
+import { DwarfObserver } from "./dwarf_observer";
 
 export class DwarfApi {
     private static instanceRef: DwarfApi;
@@ -42,6 +43,133 @@ export class DwarfApi {
             DwarfApi.instanceRef = new this();
         }
         return DwarfApi.instanceRef;
+    }
+
+    /**
+     * @param  {DwarfBreakpointType} bpType
+     * @param  {NativePointer|string} bpAddress
+     * @param  {boolean} bpEnabled?
+     */
+    addBreakpoint = (bpType: DwarfBreakpointType, bpAddress: NativePointer | string, bpEnabled?: boolean) => {
+        trace('DwarfApi::addBreakpoint()');
+        Module
+        return DwarfCore.getInstance().getBreakpointManager().addBreakpoint(bpType, bpAddress, bpEnabled);
+    }
+
+    /**
+     * Create a MemoryBreakpoint on the given address
+     *
+     * ```javascript
+     * addMemoryBreakpoint(0x1000, 'r');
+     *
+     * var target = findExport('memcpy');
+     * Interceptor.attach(target, {
+     *     onLeave: function(ret) {
+     *         addMemoryBreakpoint(this.context.x0, 'rw', function() {
+     *            log(backtrace(this.context));
+     *         });
+     *     }
+     * });
+     * ```
+     * @param address
+     * @param flags
+     * @param callback
+     */
+    addMemoryBreakpoint = (memoryAddress: NativePointer | string, bpFlags: string | number, bpCallback?: Function): MemoryBreakpoint => {
+        trace('DwarfApi::addMemoryBreakpoint()');
+        if (typeof memoryAddress === 'string' || typeof memoryAddress === 'number') {
+            memoryAddress = ptr(memoryAddress);
+        }
+        let intFlags = 0;
+        if (typeof bpFlags === 'string') {
+            if (bpFlags.indexOf('r') >= 0) {
+                intFlags |= DwarfMemoryAccessType.READ;
+            }
+            if (bpFlags.indexOf('w') >= 0) {
+                intFlags |= DwarfMemoryAccessType.WRITE;
+            }
+            if (bpFlags.indexOf('x') >= 0) {
+                intFlags |= DwarfMemoryAccessType.EXECUTE;
+            }
+        } else if (typeof bpFlags === 'number') {
+            intFlags = bpFlags;
+        } else {
+            throw new Error('DwarfApi::addMemoryBreakpoint() -> Unknown FlagsType! (allowed string|number)');
+        }
+
+        try {
+            const memoryBreakpoint = DwarfBreakpointManager.getInstance().addMemoryBreakpoint(memoryAddress, intFlags);
+            if (memoryBreakpoint !== null) {
+                if (bpCallback && typeof bpCallback === 'function') {
+                    memoryBreakpoint.setCallback(bpCallback);
+                }
+            }
+            return memoryBreakpoint;
+        } catch (error) {
+            logErr('DwarfApi::addMemoryBreakpoint()', error);
+            return null;
+        }
+    }
+
+
+    addNativeBreakpoint = (bpAddress: NativePointer | string, bpEnabled: boolean = true, bpCallback?: Function) => {
+        trace('DwarfApi::addNativeBreakpoint()');
+
+        try {
+            const nativeBreakpoint = DwarfBreakpointManager.getInstance().addNativeBreakpoint(makeNativePointer(bpAddress), bpEnabled);
+            if (nativeBreakpoint !== null) {
+                if (bpCallback && typeof bpCallback === 'function') {
+                    nativeBreakpoint.setCallback(bpCallback);
+                }
+            }
+            return nativeBreakpoint;
+        } catch (error) {
+            logErr('DwarfApi::addNativeBreakpoint()', error);
+            return null;
+        }
+    }
+
+
+    /**
+     * Adds Bookmark in UI
+     *
+     * @param  {NativePointer|string} bmAddress
+     * @param  {string} bmNote
+     */
+    addBookmark = (bmAddress: NativePointer | string, bmNote: string) => {
+        trace('DwarfApi::addBookmark()');
+        if(bmAddress.constructor.name === 'NativePointer') {
+            bmAddress = bmAddress.toString();
+        }
+        if(!isString(bmAddress)) {
+            if(bmAddress.hasOwnProperty('toString')) {
+                bmAddress = bmAddress.toString();
+            } else {
+                logErr('DwarfApi::addBookmark()', 'Value Error');
+                return;
+            }
+        }
+        DwarfCore.getInstance().sync({ bookmark: { address: bmAddress, note: bmNote } });
+    }
+
+    addObserve = (npAddress:NativePointer | string, type:string, watchType:number, expression:string | Function) => {
+        if(!isString(type)) {
+            throw new Error('Api::addObserve() => Invalid Argument: type!=string!');
+        }
+        let nSize: number = 0;
+        switch(type) {
+            case 'int':
+                nSize = 4;
+                break;
+        }
+
+        if(nSize) {
+            return this.addObserveLocation(npAddress, nSize, watchType, expression);
+        }
+    }
+
+    addObserveLocation = (npAddress: NativePointer | string, nSize: number, watchType: number, expression: string | Function) => {
+        return DwarfObserver.getInstance().addLocation(npAddress, nSize, watchType, expression);
     }
 
     private _internalMemoryScan(start, size, pattern) {
@@ -107,7 +235,7 @@ export class DwarfApi {
      * Enumerate imports for the given module name or pointer
      * @param module an hex/int address or string name
      */
-    enumerateImports = (module): Array<ModuleExportDetails> => {
+    enumerateImports = (module): Array<ModuleImportDetails> => {
         if (typeof module !== 'object') {
             module = this.findModule(module);
         }
@@ -640,7 +768,7 @@ export class DwarfApi {
                 if (dlopen_ptr !== null && !dlopen_ptr.isNull()) {
                     const dlopen = new NativeFunction(dlopen_ptr, 'int', ['pointer', 'int']);
 
-                    const m = FileSystem.allocateRw(128);
+                    const m = DwarfFS.getInstance().allocateRw(128);
                     m.writeUtf8String(name);
                     const fd = syscall(sys_num, m, 0);
                     if (fd > 0) {
@@ -771,7 +899,8 @@ export class DwarfApi {
      * @param condition
      */
     putBreakpoint = (address_or_class: any, condition?: string | Function): boolean => {
-        return LogicBreakpoint.putBreakpoint(address_or_class, condition);
+        return false;
+        //return LogicBreakpoint.putBreakpoint(address_or_class, condition);
     }
 
     /**
@@ -798,60 +927,7 @@ export class DwarfApi {
         return LogicInitialization.putModuleInitializationBreakpoint(moduleName);
     }
 
-    /**
-     * Create a MemoryBreakpoint on the given address
-     *
-     * ```javascript
-     * addMemoryBreakpoint(0x1000, 'r');
-     *
-     * var target = findExport('memcpy');
-     * Interceptor.attach(target, {
-     *     onLeave: function(ret) {
-     *         addMemoryBreakpoint(this.context.x0, 'rw', function() {
-     *            log(backtrace(this.context));
-     *         });
-     *     }
-     * });
-     * ```
-     * @param address
-     * @param flags
-     * @param callback
-     */
-    addMemoryBreakpoint = (memoryAddress: NativePointer | string, bpFlags: string | number, bpCallback?: Function): MemoryBreakpoint => {
-        trace('DwarfApi::addMemoryBreakpoint()');
-        if(typeof memoryAddress === 'string' || typeof memoryAddress === 'number') {
-            memoryAddress = ptr(memoryAddress);
-        }
-        let intFlags = 0;
-        if (typeof bpFlags === 'string') {
-            if (bpFlags.indexOf('r') >= 0) {
-                intFlags |= DwarfMemoryAccessType.READ;
-            }
-            if (bpFlags.indexOf('w') >= 0) {
-                intFlags |= DwarfMemoryAccessType.WRITE;
-            }
-            if (bpFlags.indexOf('x') >= 0) {
-                intFlags |= DwarfMemoryAccessType.EXECUTE;
-            }
-        } else if (typeof bpFlags === 'number') {
-            intFlags = bpFlags;
-        } else {
-            throw new Error('DwarfApi::addMemoryBreakpoint() -> Unknown FlagsType! (allowed string|number)');
-        }
 
-        try {
-            const memoryBreakpoint = DwarfBreakpointManager.getInstance().addMemoryBreakpoint(memoryAddress, intFlags);
-            if (memoryBreakpoint !== null) {
-                if (bpCallback && typeof bpCallback === 'function') {
-                    memoryBreakpoint.setCallback(bpCallback);
-                }
-            }
-            return memoryBreakpoint;
-        } catch (error) {
-            logErr('DwarfApi::addMemoryBreakpoint()', error);
-            return null;
-        }
-    }
 
     /**
      * A shortcut and secure way to read a string from a pointer with frida on any os
@@ -1015,7 +1091,7 @@ export class DwarfApi {
      */
     removeMemoryBreakpoint = (memoryAddress: NativePointer | string): boolean => {
         trace('DwarfApi::removeMemoryBreakpoint()');
-        if(typeof memoryAddress === 'string' || typeof memoryAddress === 'number') {
+        if (typeof memoryAddress === 'string' || typeof memoryAddress === 'number') {
             memoryAddress = ptr(memoryAddress);
         }
         return DwarfBreakpointManager.getInstance().removeBreakpointAtAddress(memoryAddress);

@@ -25,18 +25,24 @@ import { ThreadContext } from "./thread_context";
 import { ThreadApi } from "./thread_api";
 import { LogicStalker } from "./logic_stalker";
 import { DwarfHaltReason } from "./consts";
+import { DwarfProcessInfo } from "./types/dwarf_processinfo";
+import { NativeBreakpoint } from "./types/native_breakpoint";
+import { DwarfFS } from "./DwarfFS";
+import { DwarfObserver } from "./dwarf_observer";
 
 export class DwarfCore {
-    BREAK_START: boolean;
-    SPAWNED: boolean;
     PROC_RESUMED = false;
 
     threadContexts = {};
 
     modulesBlacklist = [];
 
+    protected processInfo: DwarfProcessInfo;
+
     private dwarfApi: DwarfApi;
     private dwarfBreakpointManager: DwarfBreakpointManager;
+    private dwarfFS:DwarfFS;
+    private dwarfObserver:DwarfObserver;
 
     private static instanceRef: DwarfCore;
 
@@ -57,6 +63,8 @@ export class DwarfCore {
         trace('DwarfCoreJS start');
         this.dwarfApi = DwarfApi.getInstance();
         this.dwarfBreakpointManager = DwarfBreakpointManager.getInstance();
+        this.dwarfFS = DwarfFS.getInstance();
+        this.dwarfObserver = DwarfObserver.getInstance();
     }
 
     /**
@@ -82,6 +90,11 @@ export class DwarfCore {
         return this.dwarfBreakpointManager;
     }
 
+    getFS = ():DwarfFS => {
+        trace('Dwarf::getFS()');
+        return this.dwarfFS;
+    }
+
     enableDebug = (): void => {
         trace('DwarfCore::enableDebug()');
         DEBUG = true;
@@ -95,16 +108,43 @@ export class DwarfCore {
         DEBUG = !DEBUG
     }
 
-    init = (breakStart: boolean, debug: boolean, spawned: boolean, globalApiFuncs?: Array<string>): void => {
+    init = (
+        procName: string,
+        wasSpawned: boolean,
+        breakStart: boolean,
+        debug: boolean,
+        globalApiFuncs?: Array<string>
+    ): void => {
         trace('DwarfCore::init()');
-        this.BREAK_START = breakStart;
+
         if (debug) {
             DEBUG = true;
         }
-        this.SPAWNED = spawned;
 
-        if (LogicJava.available) {
-            LogicJava.init();
+        this.processInfo = new DwarfProcessInfo(
+            procName,
+            wasSpawned,
+            Process.id,
+            Process.getCurrentThreadId(),
+            Process.arch,
+            Process.platform,
+            Process.pageSize,
+            Process.pointerSize,
+            Java.available,
+            ObjC.available
+        )
+
+        //send initdata
+        let initData = {
+            'process': this.processInfo,
+            'modules': Process.enumerateModules(),
+            'regions': Process.enumerateRanges('---'),
+            'threads': Process.enumerateThreads()
+        }
+        send('coresync:::' + JSON.stringify(initData));
+
+        if (Java.available) {
+            LogicJava.init(breakStart);
         }
 
         LogicInitialization.init();
@@ -137,54 +177,82 @@ export class DwarfCore {
 
         if (Process.platform === 'windows') {
             // break proc at main
-            if (this.SPAWNED && this.BREAK_START) {
-                const initialHook = Interceptor.attach(this.dwarfApi.findExport('RtlUserThreadStart'), function () {
+            if (wasSpawned && breakStart) {
+                //Inital breakpoint
+                const invocationListener = Interceptor.attach(this.getApi().findExport('RtlUserThreadStart'), function () {
+                    trace('Creating startbreakpoint');
+                    const invocationContext = this;
                     let address = null;
                     if (Process.arch === 'ia32') {
-                        const context = this.context as Ia32CpuContext;
+                        const context = invocationContext.context as Ia32CpuContext;
                         address = context.eax;
                     } else if (Process.arch === 'x64') {
-                        const context = this.context as X64CpuContext;
+                        const context = invocationContext.context as X64CpuContext;
                         address = context.rax;
                     }
 
                     if (isDefined(address)) {
-                        const startInterceptor = Interceptor.attach(address, function () {
-                            DwarfCore.getInstance().onBreakpoint(DwarfHaltReason.BREAKPOINT, this.context.pc, this.context);
-                            startInterceptor.detach();
-                        });
-                        initialHook.detach();
+                        const initBreakpoint = DwarfCore.getInstance().getBreakpointManager().addNativeBreakpoint(address, true);
+                        initBreakpoint.setSingleShot(true);
+                        invocationListener.detach();
                     }
                 });
             }
         }
-
-        this.dispatchContextInfo(DwarfHaltReason.INITIAL_CONTEXT);
     }
 
-    dispatchContextInfo = (reason, address_or_class?, context?) => {
-        trace('DwarfCore::dispatchContextInfo()');
+    handleException = (exception: ExceptionDetails) => {
+        trace('DwarfCore::handleException()');
+        if (DEBUG) {
+            let dontLog = false;
+            if (Process.platform === 'windows') {
+                // hide SetThreadName - https://github.com/frida/glib/blob/master/glib/gthread-win32.c#L579
+                let reg = null;
+                if (Process.arch === 'x64') {
+                    reg = exception['context']['rax'];
+                } else if (Process.arch === 'ia32') {
+                    reg = exception['context']['eax'];
+                }
+                if (reg !== null && reg.readInt() === 0x406d1388) {
+                    dontLog = true;
+                }
+            }
+            if (!dontLog) {
+                console.log('[' + Process.getCurrentThreadId() + '] exception handler: ' + JSON.stringify(exception));
+            }
+        }
+
+        //handle MemoryBreakpoints
+        if (exception.type === 'access-violation') {
+            if (Process.platform === 'windows') {
+                return true;
+            }
+            //return this.getBreakpointManager().handleMemoryBreakpoints(exception);
+        }
+    }
+
+    loggedSend = (message: any, data?: ArrayBuffer | number[] | null): void => {
+        trace('DwarfCore::loggedSend()');
+        logDebug('[' + Process.getCurrentThreadId() + '] send | ' + message);
+        return send(message, data);
+    }
+
+    onBreakpoint = (haltReason: DwarfHaltReason, address_or_class, context, java_handle?, condition?: Function) => {
+        trace('DwarfCore::onBreakpoint()');
         const tid = Process.getCurrentThreadId();
 
-        const data = {
+        logDebug('[' + tid + '] breakpoint ' + address_or_class + ' - reason: ' + haltReason);
+
+        const breakpointData = {
             "tid": tid,
-            "reason": reason,
+            "reason": haltReason,
             "ptr": address_or_class
         };
-
-        if (reason === DwarfHaltReason.INITIAL_CONTEXT) {
-            data['arch'] = Process.arch;
-            data['platform'] = Process.platform;
-            data['java'] = Java.available;
-            data['objc'] = ObjC.available;
-            data['pid'] = Process.id;
-            data['pointerSize'] = Process.pointerSize;
-        }
 
         if (isDefined(context)) {
             logDebug('[' + tid + '] sendInfos - preparing infos for valid context');
 
-            data['context'] = context;
+            breakpointData['context'] = context;
             if (isDefined(context['pc'])) {
                 let symbol = null;
                 try {
@@ -195,8 +263,7 @@ export class DwarfCore {
 
                 logDebug('[' + tid + '] sendInfos - preparing native backtrace');
 
-                data['backtrace'] = { 'bt': this.getApi().backtrace(context), 'type': 'native' };
-                data['is_java'] = false;
+                breakpointData['backtrace'] = { 'bt': this.getApi().backtrace(context), 'type': 'native' };
 
                 logDebug('[' + tid + '] sendInfos - preparing context registers');
 
@@ -233,65 +300,16 @@ export class DwarfCore {
                     }
                 }
 
-                data['context'] = newCtx;
+                breakpointData['rawcontext'] = context;
+                breakpointData['context'] = newCtx;
             } else {
-                data['is_java'] = true;
+                breakpointData['is_java'] = true;
 
                 logDebug('[' + tid + '] sendInfos - preparing java backtrace');
 
-                data['backtrace'] = { 'bt': this.dwarfApi.javaBacktrace(), 'type': 'java' };
+                breakpointData['backtrace'] = { 'bt': this.dwarfApi.javaBacktrace(), 'type': 'java' };
             }
         }
-
-
-        logDebug('[' + tid + '] sendInfos - dispatching infos');
-
-
-        this.loggedSend('set_context:::' + JSON.stringify(data));
-    }
-
-    handleException = (exception: ExceptionDetails) => {
-        trace('DwarfCore::handleException()');
-        if (DEBUG) {
-            let dontLog = false;
-            if (Process.platform === 'windows') {
-                // hide SetThreadName - https://github.com/frida/glib/blob/master/glib/gthread-win32.c#L579
-                let reg = null;
-                if (Process.arch === 'x64') {
-                    reg = exception['context']['rax'];
-                } else if (Process.arch === 'ia32') {
-                    reg = exception['context']['eax'];
-                }
-                if (reg !== null && reg.readInt() === 0x406d1388) {
-                    dontLog = true;
-                }
-            }
-            if (!dontLog) {
-                console.log('[' + Process.getCurrentThreadId() + '] exception handler: ' + JSON.stringify(exception));
-            }
-        }
-
-        //handle MemoryBreakpoints
-        if (exception.type === 'access-violation') {
-            if (Process.platform === 'windows') {
-                return true;
-            }
-            return this.getBreakpointManager().handleMemoryBreakpoints(exception);
-        }
-    }
-
-    loggedSend = (message: any, data?: ArrayBuffer | number[] | null):void => {
-        trace('DwarfCore::loggedSend()');
-        logDebug('[' + Process.getCurrentThreadId() + '] send | ' + message);
-        return send(message, data);
-    }
-
-    onBreakpoint = (haltReason: DwarfHaltReason, address_or_class, context, java_handle?, condition?: Function) => {
-        trace('DwarfCore::onBreakpoint()');
-        const tid = Process.getCurrentThreadId();
-
-
-        logDebug('[' + tid + '] breakpoint ' + address_or_class + ' - reason: ' + haltReason);
 
         let threadContext: ThreadContext = this.threadContexts[tid];
 
@@ -310,7 +328,7 @@ export class DwarfCore {
 
         if (!isDefined(threadContext) || !threadContext.preventSleep) {
             logDebug('[' + tid + '] break ' + address_or_class + ' - dispatching context info');
-            this.dispatchContextInfo(haltReason, address_or_class, context);
+            this.sync({ 'breakpoint': breakpointData, 'threads': Process.enumerateThreads() });
 
             logDebug('[' + tid + '] break ' + address_or_class + ' - sleeping context. goodnight!');
             this.loopApi(tid, threadContext);
@@ -382,11 +400,15 @@ export class DwarfCore {
         }
     }
 
+    getProcessInfo = () => {
+        return this.processInfo;
+    }
+
     /** @internal */
-    sync = () => {
+    sync = (extraData = {}) => {
         trace('DwarfCore::sync()');
-        let coreSyncMsg = { breakpoints: [] };
-        coreSyncMsg.breakpoints = this.getBreakpointManager().getBreakpoints();
+        let coreSyncMsg = { breakpoints: this.getBreakpointManager().getBreakpoints() };
+        coreSyncMsg = Object.assign(coreSyncMsg, extraData);
         send('coresync:::' + JSON.stringify(coreSyncMsg));
     }
 }

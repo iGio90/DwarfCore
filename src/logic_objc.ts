@@ -213,7 +213,7 @@ export class LogicObjC {
         return false;
     }
 
-    static init() {
+    static init(breakAtStart:boolean = false) {
         /*
             LogicObjC.sdk = ObjC.use('android.os.Build$VERSION')['SDK_INT']['value'];
             if (Dwarf.DEBUG) {
@@ -221,7 +221,7 @@ export class LogicObjC {
                     'initializing logicObjC with sdk: ' + LogicObjC.sdk);
             }
 
-            if (Dwarf.SPAWNED && Dwarf.BREAK_START) {
+            if (DwarfCore.getInstance().getProcessInfo().wasSpawned && breakAtStart) {
                 if (LogicObjC.sdk >= 23) {
                     // attach to commonInit for init debugging
                     LogicObjC.hook('com.android.internal.os.RuntimeInit',

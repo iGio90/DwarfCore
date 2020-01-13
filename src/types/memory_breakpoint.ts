@@ -108,6 +108,11 @@ export class MemoryBreakpoint extends DwarfBreakpoint {
      */
     public enable(): void {
         trace('MemoryBreakpoint::enable()');
+
+        //MemoryAccessMonitor is available on all platforms with >12.7.10
+        super.enable();
+        DwarfCore.getInstance().getBreakpointManager().updateMemoryBreakpoints();
+        return;
         if (Process.platform === 'windows') {
             super.enable();
             DwarfCore.getInstance().getBreakpointManager().updateMemoryBreakpoints();
@@ -146,6 +151,10 @@ export class MemoryBreakpoint extends DwarfBreakpoint {
      */
     public disable(): void {
         trace('MemoryBreakpoint::disable()');
+        //MemoryAccessMonitor is available on all platforms with >12.7.10
+        super.disable();
+        DwarfCore.getInstance().getBreakpointManager().updateMemoryBreakpoints();
+        return;
         if (Process.platform === 'windows') {
             super.disable();
             DwarfCore.getInstance().getBreakpointManager().updateMemoryBreakpoints();
@@ -209,7 +218,7 @@ export class MemoryBreakpoint extends DwarfBreakpoint {
                 }
                 break;
             default:
-                trace('MemoryBreakpoint::onHit() -> Unknown Operation or Invalid Flags! (OP: ' + memOperation + ', FLAGS: ' + this.bpFlags.toString() + ')');
+                logDebug('MemoryBreakpoint::onHit() -> Unknown Operation or Invalid Flags! (OP: ' + memOperation + ', FLAGS: ' + this.bpFlags.toString() + ')');
         }
 
         if (!handleBp) {

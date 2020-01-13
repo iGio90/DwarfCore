@@ -21,6 +21,7 @@ import { JavaBreakpoint } from "./types/java_breakpoint";
 import { MemoryBreakpoint } from "./types/memory_breakpoint";
 import { DwarfCore } from "./dwarf";
 import { DwarfBreakpointType, DwarfMemoryAccessType, DwarfHaltReason } from "./consts";
+import { DwarfObserver } from "./dwarf_observer";
 
 /**
  * DwarfBreakpointManager Singleton
@@ -121,6 +122,12 @@ export class DwarfBreakpointManager {
         } catch (error) {
             logErr('DwarfBreakpointManager::addMemoryBreakpoint', error);
         }
+    }
+
+    public addMemoryBreakpointInternal = (memBp: MemoryBreakpoint) => {
+        memBp['isInternal'] = true;
+        this.dwarfBreakpoints.push(memBp);
+        this.updateMemoryBreakpoints();
     }
 
     /**
@@ -276,44 +283,37 @@ export class DwarfBreakpointManager {
      */
     public updateMemoryBreakpoints = (): void => {
         trace('DwarfBreakpointManager::updateMemoryBreakpoints()');
-        if (Process.platform === 'windows') {
-            MemoryAccessMonitor.disable();
-            let memoryBreakpoints: Array<MemoryAccessRange> = new Array<MemoryAccessRange>();
-            for (let memBreakpoint of this.dwarfBreakpoints) {
-                if (memBreakpoint.getType() === DwarfBreakpointType.MEMORY) {
-                    if (memBreakpoint.isEnabled()) {
-                        memoryBreakpoints.push({ 'base': (memBreakpoint.getAddress() as NativePointer), 'size': 1 });
-                    }
+
+        MemoryAccessMonitor.disable();
+
+        //Get Watchlocations
+        let memoryBreakpoints: Array<MemoryAccessRange> = DwarfObserver.getInstance().getLocationsInternal();
+
+        //append our membreakpoints
+        for (let memBreakpoint of this.dwarfBreakpoints) {
+            if (memBreakpoint.getType() === DwarfBreakpointType.MEMORY) {
+                if (memBreakpoint.isEnabled()) {
+                    memoryBreakpoints.push({ 'base': (memBreakpoint.getAddress() as NativePointer), 'size': 1 });
                 }
             }
-            if (memoryBreakpoints.length > 0) {
-                MemoryAccessMonitor.enable(memoryBreakpoints, { onAccess: this.handleMemoryBreakpoints });
-            }
+        }
+        if (memoryBreakpoints.length > 0) {
+            MemoryAccessMonitor.enable(memoryBreakpoints, { onAccess: this.handleMemoryBreakpoints });
         }
     }
 
-    public handleMemoryBreakpoints = (details: ExceptionDetails | MemoryAccessDetails) => {
+    public handleMemoryBreakpoints = (details: /*ExceptionDetails |*/ MemoryAccessDetails) => {
         trace('DwarfBreakpointManager::handleMemoryBreakpoints()');
-        let memoryAddress;
-        if (Process.platform === 'windows') {
-            memoryAddress = (details as MemoryAccessDetails).address;
-        } else {
-            memoryAddress = (details as ExceptionDetails).memory.address;
-        }
 
+        const memoryAddress = (details as MemoryAccessDetails).address;
         const dwarfBreakpoint = this.getBreakpointByAddress(memoryAddress, true, DwarfBreakpointType.MEMORY);
 
+        //not in breakpoints
         if (dwarfBreakpoint === null) {
-            if (Process.platform !== 'windows') {
-                return false;
-            }
-        }
-
-        const memoryBreakpoint = dwarfBreakpoint as MemoryBreakpoint;
-
-        if (Process.platform !== 'windows') {
-            return memoryBreakpoint.onHit(details);
+            //let dwarfobserver handle
+            DwarfObserver.getInstance().handleMemoryAccess(details);
         } else {
+            const memoryBreakpoint = dwarfBreakpoint as MemoryBreakpoint;
             memoryBreakpoint.onHit(details);
         }
     }
@@ -321,7 +321,7 @@ export class DwarfBreakpointManager {
     public getBreakpoints = (): Array<DwarfBreakpoint> => {
         trace('DwarfBreakpointManager::getBreakpoints()');
         const dwarfBreakpoints = this.dwarfBreakpoints.filter((breakpoint) => {
-            return !breakpoint.hasOwnProperty('internalBreakpoint');
+            return !breakpoint.hasOwnProperty('isInternal');
         });
         return dwarfBreakpoints;
     }
@@ -334,6 +334,6 @@ export class DwarfBreakpointManager {
         });
 
         //sync ui
-        DwarfCore.getInstance().sync();
+        DwarfCore.getInstance().sync({ breakpoints: this.dwarfBreakpoints });
     }
 }
