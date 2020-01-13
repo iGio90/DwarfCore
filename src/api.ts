@@ -152,8 +152,11 @@ export class DwarfApi {
         DwarfCore.getInstance().sync({ bookmark: { address: bmAddress, note: bmNote } });
     }
 
-    addObserveLocation = (npAddress: NativePointer | string, watchType: string, nSize: number = 0, watchMode: string, expression: string | Function) => {
-        return DwarfObserver.getInstance().addLocation(npAddress, watchType, nSize, watchMode, expression);
+    addObserveLocation = (npAddress: NativePointer | string, watchType: string, nSize: number = 0, watchMode: string, handler: string | Function) => {
+        if(isString(handler) && handler !== 'breakpoint') {
+            //TODO: convert handlerstr from ui to func
+        }
+        return DwarfObserver.getInstance().addLocation(npAddress, watchType, nSize, watchMode, handler);
     }
 
     private _internalMemoryScan(start, size, pattern) {

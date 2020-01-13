@@ -16,21 +16,24 @@
 **/
 
 import { DwarfCore } from "./dwarf";
+import { DwarfHaltReason } from "./consts";
 
 interface DwarfObserverLocation {
     address: NativePointer;
     size: number;
     type: string;
     mode: string;
-    expression: string | Function;
-    storedValue: ArrayBuffer
+    handler: string | Function;
+    storedValue: ArrayBuffer;
+    event: string;
+    fromPtr: NativePointer;
 }
 
 export class DwarfObserver {
     private static instanceRef: DwarfObserver;
     protected observeLocations: Array<DwarfObserverLocation>;
-    private allowedTypes: Array<string>;
-    private allowedModes: Array<string>;
+    protected allowedTypes: Array<string>;
+    protected allowedModes: Array<string>;
 
     private constructor() {
         if (DwarfObserver.instanceRef) {
@@ -63,7 +66,7 @@ export class DwarfObserver {
         return DwarfObserver.instanceRef;
     }
 
-    addLocation = (npAddress: NativePointer | string, watchType: string, nSize: number = 0, watchMode: string, expression: string | Function) => {
+    addLocation = (npAddress: NativePointer | string, watchType: string, nSize: number = 0, watchMode: string, handler: string | Function) => {
         trace('DwarfObserver::addLocation()');
 
         npAddress = makeNativePointer(npAddress);
@@ -130,8 +133,10 @@ export class DwarfObserver {
             size: nSize,
             type: watchType,
             mode: watchMode,
-            expression: expression,
-            storedValue: storedValue
+            handler: handler,
+            storedValue: storedValue,
+            fromPtr: null,
+            event: ''
         });
 
         //add to memoryaccesmon
@@ -154,7 +159,6 @@ export class DwarfObserver {
 
                 const newValue = this.getValue(location.address, location.type, location.size);
 
-                //TODO: callback handling
                 if (location.mode === 'changed') {
                     let hasChanged: boolean = false;
                     if (location.type === 'bytes') {
@@ -171,7 +175,8 @@ export class DwarfObserver {
                     }
                     if (hasChanged) {
                         location.storedValue = newValue;
-                        location['event'] = 'changed';
+                        location.event = 'changed';
+                        location.fromPtr = details.from;
                         DwarfCore.getInstance().sync({
                             observer: location
                         });
@@ -179,7 +184,8 @@ export class DwarfObserver {
                 } else if (location.mode === 'true') {
                     if (newValue === true) {
                         location.storedValue = newValue;
-                        location['event'] = 'true';
+                        location.event = 'true';
+                        location.fromPtr = details.from;
                         DwarfCore.getInstance().sync({
                             observer: location
                         });
@@ -187,7 +193,8 @@ export class DwarfObserver {
                 } else if (location.mode === 'false') {
                     if (newValue !== true) {
                         location.storedValue = newValue;
-                        location['event'] = 'false';
+                        location.event = 'false';
+                        location.fromPtr = details.from;
                         DwarfCore.getInstance().sync({
                             observer: location
                         });
@@ -195,7 +202,8 @@ export class DwarfObserver {
                 } else if (location.mode === 'increased') {
                     if (newValue > storedValue) {
                         location.storedValue = newValue;
-                        location['event'] = 'increased';
+                        location.event = 'increased';
+                        location.fromPtr = details.from;
                         DwarfCore.getInstance().sync({
                             observer: location
                         });
@@ -203,13 +211,23 @@ export class DwarfObserver {
                 } else if (location.mode === 'decreased') {
                     if (newValue < storedValue) {
                         location.storedValue = newValue;
-                        location['event'] = 'decreased';
+                        location.event = 'decreased';
+                        location.fromPtr = details.from;
                         DwarfCore.getInstance().sync({
                             observer: location
                         });
                     }
                 } else {
                     logDebug('DwarfObserver::handleMemoryAccess() => Unknown Mode: ' + location.mode);
+                }
+
+                //TODO: callbacks
+                if (isDefined(location.handler)) {
+                    if (isString(location.handler) && location.handler === 'breakpoint') {
+                        //DwarfCore.getInstance().onBreakpoint(DwarfHaltReason.BREAKPOINT, location.fromPtr, );
+                    } else if (typeof location.handler === 'function') {
+
+                    }
                 }
             }
         }
