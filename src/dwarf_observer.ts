@@ -193,7 +193,7 @@ export class DwarfObserver {
                         });
                     }
                 } else if (location.mode === 'increased') {
-                    if (newValue < storedValue) {
+                    if (newValue > storedValue) {
                         location.storedValue = newValue;
                         location['event'] = 'increased';
                         DwarfCore.getInstance().sync({
@@ -201,7 +201,7 @@ export class DwarfObserver {
                         });
                     }
                 } else if (location.mode === 'decreased') {
-                    if (newValue > storedValue) {
+                    if (newValue < storedValue) {
                         location.storedValue = newValue;
                         location['event'] = 'decreased';
                         DwarfCore.getInstance().sync({
