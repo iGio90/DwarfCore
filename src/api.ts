@@ -52,7 +52,6 @@ export class DwarfApi {
      */
     public addBreakpoint = (bpType: DwarfBreakpointType, bpAddress: NativePointer | string, bpEnabled?: boolean) => {
         trace('DwarfApi::addBreakpoint()');
-        Module
         return DwarfCore.getInstance().getBreakpointManager().addBreakpoint(bpType, bpAddress, bpEnabled);
     }
 
@@ -210,13 +209,13 @@ export class DwarfApi {
         } else {
             return Memory.scanSync(start, size, pattern);
         }
-    };
+    }
 
     /**
      * Shortcut to retrieve native backtrace
      * @param context: the CpuContext object
      */
-    backtrace = (context?: CpuContext): DebugSymbol[] | null => {
+    public backtrace = (context?: CpuContext): DebugSymbol[] | null => {
         if (!isDefined(context)) {
             context = Dwarf.threadContexts[Process.getCurrentThreadId()];
             if (!isDefined(context)) {
@@ -226,13 +225,13 @@ export class DwarfApi {
 
         return Thread.backtrace(context, Backtracer.FUZZY)
             .map(DebugSymbol.fromAddress);
-    };
+    }
 
     /**
      * Enumerate exports for the given module name or pointer
      * @param module an hex/int address or string name
      */
-    enumerateExports = (module: any): Array<ModuleExportDetails> => {
+    public enumerateExports = (module: any): Array<ModuleExportDetails> => {
         if (typeof module !== 'object') {
             module = this.findModule(module);
         }
@@ -243,13 +242,13 @@ export class DwarfApi {
             return module.enumerateExports();
         }
         return [];
-    };
+    }
 
     /**
      * Enumerate imports for the given module name or pointer
      * @param module an hex/int address or string name
      */
-    enumerateImports = (module): Array<ModuleImportDetails> => {
+    public enumerateImports = (module): Array<ModuleImportDetails> => {
         if (typeof module !== 'object') {
             module = this.findModule(module);
         }
@@ -260,16 +259,13 @@ export class DwarfApi {
             return module.enumerateImports();
         }
         return [];
-    };
+    }
 
     /**
      * Enumerate java classes
      * @param useCache false by default
      */
-    enumerateJavaClasses(useCache?) {
-        if (!isDefined(useCache)) {
-            useCache = false;
-        }
+    public enumerateJavaClasses = (useCache:boolean=false):void => {
 
         if (useCache && LogicJava !== null && LogicJava.javaClasses.length > 0) {
             Dwarf.loggedSend('enumerate_java_classes_start:::');
@@ -303,14 +299,13 @@ export class DwarfApi {
                 }
             });
         }
-    };
+    }
 
     /**
      * Enumerate method for the given class
      */
-    enumerateJavaMethods = (className: string): void => {
+    public enumerateJavaMethods = (className: string): void => {
         if (Java.available) {
-            const that = this;
             Java.performNow(function () {
                 // 0xdea code -> https://github.com/0xdea/frida-scripts/blob/master/raptor_frida_android_trace.js
                 const clazz = Java.use(className);
@@ -327,22 +322,22 @@ export class DwarfApi {
                     JSON.stringify(result));
             });
         }
-    };
+    }
 
     /**
      * Enumerate modules for ObjC inspector panel
      */
-    enumerateObjCModules(className: string): void {
+    public enumerateObjCModules = (className: string): void => {
         const modules = Process.enumerateModules();
         const names = modules.map(m => m.name);
         Dwarf.loggedSend('enumerate_objc_modules:::' + JSON.stringify(names));
-    };
+    }
 
     /**
      * Enumerate objc classes
      * @param useCache false by default
      */
-    enumerateObjCClasses(moduleName: string) {
+    public enumerateObjCClasses = (moduleName: string) =>{
         Dwarf.loggedSend('enumerate_objc_classes_start:::');
         try {
             ObjC.enumerateLoadedClasses({ ownedBy: new ModuleMap((m) => { return moduleName === m['name']; }) }, {
@@ -360,12 +355,12 @@ export class DwarfApi {
             logErr('enumerateObjCClasses', e);
             Dwarf.loggedSend('enumerate_objc_classes_complete:::');
         }
-    };
+    }
 
     /**
      * Enumerate method for the given class
      */
-    enumerateObjCMethods = (className: string): void => {
+    public enumerateObjCMethods = (className: string): void => {
         if (ObjC.available) {
             Dwarf.loggedSend('enumerate_objc_methods_start:::');
             const that = this;
@@ -377,12 +372,12 @@ export class DwarfApi {
             });
             Dwarf.loggedSend('enumerate_objc_methods_complete:::');
         }
-    };
+    }
 
     /**
      * Enumerate loaded modules
      */
-    enumerateModules = (fillInformation?: boolean) => {
+    public enumerateModules = (fillInformation?: boolean) => {
         fillInformation = fillInformation || false;
 
         const modules = Process.enumerateModules();
@@ -411,7 +406,7 @@ export class DwarfApi {
             }
         }
         return modules;
-    };
+    }
 
     /**
      * Enumerate all information about the module (imports / exports / symbols)
@@ -426,7 +421,7 @@ export class DwarfApi {
         def update_details(self, dwarf, base_info):
             details = Dwarf.dwarf_api('enumerateModuleInfo', base_info['name'])
     */
-    enumerateModuleInfo = (fridaModule: Module | string): Module => {
+    public enumerateModuleInfo = (fridaModule: Module | string): Module => {
         let _module: Module = null;
 
         if (isString(fridaModule)) {
@@ -456,20 +451,20 @@ export class DwarfApi {
         }
 
         return _module;
-    };
+    }
 
     /**
      * Enumerate all mapped ranges
      */
-    enumerateRanges(): RangeDetails[] {
+    public enumerateRanges = (): RangeDetails[] => {
         return Process.enumerateRanges('---');
-    };
+    }
 
     /**
      * Enumerate symbols for the given module name or pointer
      * @param module an hex/int address or string name
      */
-    enumerateSymbols = (module): Array<ModuleSymbolDetails> => {
+    public enumerateSymbols = (module): Array<ModuleSymbolDetails> => {
         if (typeof module !== 'object') {
             module = this.findModule(module);
         }
@@ -480,13 +475,13 @@ export class DwarfApi {
             return module.enumerateSymbols();
         }
         return [];
-    };
+    }
 
     /**
      * Evaluate javascript. Used from the UI to inject javascript code into the process
      * @param w
      */
-    evaluate = (w) => {
+    public evaluate = (w):any => {
         const Thread = ThreadWrapper;
         try {
             return eval(w);
@@ -494,13 +489,13 @@ export class DwarfApi {
             this.log(e.toString());
             return null;
         }
-    };
+    }
 
     /**
      * Evaluate javascript. Used from the UI to inject javascript code into the process
      * @param w
      */
-    evaluateFunction = (w) => {
+    public evaluateFunction = (w):any => {
         try {
             const fn = new Function('Thread', w);
             return fn.apply(this, [ThreadWrapper]);
@@ -508,19 +503,19 @@ export class DwarfApi {
             this.log(e.toString());
             return null;
         }
-    };
+    }
 
     /**
      * Evaluate any input and return a NativePointer
      * @param w
      */
-    evaluatePtr = (w: any): NativePointer => {
+    public evaluatePtr = (w: any): NativePointer => {
         try {
             return ptr(eval(w));
         } catch (e) {
             return NULL;
         }
-    };
+    }
 
     /**
      * Shortcut to quickly retrieve an export
@@ -533,12 +528,16 @@ export class DwarfApi {
      * @param name: the name of the export
      * @param module: optional name of the module
      */
-    findExport(name, module?): NativePointer | null {
-        if (typeof module === 'undefined') {
-            module = null;
+    public findExport = (exportName:string, moduleName?:string): NativePointer | null => {
+        if (!isString(exportName)) {
+            throw new Error('DwarfApi::findExport() => No exportName given!');
         }
-        return Module.findExportByName(module, name);
-    };
+
+        if (!isString(moduleName)) {
+            moduleName = null;
+        }
+        return Module.findExportByName(moduleName, exportName);
+    }
 
     /**
      * Find a module providing any argument. Could be a string/int pointer or module name
