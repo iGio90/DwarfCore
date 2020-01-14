@@ -153,6 +153,13 @@ global.makeNativePointer = function(value:any):NativePointer {
     return null;
 }
 
+global.checkNativePointer = function(ptrValue:NativePointer):boolean {
+    if(isDefined(ptrValue) && ptrValue.isNull()) {
+        return true;
+    }
+    return false;
+}
+
 Date.prototype['getTwoDigitHour'] = function () {
     return (this.getHours() < 10) ? '0' + this.getHours() : this.getHours();
 };

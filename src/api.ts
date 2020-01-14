@@ -50,9 +50,51 @@ export class DwarfApi {
      * @param  {NativePointer|string} bpAddress
      * @param  {boolean} bpEnabled?
      */
-    public addBreakpoint = (bpType: DwarfBreakpointType, bpAddress: NativePointer | string, bpEnabled?: boolean) => {
+    public addBreakpoint = (breakpointType: DwarfBreakpointType | string | number, bpAddress: NativePointer | string | number, bpEnabled?: boolean) => {
         trace('DwarfApi::addBreakpoint()');
-        return DwarfCore.getInstance().getBreakpointManager().addBreakpoint(bpType, bpAddress, bpEnabled);
+
+        let bpType:DwarfBreakpointType = 0;
+
+        //check type
+        if(!isDefined(breakpointType)) {
+            throw new Error('DwarfApi::addBreakpoint() => No BreakpointType given!');
+        } else {
+            if(isString(breakpointType)) {
+                switch((breakpointType as string).toLowerCase()) {
+                    case 'native':
+                        bpType = DwarfBreakpointType.NATIVE;
+                        break;
+                    case 'memory':
+                        bpType = DwarfBreakpointType.MEMORY;
+                        break;
+                    case 'java':
+                        bpType = DwarfBreakpointType.JAVA;
+                        break;
+                    case 'objc':
+                        bpType = DwarfBreakpointType.OBJC;
+                        break;
+                    default:
+                        throw new Error('DwarfApi::addBreakpoint() => Invalid BreakpointType!');
+                }
+            }
+        }
+
+        if(bpType < DwarfBreakpointType.NATIVE || bpType > DwarfBreakpointType.MEMORY) {
+            throw new Error('DwarfApi::addBreakpoint() => Invalid BreakpointType!');
+        }
+
+        //check address
+        if(!isDefined(bpAddress)) {
+            throw new Error('DwarfApi::addBreakpoint() => No Address given!');
+        } else {
+            bpAddress = makeNativePointer(bpAddress);
+            if(!checkNativePointer(bpAddress)) {
+                throw new Error('DwarfApi::addBreakpoint() => Invalid Address!');
+            }
+        }
+
+        //add to bpman
+        return DwarfBreakpointManager.getInstance().addBreakpoint(bpType, bpAddress, bpEnabled);
     }
 
     /**

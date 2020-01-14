@@ -29,6 +29,7 @@ declare namespace NodeJS {
         logDebug:any;
         logErr:any;
         makeNativePointer:any;
+        checkNativePointer:any;
         trace:any;
         Dwarf:any;
     }
@@ -45,6 +46,7 @@ declare function logDebug(...data):void;
 declare function trace(...data):void;
 declare function logErr(tag, err):void;
 declare function makeNativePointer(value:any):NativePointer;
+declare function checkNativePointer(ptrValue:NativePointer):boolean;
 declare var MAX_STACK_SIZE:number;
 declare var DEBUG:boolean;
 declare const Dwarf:any;
