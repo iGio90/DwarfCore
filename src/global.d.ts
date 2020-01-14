@@ -46,6 +46,12 @@ declare function logDebug(...data):void;
 declare function trace(...data):void;
 declare function logErr(tag, err):void;
 declare function makeNativePointer(value:any):NativePointer;
+/**
+ * Checks if given ptrValue is NativePointer
+ *
+ * @param  {NativePointer} ptrValue
+ * @returns boolean
+ */
 declare function checkNativePointer(ptrValue:NativePointer):boolean;
 declare var MAX_STACK_SIZE:number;
 declare var DEBUG:boolean;

@@ -15,19 +15,19 @@
     along with this program.  If not, see <https://www.gnu.org/licenses/>
 **/
 
-global.isDefined = function(value:any):boolean {
+global.isDefined = function (value: any): boolean {
     return (value !== undefined) && (value !== null) && (typeof value !== 'undefined');
 }
 
 
-global.isNumber = function(value: any) {
+global.isNumber = function (value: any) {
     if (isDefined(value)) {
         return (typeof value === "number" && !isNaN(value));
     }
     return false;
 }
 
-global.isString = function(value: any) {
+global.isString = function (value: any) {
     if (isDefined(value)) {
         return (typeof value === "string");
     }
@@ -48,7 +48,7 @@ global.isString = function(value: any) {
     return hexStr;
 }*/
 
-global.ba2hex = function(arrayBuffer: ArrayBuffer): string {
+global.ba2hex = function (arrayBuffer: ArrayBuffer): string {
     // 24,887 ops/s vs 427,496 ops/s
     //https://jsperf.com/convert-numeric-array-to-hex-string
     const byteArray = new Uint8Array(arrayBuffer);
@@ -76,14 +76,14 @@ global.ba2hex = function(arrayBuffer: ArrayBuffer): string {
     }
 }
 
-global.hex2a = function(hex: string) {
+global.hex2a = function (hex: string) {
     let bytes = [];
     for (let c = 0; c < hex.length; c += 2)
         bytes.push(parseInt(hex.substr(c, 2), 16));
     return bytes;
 }
 
-global.dethumbify = function(pt: NativePointer) {
+global.dethumbify = function (pt: NativePointer) {
     if (Process.arch.indexOf('arm') !== -1) {
         if ((parseInt(pt.toString(), 16) & 1) === 1) {
             pt = pt.sub(1);
@@ -92,7 +92,7 @@ global.dethumbify = function(pt: NativePointer) {
     return pt;
 }
 
-global.uniqueBy = function(array: any[]) {
+global.uniqueBy = function (array: any[]) {
     const seen: any = {};
     return array.filter(function (item) {
         const k = JSON.stringify(item);
@@ -100,7 +100,7 @@ global.uniqueBy = function(array: any[]) {
     });
 }
 
-global.logDebug = function(...data) {
+global.logDebug = function (...data) {
     if (!DEBUG) {
         return;
     }
@@ -128,36 +128,49 @@ global.logDebug = function(...data) {
     }
 }
 
-global.logErr = function(tag, err) {
+global.logErr = function (tag, err) {
     console.log('[ERROR-' + tag + '] ' + err);
 }
 
-global.trace = function(str:string) {
+global.trace = function (str: string) {
     //TODO: dont use DEBUG
-    if(DEBUG) {
+    if (DEBUG) {
         const date = new Date();
         const now = date['getHourMinuteSecond']();
         console.log(now + ' [JS TRACE] -> ' + str);
     }
 }
 
-global.makeNativePointer = function(value:any):NativePointer {
-    if(value.constructor.name === 'NativePointer') {
+global.makeNativePointer = function (value: any): NativePointer {
+    if (value.constructor.name === 'NativePointer') {
         return value as NativePointer;
     }
 
-    if(typeof value === 'string' || typeof value === 'number') {
+    if (typeof value === 'string' || typeof value === 'number') {
         return ptr(value);
     }
 
     return null;
 }
-
-global.checkNativePointer = function(ptrValue:NativePointer):boolean {
-    if(isDefined(ptrValue) && !ptrValue.isNull()) {
-        return true;
+/**
+ * Checks if given ptrValue is NativePointer
+ *
+ * @param  {NativePointer} ptrValue
+ * @returns boolean
+ */
+global.checkNativePointer = function (ptrValue: NativePointer): boolean {
+    if (!isDefined(ptrValue)) {
+        return false;
     }
-    return false;
+
+    if (ptrValue.constructor.name !== 'NativePointer') {
+        return false;
+    }
+
+    if (ptrValue.isNull()) {
+        return false;
+    }
+    return true;
 }
 
 Date.prototype['getTwoDigitHour'] = function () {
