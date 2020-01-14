@@ -542,7 +542,7 @@ export class DwarfApi {
     /**
      * Find a module providing any argument. Could be a string/int pointer or module name
      */
-    findModule(module: any): Module | Module[] | null {
+    public findModule = (module: any): Module | Module[] | null => {
         let _module;
         if (isString(module) && module.substring(0, 2) !== '0x') {
             _module = Process.findModuleByName(module);
@@ -575,20 +575,23 @@ export class DwarfApi {
             return _module;
         }
         return null;
-    };
+    }
 
     /**
      * Find a symbol matching the given pattern
      */
-    findSymbol(pattern) {
+    public findSymbol = (pattern:string):NativePointer[] => {
+        if(!isString(pattern)) {
+            throw new Error("DwarfApi::findSymbol() => No pattern given!");
+        }
         return DebugSymbol.findFunctionsMatching(pattern);
-    };
+    }
 
     /**
      * get telescope information for the given pointer argument
      * @param p: pointer
      */
-    getAddressTs = (p) => {
+    public getAddressTs = (p):[number,any] => {
         const _ptr = ptr(p);
         const _range = Process.findRangeByAddress(_ptr);
         if (isDefined(_range)) {
@@ -608,13 +611,13 @@ export class DwarfApi {
             }
         }
         return [-1, p];
-    };
+    }
 
     /**
      * Return an array of DebugSymbol for the requested pointers
      * @param ptrs: an array of NativePointer
      */
-    getDebugSymbols = (ptrs): DebugSymbol[] => {
+    public getDebugSymbols = (ptrs): DebugSymbol[] => {
         const symbols = [];
         if (isDefined(ptrs)) {
             try {
@@ -633,7 +636,7 @@ export class DwarfApi {
     /**
      * Shortcut to retrieve an Instruction object for the given address
      */
-    getInstruction(address) {
+    public getInstruction = (address) =>{
         try {
             const instruction = Instruction.parse(ptr(address));
             return JSON.stringify({
@@ -643,12 +646,12 @@ export class DwarfApi {
             logErr('getInstruction', e);
         }
         return null;
-    };
+    }
 
     /**
      * Return a RangeDetails object or null for the requested pointer
      */
-    getRange(address: any): RangeDetails | null {
+    public getRange = (address: any): RangeDetails | null => {
         try {
             const nativeAddress = ptr(address);
             if (nativeAddress === null || parseInt(nativeAddress.toString()) === 0) {
@@ -663,20 +666,20 @@ export class DwarfApi {
             logErr('getRange', e);
             return null;
         }
-    };
+    }
 
     /**
      * Return DebugSymbol or null for the given pointer
      */
-    getSymbolByAddress(pt): DebugSymbol | null {
+    public getSymbolByAddress = (npAddress:NativePointer|string): DebugSymbol | null => {
         try {
-            pt = ptr(pt);
-            return DebugSymbol.fromAddress(pt);
+            npAddress = makeNativePointer(npAddress);
+            return DebugSymbol.fromAddress(npAddress);
         } catch (e) {
             logErr('getSymbolByAddress', e);
             return null;
         }
-    };
+    }
 
     /**
      * Hook all the methods for the given java class
@@ -689,9 +692,9 @@ export class DwarfApi {
      * @param className
      * @param callback
      */
-    hookAllJavaMethods = (className: string, callback: Function): boolean => {
+    public hookAllJavaMethods = (className: string, callback: Function): boolean => {
         return LogicJava.hookAllJavaMethods(className, callback);
-    };
+    }
 
     /**
      * Receive a callback whenever a java class is going to be loaded by the class loader.
@@ -704,9 +707,9 @@ export class DwarfApi {
      * @param className
      * @param callback
      */
-    hookClassLoaderClassInitialization(className: string, callback: Function): boolean {
+    public hookClassLoaderClassInitialization = (className: string, callback: Function): boolean => {
         return LogicJava.hookClassLoaderClassInitialization(className, callback);
-    };
+    }
 
     /**
      * Hook the constructor of the given java class
@@ -718,9 +721,9 @@ export class DwarfApi {
      * @param className
      * @param callback
      */
-    hookJavaConstructor(className: string, callback: Function): boolean {
+    public hookJavaConstructor = (className: string, callback: Function): boolean => {
         return LogicJava.hook(className, '$init', callback);
-    };
+    }
 
     /**
      * Hook the constructor of the given java class
@@ -738,9 +741,9 @@ export class DwarfApi {
      * @param targetClassMethod
      * @param callback
      */
-    hookJavaMethod = (targetClassMethod: string, callback: Function): boolean => {
+    public hookJavaMethod = (targetClassMethod: string, callback: Function): boolean => {
         return LogicJava.hookJavaMethod(targetClassMethod, callback);
-    };
+    }
 
     /**
      * Receive a callback when the native module is being loaded
@@ -752,7 +755,7 @@ export class DwarfApi {
      * @param moduleName
      * @param callback
      */
-    hookModuleInitialization(moduleName: string, callback: Function): boolean {
+    public hookModuleInitialization = (moduleName: string, callback: Function): boolean => {
         return LogicInitialization.hookModuleInitialization(moduleName, callback);
     }
 
@@ -761,7 +764,7 @@ export class DwarfApi {
      *
      * @return a negative integer if error or fd
      */
-    injectBlob = (name: string, blob: string) => {
+    public injectBlob = (name: string, blob: string) => {
         // arm syscall memfd_create
         let sys_num = 385;
         if (Process.arch === 'ia32') {
@@ -804,18 +807,19 @@ export class DwarfApi {
         } else {
             return -1;
         }
-    };
+    }
 
     /**
      * @return a boolean indicating if the given pointer is currently watched
+     * TODO:
      */
-    isAddressWatched = (pt: any): boolean => {
+    public isAddressWatched = (pt: any): boolean => {
         const memoryBreakpoint = DwarfBreakpointManager.getInstance().getBreakpointByAddress(pt);
         if (memoryBreakpoint.isEnabled()) {
             return true;
         }
         return false;
-    };
+    }
 
     private isPrintable = (char) => {
         try {
@@ -841,25 +845,25 @@ export class DwarfApi {
     /**
      * @return a java stack trace. Must be executed in JVM thread
      */
-    javaBacktrace = () => {
+    public javaBacktrace = () => {
         return LogicJava.backtrace();
-    };
+    }
 
     /**
      * @return the explorer object for the given java handle
      */
-    jvmExplorer = (handle) => {
+    public jvmExplorer = (handle):{} => {
         return LogicJava.jvmExplorer(handle);
     }
 
     /**
      * log whatever to Dwarf console
      */
-    log = (what): void => {
+    public log = (what): void => {
         if (isDefined(what)) {
             Dwarf.loggedSend('log:::' + what);
         }
-    };
+    }
 
     private memoryScan = (start, size, pattern) => {
         let result = [];
@@ -869,7 +873,7 @@ export class DwarfApi {
             logErr('memoryScan', e);
         }
         Dwarf.loggedSend('memoryscan_result:::' + JSON.stringify(result));
-    };
+    }
 
     private memoryScanList = (ranges, pattern) => {
         ranges = JSON.parse(ranges);
@@ -885,7 +889,7 @@ export class DwarfApi {
             }
         }
         Dwarf.loggedSend('memoryscan_result:::' + JSON.stringify(result));
-    };
+    }
 
     /**
      * put a breakpoint on a native pointer or a java class with an optional evaluated condition
@@ -910,8 +914,10 @@ export class DwarfApi {
      *
      * @param address_or_class
      * @param condition
+     *
+     * TODO: remove or change to addBreakpoint
      */
-    putBreakpoint = (address_or_class: any, condition?: string | Function): boolean => {
+    public putBreakpoint = (address_or_class: any, condition?: string | Function): boolean => {
         return false;
         //return LogicBreakpoint.putBreakpoint(address_or_class, condition);
     }
@@ -924,7 +930,7 @@ export class DwarfApi {
      * ```
      * @param className
      */
-    putJavaClassInitializationBreakpoint = (className: string): boolean => {
+    public putJavaClassInitializationBreakpoint = (className: string): boolean => {
         return LogicJava.putJavaClassInitializationBreakpoint(className);
     }
 
@@ -936,7 +942,7 @@ export class DwarfApi {
      * ```
      * @param moduleName
      */
-    putModuleInitializationBreakpoint = (moduleName: string): boolean => {
+    public putModuleInitializationBreakpoint = (moduleName: string): boolean => {
         return LogicInitialization.putModuleInitializationBreakpoint(moduleName);
     }
 
@@ -947,7 +953,7 @@ export class DwarfApi {
      *
      * @return the string pointed by address until termination or optional length
      */
-    readString = (address, length?) => {
+    public readString = (address, length?) => {
         try {
             address = ptr(address);
             let fstring = "";
@@ -996,14 +1002,14 @@ export class DwarfApi {
             logErr('readString', e);
             return "";
         }
-    };
+    }
 
     /**
      * A shortcut for safely reading from memory
      *
      * @return an ArrayBuffer of the given length filled with data starting from target address
      */
-    readBytes = (address, length) => {
+    public readBytes = (address, length) => {
         try {
             address = ptr(address);
 
@@ -1045,32 +1051,32 @@ export class DwarfApi {
             logErr('readBytes', e);
             return [];
         }
-    };
+    }
 
     /**
      * @return a pointer from the given address
      */
-    readPointer = (pt) => {
+    public readPointer = (pt) => {
         try {
             return ptr(pt).readPointer();
         } catch (e) {
             logErr('readPointer', e);
             return NULL;
         }
-    };
+    }
 
     /**
      * resume the execution of the given thread id
      */
-    releaseFromJs = (tid): void => {
+    public releaseFromJs = (tid): void => {
         Dwarf.loggedSend('release_js:::' + tid);
-    };
+    }
 
     /**
      * Remove a breakpoint on address_or_class
      * @return a boolean indicating if removal was successful
      */
-    removeBreakpoint = (address_or_class: any): boolean => {
+    public removeBreakpoint = (address_or_class: any): boolean => {
         return LogicBreakpoint.removeBreakpoint(address_or_class);
     }
 
@@ -1078,7 +1084,7 @@ export class DwarfApi {
      * Remove a java class initialization breakpoint on moduleName
      * @return a boolean indicating if removal was successful
      */
-    removeJavaClassInitializationBreakpoint = (moduleName: string): boolean => {
+    public removeJavaClassInitializationBreakpoint = (moduleName: string): boolean => {
         const ret = LogicJava.removeModuleInitializationBreakpoint(moduleName);
         if (ret) {
             Dwarf.loggedSend('breakpoint_deleted:::java_class_initialization:::' + moduleName);
@@ -1090,7 +1096,7 @@ export class DwarfApi {
      * Remove a module initialization breakpoint on moduleName
      * @return a boolean indicating if removal was successful
      */
-    removeModuleInitializationBreakpoint = (moduleName: string): boolean => {
+    public removeModuleInitializationBreakpoint = (moduleName: string): boolean => {
         const ret = LogicInitialization.removeModuleInitializationBreakpoint(moduleName);
         if (ret) {
             Dwarf.loggedSend('breakpoint_deleted:::module_initialization:::' + moduleName);
@@ -1102,7 +1108,7 @@ export class DwarfApi {
      * Remove a MemoryBreakpoint on the given address
      * @return a boolean indicating if removal was successful
      */
-    removeMemoryBreakpoint = (memoryAddress: NativePointer | string): boolean => {
+    public removeMemoryBreakpoint = (memoryAddress: NativePointer | string): boolean => {
         trace('DwarfApi::removeMemoryBreakpoint()');
         if (typeof memoryAddress === 'string' || typeof memoryAddress === 'number') {
             memoryAddress = ptr(memoryAddress);
@@ -1114,14 +1120,15 @@ export class DwarfApi {
      * Restart the application
      *
      * Android only
+     * TODO: public?
      */
-    restart = (): boolean => {
+    public restart = (): boolean => {
         if (LogicJava.available) {
             return LogicJava.restartApplication();
         }
 
         return false;
-    };
+    }
 
     private resume = () => {
         if (Dwarf.PROC_RESUMED) {
@@ -1130,7 +1137,7 @@ export class DwarfApi {
         } else {
             console.log('Error: Process already resumed');
         }
-    };
+    }
 
     private setBreakpointCondition = (address_or_class: any, condition?: string | Function): boolean => {
         return LogicBreakpoint.setBreakpointCondition(address_or_class, condition);
@@ -1147,7 +1154,7 @@ export class DwarfApi {
      * });
      * ```
      */
-    setData = (key, data) => {
+    public setData = (key, data) => {
         if (typeof key !== 'string' && key.length < 1) {
             return;
         }
@@ -1160,14 +1167,14 @@ export class DwarfApi {
             }
             Dwarf.loggedSend('set_data:::' + key + ':::' + data)
         }
-    };
+    }
 
     /**
      * Start the java tracer on the given classes
      */
-    startJavaTracer = (classes: string[], callback: Function) => {
+    public startJavaTracer = (classes: string[], callback: Function) => {
         return LogicJava.startTrace(classes, callback);
-    };
+    }
 
     /**
      * Start the native tracer on the current thread
@@ -1184,7 +1191,7 @@ export class DwarfApi {
      * });
      * ```
      */
-    startNativeTracer = (callback) => {
+    public startNativeTracer = (callback) => {
         const stalkerInfo = LogicStalker.stalk();
         if (stalkerInfo !== null) {
             stalkerInfo.currentMode = callback;
@@ -1192,23 +1199,23 @@ export class DwarfApi {
         }
 
         return false;
-    };
+    }
 
     /**
      * Stop the java tracer
      */
-    stopJavaTracer = (): boolean => {
+    public stopJavaTracer = (): boolean => {
         return LogicJava.stopTrace();
-    };
+    }
 
     /**
      * start strace
      */
-    strace = (callback): boolean => {
+    public strace = (callback): boolean => {
         return LogicStalker.strace(callback);
     }
 
-    updateModules = () => {
+    public updateModules = () => {
         const modules = this.enumerateModules();
         Dwarf.loggedSend('update_modules:::' + Process.getCurrentThreadId() + ':::' + JSON.stringify(modules));
     }
@@ -1220,7 +1227,7 @@ export class DwarfApi {
         } catch (e) {
             logErr('updateRanges', e);
         }
-    };
+    }
 
     private updateSearchableRanges = () => {
         try {
@@ -1229,12 +1236,12 @@ export class DwarfApi {
         } catch (e) {
             logErr('updateSearchableRanges', e);
         }
-    };
+    }
 
     /**
      * Write the given hex string or ArrayBuffer into the given address
      */
-    writeBytes = (address: any, what: string | ArrayBuffer) => {
+    public writeBytes = (address: any, what: string | ArrayBuffer) => {
         try {
             address = ptr(address);
             if (typeof what === 'string') {
@@ -1247,7 +1254,7 @@ export class DwarfApi {
             logErr('writeBytes', e);
             return false;
         }
-    };
+    }
 
     private writeUtf8 = (address: any, str: any) => {
         try {
@@ -1258,5 +1265,5 @@ export class DwarfApi {
             logErr('writeUtf8', e);
             return false;
         }
-    };
+    }
 }
