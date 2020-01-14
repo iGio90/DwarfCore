@@ -27,6 +27,8 @@ import { DwarfCore } from "./dwarf";
 import { MemoryBreakpoint } from "./types/memory_breakpoint";
 import { DwarfBreakpointManager } from "./breakpoint_manager";
 import { DwarfObserver } from "./dwarf_observer";
+import { NativeBreakpoint } from "./types/native_breakpoint";
+import { JavaBreakpoint } from "./types/java_breakpoint";
 
 export class DwarfApi {
     private static instanceRef: DwarfApi;
@@ -51,8 +53,10 @@ export class DwarfApi {
      * @param  {DwarfBreakpointType|string|number} breakpointType
      * @param  {NativePointer|string|number} bpAddress
      * @param  {boolean} bpEnabled? (default: enabled)
+     *
+     * TODO: add ObjcBreakpoints
      */
-    public addBreakpoint = (breakpointType: DwarfBreakpointType | string | number, bpAddress: NativePointer | string | number, bpEnabled?: boolean) => {
+    public addBreakpoint = (breakpointType: DwarfBreakpointType | string | number, bpAddress: NativePointer | string | number, bpEnabled?: boolean): NativeBreakpoint | MemoryBreakpoint | JavaBreakpoint => {
         trace('DwarfApi::addBreakpoint()');
 
         let bpType: DwarfBreakpointType = 0;
@@ -86,8 +90,16 @@ export class DwarfApi {
             }
         }
 
-        if (bpType < DwarfBreakpointType.NATIVE || bpType > DwarfBreakpointType.MEMORY) {
+        if ((bpType < DwarfBreakpointType.NATIVE) || (bpType > DwarfBreakpointType.MEMORY)) {
             throw new Error('DwarfApi::addBreakpoint() => Invalid BreakpointType!');
+        }
+
+        if ((bpType == DwarfBreakpointType.JAVA) && !Java.available) {
+            throw new Error('DwarfApi::addBreakpoint() => No JAVA Breakpoints available!');
+        }
+
+        if ((bpType == DwarfBreakpointType.OBJC) && !ObjC.available) {
+            throw new Error('DwarfApi::addBreakpoint() => No OBJC Breakpoints available!');
         }
 
         //check address
@@ -116,7 +128,7 @@ export class DwarfApi {
             }
         }
 
-        if(!isDefined(checkedAddress)) {
+        if (!isDefined(checkedAddress)) {
             throw new Error('DwarfApi::addBreakpoint() => Something is wrong!');
         }
 
@@ -143,11 +155,24 @@ export class DwarfApi {
      * @param flags
      * @param callback
      */
-    public addMemoryBreakpoint = (memoryAddress: NativePointer | string, bpFlags: string | number, bpCallback?: Function): MemoryBreakpoint => {
+    public addMemoryBreakpoint = (memoryAddress: NativePointer | string | number, bpFlags: string | number, bpCallback?: Function): MemoryBreakpoint => {
         trace('DwarfApi::addMemoryBreakpoint()');
-        if (typeof memoryAddress === 'string' || typeof memoryAddress === 'number') {
-            memoryAddress = ptr(memoryAddress);
+
+        let bpAddress = makeNativePointer(memoryAddress);
+        if (!checkNativePointer(bpAddress)) {
+            throw new Error('DwarfApi::addMemoryBreakpoint() => Invalid Address!');
         }
+
+        const rangeDetails = Process.findRangeByAddress(bpAddress);
+
+        if (!isDefined(rangeDetails)) {
+            throw new Error('DwarfApi::addMemoryBreakpoint() => Unable to find Range for ' + bpAddress.toString());
+        }
+
+        if (rangeDetails.protection.indexOf('r') === -1) {
+            throw new Error('DwarfApi::addMemoryBreakpoint() => Unable to access Memory at ' + bpAddress.toString());
+        }
+
         let intFlags = 0;
         if (typeof bpFlags === 'string') {
             if (bpFlags.indexOf('r') >= 0) {
@@ -166,7 +191,7 @@ export class DwarfApi {
         }
 
         try {
-            const memoryBreakpoint = DwarfBreakpointManager.getInstance().addMemoryBreakpoint(memoryAddress, intFlags);
+            const memoryBreakpoint = DwarfBreakpointManager.getInstance().addMemoryBreakpoint(bpAddress, intFlags);
             if (memoryBreakpoint !== null) {
                 if (bpCallback && typeof bpCallback === 'function') {
                     memoryBreakpoint.setCallback(bpCallback);
@@ -180,14 +205,26 @@ export class DwarfApi {
     }
 
 
-    public addNativeBreakpoint = (bpAddress: NativePointer | string, bpEnabled: boolean = true, bpCallback?: Function) => {
+    public addNativeBreakpoint = (bpAddress: NativePointer | string | number, bpCallback?: InvocationListenerCallbacks | Function | null):NativeBreakpoint => {
         trace('DwarfApi::addNativeBreakpoint()');
 
         try {
-            const nativeBreakpoint = DwarfBreakpointManager.getInstance().addNativeBreakpoint(makeNativePointer(bpAddress), bpEnabled);
-            if (nativeBreakpoint !== null) {
-                if (bpCallback && typeof bpCallback === 'function') {
+            bpAddress = makeNativePointer(bpAddress);
+            if (!checkNativePointer(bpAddress)) {
+                throw new Error('DwarfApi::addNativeBreakpoint() => Invalid Address!');
+            }
+            const nativeBreakpoint = DwarfBreakpointManager.getInstance().addNativeBreakpoint(bpAddress, true);
+            if (isDefined(nativeBreakpoint) && isDefined(bpCallback)) {
+                if (typeof bpCallback === 'function') {
                     nativeBreakpoint.setCallback(bpCallback);
+                } else if(bpCallback.hasOwnProperty('onEnter') || bpCallback.hasOwnProperty('onLeave')) {
+                    nativeBreakpoint.setCallback(bpCallback);
+                } else {
+                    if(isString(bpCallback)) {
+                        //TODO: add func wich converts string to function
+                    } else {
+                        throw new Error('DwarfApi::addNativeBreakpoint() => Unable to set callback!');
+                    }
                 }
             }
             return nativeBreakpoint;
