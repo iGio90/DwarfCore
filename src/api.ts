@@ -29,6 +29,7 @@ import { DwarfBreakpointManager } from "./breakpoint_manager";
 import { DwarfObserver } from "./dwarf_observer";
 import { NativeBreakpoint } from "./types/native_breakpoint";
 import { JavaBreakpoint } from "./types/java_breakpoint";
+import { ObjcBreakpoint } from "./types/objc_breakpoint";
 
 export class DwarfApi {
     private static instanceRef: DwarfApi;
@@ -155,7 +156,7 @@ export class DwarfApi {
      * @param flags
      * @param callback
      */
-    public addMemoryBreakpoint = (memoryAddress: NativePointer | string | number, bpFlags: string | number, bpCallback?: Function): MemoryBreakpoint => {
+    public addMemoryBreakpoint = (memoryAddress: NativePointer | string | number, bpFlags: string | number, bpCallback?: Function | string | null): MemoryBreakpoint => {
         trace('DwarfApi::addMemoryBreakpoint()');
 
         let bpAddress = makeNativePointer(memoryAddress);
@@ -192,9 +193,15 @@ export class DwarfApi {
 
         try {
             const memoryBreakpoint = DwarfBreakpointManager.getInstance().addMemoryBreakpoint(bpAddress, intFlags);
-            if (memoryBreakpoint !== null) {
-                if (bpCallback && typeof bpCallback === 'function') {
-                    memoryBreakpoint.setCallback(bpCallback);
+            if (isDefined(memoryBreakpoint)) {
+                if (isFunction(bpCallback)) {
+                    memoryBreakpoint.setCallback(bpCallback as Function);
+                } else {
+                    if (isString(bpCallback)) {
+                        //TODO: add func wich converts string to function
+                    } else {
+                        throw new Error('DwarfApi::addMemoryBreakpoint() => Unable to set callback!');
+                    }
                 }
             }
             return memoryBreakpoint;
@@ -205,7 +212,7 @@ export class DwarfApi {
     }
 
 
-    public addNativeBreakpoint = (bpAddress: NativePointer | string | number, bpCallback?: InvocationListenerCallbacks | Function | null):NativeBreakpoint => {
+    public addNativeBreakpoint = (bpAddress: NativePointer | string | number, bpCallback?: InvocationListenerCallbacks | Function | string | null): NativeBreakpoint => {
         trace('DwarfApi::addNativeBreakpoint()');
 
         try {
@@ -215,12 +222,12 @@ export class DwarfApi {
             }
             const nativeBreakpoint = DwarfBreakpointManager.getInstance().addNativeBreakpoint(bpAddress, true);
             if (isDefined(nativeBreakpoint) && isDefined(bpCallback)) {
-                if (typeof bpCallback === 'function') {
-                    nativeBreakpoint.setCallback(bpCallback);
-                } else if(bpCallback.hasOwnProperty('onEnter') || bpCallback.hasOwnProperty('onLeave')) {
-                    nativeBreakpoint.setCallback(bpCallback);
+                if (isFunction(bpCallback)) {
+                    nativeBreakpoint.setCallback(bpCallback as Function);
+                } else if (isValidFridaListener(bpCallback)) {
+                    nativeBreakpoint.setCallback(bpCallback as InvocationListenerCallbacks);
                 } else {
-                    if(isString(bpCallback)) {
+                    if (isString(bpCallback)) {
                         //TODO: add func wich converts string to function
                     } else {
                         throw new Error('DwarfApi::addNativeBreakpoint() => Unable to set callback!');
@@ -232,6 +239,38 @@ export class DwarfApi {
             logErr('DwarfApi::addNativeBreakpoint()', error);
             return null;
         }
+    }
+
+    public addJavaBreakpoint = (bpAddress: string, bpCallback?: InvocationListenerCallbacks | Function | string | null): JavaBreakpoint => {
+        if (!isString(bpAddress)) {
+            throw new Error('DwarfApi::addJavaBreakpoint() => Invalid Adddress!');
+        }
+
+        try {
+            const javaBreakpoint = DwarfBreakpointManager.getInstance().addJavaBreakpoint(bpAddress, true);
+
+            if (isDefined(javaBreakpoint) && isDefined(bpCallback)) {
+                if (isFunction(bpCallback)) {
+                    javaBreakpoint.setCallback(bpCallback as Function);
+                } else if (isValidFridaListener(bpCallback)) {
+                    javaBreakpoint.setCallback(bpCallback as InvocationListenerCallbacks);
+                } else {
+                    if (isString(bpCallback)) {
+                        //TODO: add func wich converts string to function
+                    } else {
+                        throw new Error('DwarfApi::addJavaBreakpoint() => Unable to set callback!');
+                    }
+                }
+            }
+            return javaBreakpoint;
+        } catch (error) {
+            logErr('DwarfApi::addNativeBreakpoint()', error);
+            return null;
+        }
+    }
+
+    public addObjcBreakpoint = (bpAddress: string, bpCallback?: InvocationListenerCallbacks | Function | string | null): ObjcBreakpoint => {
+        throw new Error('Not implemented!');
     }
 
 

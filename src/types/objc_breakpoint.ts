@@ -19,21 +19,5 @@ import { DwarfBreakpoint } from "./dwarf_breakpoint";
 import { DwarfBreakpointType } from "../consts";
 
 
-export class JavaBreakpoint extends DwarfBreakpoint {
-    protected bpCallbacks: InvocationListenerCallbacks | Function | null;
-
-    constructor(bpAddress: string, bpEnabled?: boolean) {
-        if (typeof bpAddress !== 'string') {
-            throw new Error('Invalid BreakpointAddress');
-        }
-        super(DwarfBreakpointType.JAVA, bpAddress, bpEnabled);
-    }
-
-    public setCallback(bpCallback: InvocationListenerCallbacks | Function | null): void {
-        this.bpCallbacks = bpCallback;
-    }
-
-    public removeCallback(): void {
-        this.bpCallbacks = null;
-    }
+export class ObjcBreakpoint extends DwarfBreakpoint {
 }

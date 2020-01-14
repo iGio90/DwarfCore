@@ -34,6 +34,22 @@ global.isString = function (value: any) {
     return false;
 }
 
+global.isFunction = function(value:any) {
+    if(isDefined(value)) {
+        return (typeof value === 'function');
+    }
+    return false;
+}
+
+global.isValidFridaListener = function(value:any) {
+    if(isDefined(value)) {
+        if(value.hasOwnProperty('onEnter') || value.hasOwnProperty('onLeave')) {
+            return true;
+        }
+    }
+    return false;
+}
+
 /*function ba2hex(b: any) {
     const uint8arr = new Uint8Array(b);
     if (!uint8arr) {

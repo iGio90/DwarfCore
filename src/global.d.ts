@@ -22,6 +22,8 @@ declare namespace NodeJS {
         isDefined:any;
         isNumber:any;
         isString:any;
+        isFunction:any;
+        isValidFridaListener:any;
         ba2hex:any;
         hex2a:any;
         dethumbify:any;
@@ -38,6 +40,8 @@ declare namespace NodeJS {
 declare function isDefined(value:any): boolean;
 declare function isNumber(value:any):boolean;
 declare function isString(value:any):boolean;
+declare function isFunction(value:any):boolean;
+declare function isValidFridaListener(value:any):boolean;
 declare function ba2hex(arrayBuffer: ArrayBuffer): string;
 declare function hex2a(hex: string):[];
 declare function dethumbify(ptrValue:NativePointer):NativePointer;
