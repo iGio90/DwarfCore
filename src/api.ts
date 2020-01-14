@@ -48,21 +48,22 @@ export class DwarfApi {
     /**
      * Create Breakpoint on given address
      *
-     * @param  {DwarfBreakpointType} bpType
-     * @param  {NativePointer|string} bpAddress
+     * @param  {DwarfBreakpointType|string|number} breakpointType
+     * @param  {NativePointer|string|number} bpAddress
      * @param  {boolean} bpEnabled? (default: enabled)
      */
     public addBreakpoint = (breakpointType: DwarfBreakpointType | string | number, bpAddress: NativePointer | string | number, bpEnabled?: boolean) => {
         trace('DwarfApi::addBreakpoint()');
 
-        let bpType:DwarfBreakpointType = 0;
+        let bpType: DwarfBreakpointType = 0;
+        let checkedAddress: NativePointer | string = null;
 
         //check type
-        if(!isDefined(breakpointType)) {
+        if (!isDefined(breakpointType)) {
             throw new Error('DwarfApi::addBreakpoint() => No BreakpointType given!');
         } else {
-            if(isString(breakpointType)) {
-                switch((breakpointType as string).toLowerCase()) {
+            if (isString(breakpointType)) {
+                switch ((breakpointType as string).toLowerCase()) {
                     case 'native':
                         bpType = DwarfBreakpointType.NATIVE;
                         break;
@@ -78,29 +79,49 @@ export class DwarfApi {
                     default:
                         throw new Error('DwarfApi::addBreakpoint() => Invalid BreakpointType!');
                 }
-            } else if(isNumber(breakpointType)) {
+            } else if (isNumber(breakpointType)) {
                 bpType = breakpointType as number;
             } else {
                 throw new Error('DwarfApi::addBreakpoint() => Invalid BreakpointType!');
             }
         }
 
-        if(bpType < DwarfBreakpointType.NATIVE || bpType > DwarfBreakpointType.MEMORY) {
+        if (bpType < DwarfBreakpointType.NATIVE || bpType > DwarfBreakpointType.MEMORY) {
             throw new Error('DwarfApi::addBreakpoint() => Invalid BreakpointType!');
         }
 
         //check address
-        if(!isDefined(bpAddress)) {
+        if (!isDefined(bpAddress)) {
             throw new Error('DwarfApi::addBreakpoint() => No Address given!');
         } else {
-            bpAddress = makeNativePointer(bpAddress);
-            if(!checkNativePointer(bpAddress)) {
-                throw new Error('DwarfApi::addBreakpoint() => Invalid Address!');
+            if (bpType == DwarfBreakpointType.NATIVE || bpType == DwarfBreakpointType.MEMORY) {
+                bpAddress = makeNativePointer(bpAddress);
+                if (checkNativePointer(bpAddress)) {
+                    checkedAddress = bpAddress;
+                } else {
+                    throw new Error('DwarfApi::addBreakpoint() => Invalid Address!');
+                }
+            } else {
+                //java+objc addresses
+                if (!isString(bpAddress)) {
+                    throw new Error('DwarfApi::addBreakpoint() => Invalid Address!');
+                } else {
+                    if (!Java.available && !ObjC.available) {
+                        throw new Error('DwarfApi::addBreakpoint() => Invalid Address!');
+                    }
+                    if ((bpAddress as string).length > 0) {
+                        checkedAddress = bpAddress as string;
+                    }
+                }
             }
         }
 
+        if(!isDefined(checkedAddress)) {
+            throw new Error('DwarfApi::addBreakpoint() => Something is wrong!');
+        }
+
         //add to bpman
-        return DwarfBreakpointManager.getInstance().addBreakpoint(bpType, bpAddress, bpEnabled);
+        return DwarfBreakpointManager.getInstance().addBreakpoint(bpType, checkedAddress, bpEnabled);
     }
 
     /**
@@ -208,7 +229,7 @@ export class DwarfApi {
      * @param  {string} watchMode
      * @param  {string|Function} handler ('breakpoint' or function)
      */
-    public addObserveLocation = (name: string, npAddress: NativePointer | string, watchType: string, watchMode: string, handler: string | Function, bytesLength:number = 0) => {
+    public addObserveLocation = (name: string, npAddress: NativePointer | string, watchType: string, watchMode: string, handler: string | Function, bytesLength: number = 0) => {
         if (isString(handler) && handler !== 'breakpoint') {
             //TODO: convert handlerstr from ui to func
         }
@@ -313,7 +334,7 @@ export class DwarfApi {
      * Enumerate java classes
      * @param useCache false by default
      */
-    public enumerateJavaClasses = (useCache:boolean=false):void => {
+    public enumerateJavaClasses = (useCache: boolean = false): void => {
 
         if (useCache && LogicJava !== null && LogicJava.javaClasses.length > 0) {
             Dwarf.loggedSend('enumerate_java_classes_start:::');
@@ -385,7 +406,7 @@ export class DwarfApi {
      * Enumerate objc classes
      * @param useCache false by default
      */
-    public enumerateObjCClasses = (moduleName: string) =>{
+    public enumerateObjCClasses = (moduleName: string) => {
         Dwarf.loggedSend('enumerate_objc_classes_start:::');
         try {
             ObjC.enumerateLoadedClasses({ ownedBy: new ModuleMap((m) => { return moduleName === m['name']; }) }, {
@@ -529,7 +550,7 @@ export class DwarfApi {
      * Evaluate javascript. Used from the UI to inject javascript code into the process
      * @param w
      */
-    public evaluate = (w):any => {
+    public evaluate = (w): any => {
         const Thread = ThreadWrapper;
         try {
             return eval(w);
@@ -543,7 +564,7 @@ export class DwarfApi {
      * Evaluate javascript. Used from the UI to inject javascript code into the process
      * @param w
      */
-    public evaluateFunction = (w):any => {
+    public evaluateFunction = (w): any => {
         try {
             const fn = new Function('Thread', w);
             return fn.apply(this, [ThreadWrapper]);
@@ -576,7 +597,7 @@ export class DwarfApi {
      * @param name: the name of the export
      * @param module: optional name of the module
      */
-    public findExport = (exportName:string, moduleName?:string): NativePointer | null => {
+    public findExport = (exportName: string, moduleName?: string): NativePointer | null => {
         if (!isString(exportName)) {
             throw new Error('DwarfApi::findExport() => No exportName given!');
         }
@@ -628,8 +649,8 @@ export class DwarfApi {
     /**
      * Find a symbol matching the given pattern
      */
-    public findSymbol = (pattern:string):NativePointer[] => {
-        if(!isString(pattern)) {
+    public findSymbol = (pattern: string): NativePointer[] => {
+        if (!isString(pattern)) {
             throw new Error("DwarfApi::findSymbol() => No pattern given!");
         }
         return DebugSymbol.findFunctionsMatching(pattern);
@@ -639,7 +660,7 @@ export class DwarfApi {
      * get telescope information for the given pointer argument
      * @param p: pointer
      */
-    public getAddressTs = (p):[number,any] => {
+    public getAddressTs = (p): [number, any] => {
         const _ptr = ptr(p);
         const _range = Process.findRangeByAddress(_ptr);
         if (isDefined(_range)) {
@@ -684,7 +705,7 @@ export class DwarfApi {
     /**
      * Shortcut to retrieve an Instruction object for the given address
      */
-    public getInstruction = (address) =>{
+    public getInstruction = (address) => {
         try {
             const instruction = Instruction.parse(ptr(address));
             return JSON.stringify({
@@ -719,7 +740,7 @@ export class DwarfApi {
     /**
      * Return DebugSymbol or null for the given pointer
      */
-    public getSymbolByAddress = (npAddress:NativePointer|string): DebugSymbol | null => {
+    public getSymbolByAddress = (npAddress: NativePointer | string): DebugSymbol | null => {
         try {
             npAddress = makeNativePointer(npAddress);
             return DebugSymbol.fromAddress(npAddress);
@@ -900,7 +921,7 @@ export class DwarfApi {
     /**
      * @return the explorer object for the given java handle
      */
-    public jvmExplorer = (handle):{} => {
+    public jvmExplorer = (handle): {} => {
         return LogicJava.jvmExplorer(handle);
     }
 
