@@ -46,9 +46,11 @@ export class DwarfApi {
     }
 
     /**
+     * Create Breakpoint on given address
+     *
      * @param  {DwarfBreakpointType} bpType
      * @param  {NativePointer|string} bpAddress
-     * @param  {boolean} bpEnabled?
+     * @param  {boolean} bpEnabled? (default: enabled)
      */
     public addBreakpoint = (breakpointType: DwarfBreakpointType | string | number, bpAddress: NativePointer | string | number, bpEnabled?: boolean) => {
         trace('DwarfApi::addBreakpoint()');
@@ -76,6 +78,10 @@ export class DwarfApi {
                     default:
                         throw new Error('DwarfApi::addBreakpoint() => Invalid BreakpointType!');
                 }
+            } else if(isNumber(breakpointType)) {
+                bpType = breakpointType as number;
+            } else {
+                throw new Error('DwarfApi::addBreakpoint() => Invalid BreakpointType!');
             }
         }
 
