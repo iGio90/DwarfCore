@@ -50,7 +50,7 @@ export class DwarfApi {
      * @param  {NativePointer|string} bpAddress
      * @param  {boolean} bpEnabled?
      */
-    addBreakpoint = (bpType: DwarfBreakpointType, bpAddress: NativePointer | string, bpEnabled?: boolean) => {
+    public addBreakpoint = (bpType: DwarfBreakpointType, bpAddress: NativePointer | string, bpEnabled?: boolean) => {
         trace('DwarfApi::addBreakpoint()');
         Module
         return DwarfCore.getInstance().getBreakpointManager().addBreakpoint(bpType, bpAddress, bpEnabled);
@@ -75,7 +75,7 @@ export class DwarfApi {
      * @param flags
      * @param callback
      */
-    addMemoryBreakpoint = (memoryAddress: NativePointer | string, bpFlags: string | number, bpCallback?: Function): MemoryBreakpoint => {
+    public addMemoryBreakpoint = (memoryAddress: NativePointer | string, bpFlags: string | number, bpCallback?: Function): MemoryBreakpoint => {
         trace('DwarfApi::addMemoryBreakpoint()');
         if (typeof memoryAddress === 'string' || typeof memoryAddress === 'number') {
             memoryAddress = ptr(memoryAddress);
@@ -112,7 +112,7 @@ export class DwarfApi {
     }
 
 
-    addNativeBreakpoint = (bpAddress: NativePointer | string, bpEnabled: boolean = true, bpCallback?: Function) => {
+    public addNativeBreakpoint = (bpAddress: NativePointer | string, bpEnabled: boolean = true, bpCallback?: Function) => {
         trace('DwarfApi::addNativeBreakpoint()');
 
         try {
@@ -136,7 +136,7 @@ export class DwarfApi {
      * @param  {NativePointer|string} bmAddress
      * @param  {string} bmNote
      */
-    addBookmark = (bmAddress: NativePointer | string, bmNote: string) => {
+    public addBookmark = (bmAddress: NativePointer | string, bmNote: string) => {
         trace('DwarfApi::addBookmark()');
         if (bmAddress.constructor.name === 'NativePointer') {
             bmAddress = bmAddress.toString();
@@ -161,7 +161,7 @@ export class DwarfApi {
      * @param  {string} watchMode
      * @param  {string|Function} handler ('breakpoint' or function)
      */
-    addObserveLocation = (name: string, npAddress: NativePointer | string, watchType: string, watchMode: string, handler: string | Function, bytesLength:number = 0) => {
+    public addObserveLocation = (name: string, npAddress: NativePointer | string, watchType: string, watchMode: string, handler: string | Function, bytesLength:number = 0) => {
         if (isString(handler) && handler !== 'breakpoint') {
             //TODO: convert handlerstr from ui to func
         }
@@ -173,7 +173,7 @@ export class DwarfApi {
      *
      * @param  {number} observeId
      */
-    removeObserveLocation = (observeId: number) => {
+    public removeObserveLocation = (observeId: number) => {
         return DwarfObserver.getInstance().removeById(observeId);
     }
 
@@ -182,7 +182,7 @@ export class DwarfApi {
      *
      * @param  {string} observeName
      */
-    removeObserveLocationByName = (observeName: string) => {
+    public removeObserveLocationByName = (observeName: string) => {
         return DwarfObserver.getInstance().removeByName(observeName);
     }
 
