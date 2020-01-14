@@ -138,11 +138,11 @@ export class DwarfApi {
      */
     addBookmark = (bmAddress: NativePointer | string, bmNote: string) => {
         trace('DwarfApi::addBookmark()');
-        if(bmAddress.constructor.name === 'NativePointer') {
+        if (bmAddress.constructor.name === 'NativePointer') {
             bmAddress = bmAddress.toString();
         }
-        if(!isString(bmAddress)) {
-            if(bmAddress.hasOwnProperty('toString')) {
+        if (!isString(bmAddress)) {
+            if (bmAddress.hasOwnProperty('toString')) {
                 bmAddress = bmAddress.toString();
             } else {
                 logErr('DwarfApi::addBookmark()', 'Value Error');
@@ -151,12 +151,39 @@ export class DwarfApi {
         }
         DwarfCore.getInstance().sync({ bookmark: { address: bmAddress, note: bmNote } });
     }
-
-    addObserveLocation = (npAddress: NativePointer | string, watchType: string, nSize: number = 0, watchMode: string, handler: string | Function) => {
-        if(isString(handler) && handler !== 'breakpoint') {
+    /**
+     * Adds Location to DwarfObserver
+     *
+     * @param  {string} name
+     * @param  {NativePointer|string} npAddress
+     * @param  {string} watchType
+     * @param  {number} nSize (required for watchType 'bytes')
+     * @param  {string} watchMode
+     * @param  {string|Function} handler ('breakpoint' or function)
+     */
+    addObserveLocation = (name: string, npAddress: NativePointer | string, watchType: string, watchMode: string, handler: string | Function, bytesLength:number = 0) => {
+        if (isString(handler) && handler !== 'breakpoint') {
             //TODO: convert handlerstr from ui to func
         }
-        return DwarfObserver.getInstance().addLocation(npAddress, watchType, nSize, watchMode, handler);
+        return DwarfObserver.getInstance().addLocation(name, npAddress, watchType, bytesLength, watchMode, handler);
+    }
+
+    /**
+     * Removes Location from DwarfObserver
+     *
+     * @param  {number} observeId
+     */
+    removeObserveLocation = (observeId: number) => {
+        return DwarfObserver.getInstance().removeById(observeId);
+    }
+
+    /**
+     * Removes Location from DwarfObserver
+     *
+     * @param  {string} observeName
+     */
+    removeObserveLocationByName = (observeName: string) => {
+        return DwarfObserver.getInstance().removeByName(observeName);
     }
 
     private _internalMemoryScan(start, size, pattern) {
