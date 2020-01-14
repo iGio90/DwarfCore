@@ -89,20 +89,23 @@ export class DwarfObserver {
             name = npAddress.toString();
         }
 
+        //'#' not allowed in name (used intern)
+        name = name.replace('#', '_');
+
         //check name
         for (let observeLocation of this.observeLocations) {
             if (observeLocation.name.toLowerCase() === name.toLowerCase()) {
-                if(observeLocation.name.indexOf('_') != -1) {
-                    let counter:any = observeLocation.name.split('_')[1];
+                if(observeLocation.name.indexOf('#') != -1) {
+                    let counter:any = observeLocation.name.split('#')[1];
                     try {
                         counter = parseInt(counter, 10);
-                        name = name.substr(0, name.lastIndexOf('_'));
-                        name = name + '_' + counter.toString();
+                        name = name.substr(0, name.lastIndexOf('#'));
+                        name = name + '#' + counter.toString();
                     } catch(e) {
-                        name = name + '_1';
+                        name = name + '#1';
                     }
                 } else {
-                    name = name + '_1';
+                    name = name + '#1';
                 }
             }
         }
