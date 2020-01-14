@@ -154,7 +154,7 @@ global.makeNativePointer = function(value:any):NativePointer {
 }
 
 global.checkNativePointer = function(ptrValue:NativePointer):boolean {
-    if(isDefined(ptrValue) && ptrValue.isNull()) {
+    if(isDefined(ptrValue) && !ptrValue.isNull()) {
         return true;
     }
     return false;
