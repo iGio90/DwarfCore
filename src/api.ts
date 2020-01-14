@@ -242,6 +242,8 @@ export class DwarfApi {
     }
 
     public addJavaBreakpoint = (bpAddress: string, bpCallback?: InvocationListenerCallbacks | Function | string | null): JavaBreakpoint => {
+        trace('DwarfApi::addJavaBreakpoint()');
+
         if (!isString(bpAddress)) {
             throw new Error('DwarfApi::addJavaBreakpoint() => Invalid Adddress!');
         }
@@ -270,6 +272,8 @@ export class DwarfApi {
     }
 
     public addObjcBreakpoint = (bpAddress: string, bpCallback?: InvocationListenerCallbacks | Function | string | null): ObjcBreakpoint => {
+        trace('DwarfApi::addObjcBreakpoint()');
+
         throw new Error('Not implemented!');
     }
 
@@ -306,6 +310,8 @@ export class DwarfApi {
      * @param  {string|Function} handler ('breakpoint' or function)
      */
     public addObserveLocation = (name: string, npAddress: NativePointer | string, watchType: string, watchMode: string, handler: string | Function, bytesLength: number = 0) => {
+        trace('DwarfApi::addObserveLocation()');
+
         if (isString(handler) && handler !== 'breakpoint') {
             //TODO: convert handlerstr from ui to func
         }
@@ -318,6 +324,8 @@ export class DwarfApi {
      * @param  {number} observeId
      */
     public removeObserveLocation = (observeId: number) => {
+        trace('DwarfApi::removeObserveLocation()');
+
         return DwarfObserver.getInstance().removeById(observeId);
     }
 
@@ -327,6 +335,8 @@ export class DwarfApi {
      * @param  {string} observeName
      */
     public removeObserveLocationByName = (observeName: string) => {
+        trace('DwarfApi::removeObserveLocationByName()');
+
         return DwarfObserver.getInstance().removeByName(observeName);
     }
 
@@ -1218,11 +1228,55 @@ export class DwarfApi {
     }
 
     /**
-     * Remove a breakpoint on address_or_class
+     * Removes Breakpoint with id
+     *
+     * @param  {number} breakpointID
      * @return a boolean indicating if removal was successful
      */
-    public removeBreakpoint = (address_or_class: any): boolean => {
-        return LogicBreakpoint.removeBreakpoint(address_or_class);
+    public removeBreakpoint = (breakpointID: number): boolean => {
+        trace('DwarfApi::removeBreakpoint()');
+
+        if(!isNumber(breakpointID) || breakpointID < 1) {
+            throw new Error('DwarfApi::removeBreakpoint() => Invalid argument!');
+        }
+        return DwarfBreakpointManager.getInstance().removeBreakpointByID(breakpointID);
+    }
+
+    /**
+     * Removes Breakpoint at given Address
+     *
+     * @param  {NativePointer|string|number} breakpointAddress
+     * @returns boolean indicating if removal was successful
+     */
+    public removeBreakpointAtAddress = (breakpointAddress:NativePointer | string | number):boolean => {
+        trace('DwarfApi::removeBreakpointAtAddress()');
+
+        if(!isDefined(breakpointAddress)) {
+            throw new Error('DwarfApi::removeBreakpointAtAddress() => Invalid argument!');
+        }
+
+        let bpAddress:NativePointer | string = null;
+
+        //convert address
+        if(isString(breakpointAddress) && (breakpointAddress as string).startsWith('0x')) {
+            breakpointAddress = parseInt((breakpointAddress as string), 16);
+        }
+
+        //check address
+        if(!isString(breakpointAddress)) {
+            bpAddress = makeNativePointer(breakpointAddress);
+            if(!checkNativePointer(bpAddress)) {
+                throw new Error('DwarfApi::removeBreakpointAtAddress() => Invalid address!');
+            }
+        } else {
+            if((breakpointAddress as string).length > 0) {
+                bpAddress = breakpointAddress as string;
+            } else {
+                throw new Error('DwarfApi::removeBreakpointAtAddress() => Invalid address!');
+            }
+        }
+
+        return DwarfBreakpointManager.getInstance().removeBreakpointAtAddress(bpAddress);
     }
 
     /**
@@ -1249,16 +1303,31 @@ export class DwarfApi {
         return ret;
     }
 
+    public removeNativeBreakpoint = (breakpointAddress:NativePointer | string | number):boolean => {
+        trace('DwarfApi::removeNativeBreakpoint()');
+
+        return this.removeBreakpointAtAddress(breakpointAddress);
+    }
+
     /**
      * Remove a MemoryBreakpoint on the given address
      * @return a boolean indicating if removal was successful
      */
     public removeMemoryBreakpoint = (memoryAddress: NativePointer | string): boolean => {
         trace('DwarfApi::removeMemoryBreakpoint()');
-        if (typeof memoryAddress === 'string' || typeof memoryAddress === 'number') {
-            memoryAddress = ptr(memoryAddress);
-        }
-        return DwarfBreakpointManager.getInstance().removeBreakpointAtAddress(memoryAddress);
+
+        return this.removeBreakpointAtAddress(memoryAddress);
+    }
+
+    public removeJavaBreakpoint = (breakpointAddress:string):boolean => {
+        trace('DwarfApi::removeJavaBreakpoint()');
+
+        return this.removeBreakpointAtAddress(breakpointAddress);
+    }
+
+    public removeObjcBreakpoint = (breakpointAddress:string):boolean => {
+        trace('DwarfApi::removeObjcBreakpoint()');
+        throw new Error('Not implemented');
     }
 
     /**
