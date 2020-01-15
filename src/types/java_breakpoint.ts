@@ -35,11 +35,29 @@ export class JavaBreakpoint extends DwarfBreakpoint {
 
         const self = this;
         Java.performNow(function () {
-            //TODO: remove LogicJava.jvmbreakpoint call and do it here
             LogicJava.hookInJVM(className, methodName, function () {
+
+                if(isDefined(self.bpCallbacks)) {
+                    if(isValidFridaListener(self.bpCallbacks) && self.bpCallbacks.hasOwnProperty('onEnter')) {
+                        const bpOnEnter = self.bpCallbacks['onEnter'];
+                        if(isFunction(bpOnEnter)) {
+                            //TODO:
+                        }
+                    }
+                }
+                //TODO: handle breakpoint callback when isfunction
+                //TODO: remove LogicJava.jvmbreakpoint call and do it here
                 LogicJava.jvmBreakpoint.call(this, className,
                     methodName, arguments, this.overload.argumentTypes);
 
+                if(isDefined(self.bpCallbacks)) {
+                    if(isValidFridaListener(self.bpCallbacks) && self.bpCallbacks.hasOwnProperty('onLeave')) {
+                        const bpOnLeave = self.bpCallbacks['onLeave'];
+                        if(isFunction(bpOnLeave)) {
+                            //TODO:
+                        }
+                    }
+                }
                 //remove singleshots
                 if (self.isSingleShot()) {
                     Dwarf.getBreakpointManager().update();

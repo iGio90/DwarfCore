@@ -41,9 +41,10 @@ export class DwarfCore {
 
     private dwarfApi: DwarfApi;
     private dwarfBreakpointManager: DwarfBreakpointManager;
-    private dwarfFS:DwarfFS;
-    private dwarfObserver:DwarfObserver;
+    private dwarfFS: DwarfFS;
+    private dwarfObserver: DwarfObserver;
 
+    private _systemPropertyGet: NativeFunction;
     private static instanceRef: DwarfCore;
 
     //Singleton class
@@ -61,6 +62,7 @@ export class DwarfCore {
         }
         global.DEBUG = false;
         trace('DwarfCoreJS start');
+        this._systemPropertyGet = null;
         this.dwarfApi = DwarfApi.getInstance();
         this.dwarfBreakpointManager = DwarfBreakpointManager.getInstance();
         this.dwarfFS = DwarfFS.getInstance();
@@ -90,7 +92,7 @@ export class DwarfCore {
         return this.dwarfBreakpointManager;
     }
 
-    getFS = ():DwarfFS => {
+    getFS = (): DwarfFS => {
         trace('Dwarf::getFS()');
         return this.dwarfFS;
     }
@@ -422,5 +424,22 @@ export class DwarfCore {
         let coreSyncMsg = { breakpoints: this.getBreakpointManager().getBreakpoints() };
         coreSyncMsg = Object.assign(coreSyncMsg, extraData);
         send('coresync:::' + JSON.stringify(coreSyncMsg));
+    }
+
+    //from https://github.com/frida/frida-java-bridge/blob/master/lib/android.js
+    getAndroidSystemProperty = (name: string) => {
+        if (this._systemPropertyGet === null) {
+            this._systemPropertyGet = new NativeFunction(Module.findExportByName('libc.so', '__system_property_get'), 'int', ['pointer', 'pointer'], {
+                exceptions: 'propagate'
+            });
+        }
+        const buf = Memory.alloc(92);
+        this._systemPropertyGet(Memory.allocUtf8String(name), buf);
+        return buf.readUtf8String();
+    }
+
+    //from https://github.com/frida/frida-java-bridge/blob/master/lib/android.js
+    getAndroidApiLevel = () => {
+        return parseInt(this.getAndroidSystemProperty('ro.build.version.sdk'), 10);
     }
 }

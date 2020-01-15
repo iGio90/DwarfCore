@@ -28,7 +28,7 @@ rpc.exports = {
     api: function (tid, apiFunction, apiArguments) {
         trace('RPC::API() -> ' + apiFunction);
 
-        if(!DwarfCore.getInstance().getApi().hasOwnProperty(apiFunction)) {
+        if (!DwarfCore.getInstance().getApi().hasOwnProperty(apiFunction)) {
             throw new Error('Unknown ApiFunction!');
         }
         logDebug('[' + tid + '] RPC-API: ' + apiFunction + ' | ' +
@@ -85,5 +85,39 @@ rpc.exports = {
             }
         });
         return uniqueBy(map);
+    },
+    moduleinfo: function (moduleName:string) {
+        if (Dwarf.modulesBlacklist.indexOf(moduleName) >= 0) {
+            return '{}';
+        }
+        return new Promise(resolve => {
+            let procModule = Process.findModuleByName(moduleName);
+            if (isDefined(procModule)) {
+                let moduleInfo = Object.assign({ imports: [], exports: [], symbols:[] }, procModule);
+                moduleInfo.imports = procModule.enumerateImports();
+                moduleInfo.exports = procModule.enumerateExports();
+                moduleInfo.symbols = procModule.enumerateSymbols();
+                resolve(moduleInfo);
+            }
+            resolve({});
+        }).then(moduleInfo => {
+            return JSON.stringify(moduleInfo);
+        });
+    },
+    fetchmem: function (address) {
+        var nativePointer = ptr(address);
+        return new Promise(function (resolve) {
+            var memoryRange = Process.findRangeByAddress(nativePointer);
+            if (isDefined(memoryRange)) {
+                if (memoryRange && memoryRange.hasOwnProperty('protection') && (memoryRange.protection.indexOf('r') === 0)) {
+                    memoryRange['data'] = ba2hex(memoryRange.base.readByteArray(memoryRange.size) || new ArrayBuffer(0));
+                    resolve(memoryRange);
+                } else {
+                    resolve('Memory not readable!');
+                }
+            } else {
+                resolve('Failed to get Memory!');
+            }
+        });
     }
 };

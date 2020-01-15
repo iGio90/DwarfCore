@@ -221,7 +221,7 @@ export class LogicJava {
 
     static init(breakAtStart:boolean=false) {
         Java.performNow(function () {
-            LogicJava.sdk = Java.use('android.os.Build$VERSION')['SDK_INT']['value'];
+            LogicJava.sdk = Dwarf.getAndroidApiLevel(); //Java.use('android.os.Build$VERSION')['SDK_INT']['value'];
             if (DEBUG) {
                 logDebug('[' + Process.getCurrentThreadId() + '] ' +
                     'initializing logicJava with sdk: ' + LogicJava.sdk);
