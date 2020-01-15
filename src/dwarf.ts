@@ -132,7 +132,7 @@ export class DwarfCore {
             Process.pointerSize,
             Java.available,
             ObjC.available
-        )
+        );
 
         //send initdata
         let initData = {
@@ -199,6 +199,16 @@ export class DwarfCore {
                 });
             }
         }
+        if (Java.available && wasSpawned && breakStart) {
+            //android init breakpoint
+            if (LogicJava.sdk >= 23) {
+                const initBreakpoint = this.getBreakpointManager().addJavaBreakpoint('com.android.internal.os.RuntimeInit.commonInit');
+                initBreakpoint.setSingleShot(true);
+            } else {
+                const initBreakpoint = this.getBreakpointManager().addJavaBreakpoint('android.app.Application.onCreate');
+                initBreakpoint.setSingleShot(true);
+            }
+        }
     }
 
     handleException = (exception: ExceptionDetails) => {
@@ -245,8 +255,7 @@ export class DwarfCore {
 
         const breakpointData = {
             "tid": tid,
-            "reason": haltReason,
-            "ptr": address_or_class
+            "reason": haltReason
         };
 
         if (isDefined(context)) {
@@ -255,6 +264,8 @@ export class DwarfCore {
             breakpointData['context'] = context;
             if (isDefined(context['pc'])) {
                 let symbol = null;
+                breakpointData['ptr'] = address_or_class;
+
                 try {
                     symbol = DebugSymbol.fromAddress(context.pc);
                 } catch (e) {
@@ -304,6 +315,7 @@ export class DwarfCore {
                 breakpointData['context'] = newCtx;
             } else {
                 breakpointData['is_java'] = true;
+                breakpointData['class'] = address_or_class;
 
                 logDebug('[' + tid + '] sendInfos - preparing java backtrace');
 

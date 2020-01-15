@@ -89,18 +89,28 @@ export class DwarfBreakpointManager {
      * @param  {NativePointer|string} bpAddress
      * @param  {boolean} bpEnabled?
      */
-    public addNativeBreakpoint = (bpAddress: NativePointer | string, bpEnabled?: boolean) => {
+    public addNativeBreakpoint = (bpAddress: NativePointer | string, bpEnabled?: boolean):NativeBreakpoint => {
         trace('DwarfBreakpointManager::addNativeBreakpoint()');
+
+        bpAddress = makeNativePointer(bpAddress);
+
+        if(!checkNativePointer(bpAddress)) {
+            throw new Error('DwarfBreakpointManager::addNativeBreakpoint() => Invalid Address!');
+        }
 
         this.checkExists(bpAddress);
 
         try {
-            const nativeBreakpoint = new NativeBreakpoint(makeNativePointer(bpAddress), bpEnabled);
-            this.dwarfBreakpoints.push(nativeBreakpoint);
-            this.update();
-            return nativeBreakpoint;
+            const nativeBreakpoint = new NativeBreakpoint(bpAddress, bpEnabled);
+            if(isDefined(nativeBreakpoint)) {
+                this.dwarfBreakpoints.push(nativeBreakpoint);
+                this.update();
+                return nativeBreakpoint;
+            }
+            return null;
         } catch (error) {
-
+            logErr('DwarfBreakpointManager::addMemoryBreakpoint', error);
+            return null;
         }
     }
 

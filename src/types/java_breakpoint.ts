@@ -17,16 +17,35 @@
 
 import { DwarfBreakpoint } from "./dwarf_breakpoint";
 import { DwarfBreakpointType } from "../consts";
+import { LogicJava } from "../logic_java";
 
 
 export class JavaBreakpoint extends DwarfBreakpoint {
     protected bpCallbacks: InvocationListenerCallbacks | Function | null;
 
-    constructor(bpAddress: string, bpEnabled?: boolean) {
-        if (typeof bpAddress !== 'string') {
+    constructor(bpFunction: string, bpEnabled?: boolean) {
+        if (typeof bpFunction !== 'string') {
             throw new Error('Invalid BreakpointAddress');
         }
-        super(DwarfBreakpointType.JAVA, bpAddress, bpEnabled);
+        super(DwarfBreakpointType.JAVA, bpFunction, bpEnabled);
+
+        //add check for () in bpFunction
+        const className = bpFunction.substr(0, bpFunction.lastIndexOf('.'));
+        const methodName = bpFunction.substr(bpFunction.lastIndexOf('.') + 1);
+
+        const self = this;
+        Java.performNow(function () {
+            //TODO: remove LogicJava.jvmbreakpoint call and do it here
+            LogicJava.hookInJVM(className, methodName, function () {
+                LogicJava.jvmBreakpoint.call(this, className,
+                    methodName, arguments, this.overload.argumentTypes);
+
+                //remove singleshots
+                if (self.isSingleShot()) {
+                    Dwarf.getBreakpointManager().update();
+                }
+            });
+        });
     }
 
     public setCallback(bpCallback: InvocationListenerCallbacks | Function | null): void {

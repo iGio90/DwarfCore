@@ -162,7 +162,7 @@ global.makeNativePointer = function (value: any): NativePointer {
         return value as NativePointer;
     }
 
-    if (typeof value === 'string' || typeof value === 'number') {
+    if ((typeof value === 'string' && value.startsWith('0x')) || typeof value === 'number') {
         return ptr(value);
     }
 

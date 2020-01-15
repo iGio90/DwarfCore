@@ -227,7 +227,7 @@ export class LogicJava {
                     'initializing logicJava with sdk: ' + LogicJava.sdk);
             }
 
-            if (DwarfCore.getInstance().getProcessInfo().wasSpawned && breakAtStart) {
+            /*if (DwarfCore.getInstance().getProcessInfo().wasSpawned && breakAtStart) {
                 if (LogicJava.sdk >= 23) {
                     // attach to commonInit for init debugging
                     LogicJava.hookInJVM('com.android.internal.os.RuntimeInit',
@@ -242,7 +242,7 @@ export class LogicJava {
                                 'onCreate', arguments, this.overload.argumentTypes)
                         });
                 }
-            }
+            }*/
 
             // attach to ClassLoader to notify for new loaded class
             const handler = Java.use('java.lang.ClassLoader');
