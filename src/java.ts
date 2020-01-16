@@ -126,7 +126,14 @@ export class DwarfJavaHelper {
                         DwarfCore.getInstance().onBreakpoint(DwarfHaltReason.MODULE_LOADED, library, {}, this);
                     }
 
-                    //DwarfCore.getInstance().sync({ modules: })
+                    const procModule = Process.findModuleByName(libraryName);
+                    if (isDefined(procModule)) {
+                        let moduleInfo = Object.assign({ imports: [], exports: [], symbols: [] }, procModule);
+                        moduleInfo.imports = procModule.enumerateImports();
+                        moduleInfo.exports = procModule.enumerateExports();
+                        moduleInfo.symbols = procModule.enumerateSymbols();
+                        DwarfCore.getInstance().sync({ modules: moduleInfo });
+                    }
 
                     return loaded;
                 } catch (e) {
@@ -165,7 +172,14 @@ export class DwarfJavaHelper {
                         DwarfCore.getInstance().onBreakpoint(DwarfHaltReason.MODULE_LOADED, library, {}, this);
                     }
 
-                    //DwarfCore.getInstance().sync({ modules: })
+                    const procModule = Process.findModuleByName(libraryName);
+                    if (isDefined(procModule)) {
+                        let moduleInfo = Object.assign({ imports: [], exports: [], symbols: [] }, procModule);
+                        moduleInfo.imports = procModule.enumerateImports();
+                        moduleInfo.exports = procModule.enumerateExports();
+                        moduleInfo.symbols = procModule.enumerateSymbols();
+                        DwarfCore.getInstance().sync({ modules: moduleInfo });
+                    }
 
                     return loaded;
                 } catch (e) {
