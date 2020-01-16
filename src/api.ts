@@ -841,6 +841,14 @@ export class DwarfApi {
     public addClassLoaderHook = (className: string, callback?: ScriptInvocationListenerCallbacks | Function | string) => {
         trace('DwarfApi::addClassLoaderHook()');
 
+        if(!isDefined(callback) || callback === void 0) {
+            callback = 'breakpoint';
+        }
+
+        if(isString(callback) && callback !== 'breakpoint') {
+            throw new Error('DwarfApi::addClassLoaderHook() => Invalid arguments!');
+        }
+
         if (!isDefined(className)) {
             throw new Error('DwarfApi::addClassLoaderHook() => Invalid arguments!');
         }

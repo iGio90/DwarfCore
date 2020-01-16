@@ -24,7 +24,7 @@ export class DwarfJavaHelper {
     protected javaClassLoaderCallbacks: { [index: string]: ScriptInvocationListenerCallbacks | Function | string };
     protected libraryLoaderCallbacks: { [index: string]: ScriptInvocationListenerCallbacks | Function | string };
     protected sdk_version: number;
-    protected initDone:boolean;
+    protected initDone: boolean;
 
     private constructor() {
         if (DwarfJavaHelper.instanceRef) {
@@ -54,7 +54,7 @@ export class DwarfJavaHelper {
     }
 
     initalize = () => {
-        if(this.initDone) {
+        if (this.initDone) {
             logDebug('DwarfJavaHelper => Init already done!');
         }
         trace('DwarfJavaHelper::initialize()');
@@ -106,7 +106,7 @@ export class DwarfJavaHelper {
                     Dwarf.sync({ java_class_loaded: className });
                     return result;
                 } catch (e) {
-                    if(e.message.indexOf('java.lang.ClassNotFoundException') !== -1) {
+                    if (e.message.indexOf('java.lang.ClassNotFoundException') !== -1) {
                         throw e;
                     }
                     logDebug(e);
@@ -262,7 +262,7 @@ export class DwarfJavaHelper {
      * @param  {boolean=false} permanent when set to true removeClassLoaderHook wont delete hook
      * @returns boolean
      */
-    public addClassLoaderHook = (className: string, callback?: ScriptInvocationListenerCallbacks | Function | string, permanent: boolean = false): boolean => {
+    public addClassLoaderHook = (className: string, callback: ScriptInvocationListenerCallbacks | Function | string, permanent: boolean = false): boolean => {
         trace('JavaHelper::addClassLoaderHook()');
 
         this.checkRequirements();
@@ -282,10 +282,19 @@ export class DwarfJavaHelper {
                 this.javaClassLoaderCallbacks[className] = callback;
             }
         } else {
-            if (permanent) {
-                Object.defineProperty(this.javaClassLoaderCallbacks, className, { value: 'breakpoint', configurable: false, writable: false });
+            if (isString(callback)) {
+                if (permanent) {
+                    Object.defineProperty(this.javaClassLoaderCallbacks, className, { value: 'breakpoint', configurable: false, writable: false });
+                } else {
+                    this.javaClassLoaderCallbacks[className] = 'breakpoint';
+                }
             } else {
-                this.javaClassLoaderCallbacks[className] = 'breakpoint';
+                if (isDefined(callback)) {
+                    if ((callback.hasOwnProperty('onEnter') && isFunction((callback as ScriptInvocationListenerCallbacks).onEnter)) ||
+                        (callback.hasOwnProperty('onLeave') && isFunction((callback as ScriptInvocationListenerCallbacks).onLeave))) {
+                        this.javaClassLoaderCallbacks[className] = callback;
+                    }
+                }
             }
         }
         return true;
