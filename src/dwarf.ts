@@ -164,7 +164,6 @@ export class DwarfCore {
         }
         send('coresync:::' + JSON.stringify(initData));
 
-
         //Init JavaHelper
         try {
             this.dwarfJavaHelper = DwarfJavaHelper.getInstance();
@@ -365,13 +364,13 @@ export class DwarfCore {
 
         if (!isDefined(threadContext) || !threadContext.preventSleep) {
             logDebug('[' + tid + '] break ' + address_or_class + ' - dispatching context info');
-            this.sync({ 'breakpoint': breakpointData, 'threads': Process.enumerateThreads() });
+            Dwarf.sync({ 'breakpoint': breakpointData, 'threads': Process.enumerateThreads() });
 
             logDebug('[' + tid + '] break ' + address_or_class + ' - sleeping context. goodnight!');
-            this.loopApi(tid, threadContext);
+            Dwarf.loopApi(tid, threadContext);
 
             logDebug('[' + tid + '] ThreadContext has been released');
-            this.loggedSend('release:::' + tid + ':::' + haltReason);
+            Dwarf.loggedSend('release:::' + tid + ':::' + haltReason);
         }
     }
 
@@ -444,7 +443,8 @@ export class DwarfCore {
     /** @internal */
     sync = (extraData = {}) => {
         trace('DwarfCore::sync()');
-        let coreSyncMsg = { breakpoints: this.getBreakpointManager().getBreakpoints() };
+        //let coreSyncMsg = { breakpoints: this.getBreakpointManager().getBreakpoints() };
+        let coreSyncMsg = {};
         coreSyncMsg = Object.assign(coreSyncMsg, extraData);
         send('coresync:::' + JSON.stringify(coreSyncMsg));
     }
