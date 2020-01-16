@@ -245,13 +245,13 @@ export class DwarfJavaHelper {
 
         if (isFunction(callback)) {
             if (permanent) {
-                Object.defineProperty(this.javaClassLoaderCallbacks, className, { configurable: false, value: callback });
+                Object.defineProperty(this.javaClassLoaderCallbacks, className, { value: callback, configurable: false, writable: false });
             } else {
                 this.javaClassLoaderCallbacks[className] = callback;
             }
         } else {
             if (permanent) {
-                Object.defineProperty(this.javaClassLoaderCallbacks, className, { configurable: false, value: 'breakpoint' });
+                Object.defineProperty(this.javaClassLoaderCallbacks, className, { value: 'breakpoint', configurable: false, writable: false });
             } else {
                 this.javaClassLoaderCallbacks[className] = 'breakpoint';
             }
