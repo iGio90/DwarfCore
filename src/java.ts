@@ -15,7 +15,6 @@
     along with this program.  If not, see <https://www.gnu.org/licenses/>
 **/
 
-import { DwarfCore } from "./dwarf";
 import { DwarfHaltReason } from "./consts";
 
 export class DwarfJavaHelper {
@@ -68,7 +67,7 @@ export class DwarfJavaHelper {
                     self.classCache.push(clazz);
 
                     //sync ui
-                    DwarfCore.getInstance().sync({ java_class_loaded: clazz });
+                    Dwarf.sync({ java_class_loaded: clazz });
 
                     //handle callback
                     //TODO: callback before overload.call??
@@ -79,7 +78,7 @@ export class DwarfJavaHelper {
                             (userCallback as Function).call(this);
                         } else {
                             if (isString(userCallback) && userCallback === 'breakpoint') {
-                                DwarfCore.getInstance().onBreakpoint(DwarfHaltReason.CLASS_LOADER, clazz, {}, this);
+                                Dwarf.onBreakpoint(DwarfHaltReason.CLASS_LOADER, clazz, {}, this);
                             } else {
                                 logDebug('Invalid classLoaderCallback: ' + clazz + ' => ' + JSON.stringify(userCallback));
                             }
@@ -123,7 +122,7 @@ export class DwarfJavaHelper {
                             userOnLeave.apply(this, loaded);
                         }
                     } else if (isString(userCallback) && userCallback === 'breakpoint') {
-                        DwarfCore.getInstance().onBreakpoint(DwarfHaltReason.MODULE_LOADED, library, {}, this);
+                        Dwarf.onBreakpoint(DwarfHaltReason.MODULE_LOADED, library, {}, this);
                     }
 
                     const procModule = Process.findModuleByName(libraryName);
@@ -132,7 +131,7 @@ export class DwarfJavaHelper {
                         moduleInfo.imports = procModule.enumerateImports();
                         moduleInfo.exports = procModule.enumerateExports();
                         moduleInfo.symbols = procModule.enumerateSymbols();
-                        DwarfCore.getInstance().sync({ modules: moduleInfo });
+                        Dwarf.sync({ modules: moduleInfo });
                     }
 
                     return loaded;
@@ -169,7 +168,7 @@ export class DwarfJavaHelper {
                             userOnLeave.apply(this, loaded);
                         }
                     } else if (isString(userCallback) && userCallback === 'breakpoint') {
-                        DwarfCore.getInstance().onBreakpoint(DwarfHaltReason.MODULE_LOADED, library, {}, this);
+                        Dwarf.onBreakpoint(DwarfHaltReason.MODULE_LOADED, library, {}, this);
                     }
 
                     const procModule = Process.findModuleByName(libraryName);
@@ -178,7 +177,7 @@ export class DwarfJavaHelper {
                         moduleInfo.imports = procModule.enumerateImports();
                         moduleInfo.exports = procModule.enumerateExports();
                         moduleInfo.symbols = procModule.enumerateSymbols();
-                        DwarfCore.getInstance().sync({ modules: moduleInfo });
+                        Dwarf.sync({ modules: moduleInfo });
                     }
 
                     return loaded;
