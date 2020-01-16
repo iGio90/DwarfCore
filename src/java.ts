@@ -98,8 +98,10 @@ export class DwarfJavaHelper {
             System.loadLibrary.implementation = function (library: string) {
                 try {
                     let userCallback: ScriptInvocationListenerCallbacks | Function | string = null;
-                    if (self.libraryLoaderCallbacks.hasOwnProperty(library)) {
-                        userCallback = self.libraryLoaderCallbacks[library];
+                    //strip path
+                    const libraryName = library.substr(library.lastIndexOf('/') + 1);
+                    if (self.libraryLoaderCallbacks.hasOwnProperty(libraryName)) {
+                        userCallback = self.libraryLoaderCallbacks[libraryName];
                     }
 
                     const callingClassLoader = VMStack.getCallingClassLoader();
@@ -135,8 +137,10 @@ export class DwarfJavaHelper {
             System.load.implementation = function (library: string) {
                 try {
                     let userCallback: ScriptInvocationListenerCallbacks | Function | string = null;
-                    if (self.libraryLoaderCallbacks.hasOwnProperty(library)) {
-                        userCallback = self.libraryLoaderCallbacks[library];
+                    //strip path
+                    const libraryName = library.substr(library.lastIndexOf('/') + 1);
+                    if (self.libraryLoaderCallbacks.hasOwnProperty(libraryName)) {
+                        userCallback = self.libraryLoaderCallbacks[libraryName];
                     }
 
                     const callingClassLoader = VMStack.getCallingClassLoader();
