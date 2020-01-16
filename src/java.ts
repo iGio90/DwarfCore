@@ -21,7 +21,7 @@ export class DwarfJavaHelper {
     private static instanceRef: DwarfJavaHelper;
 
     protected classCache: Array<string>;
-    protected javaClassLoaderCallbacks: { [index: string]: Function | string };
+    protected javaClassLoaderCallbacks: { [index: string]: ScriptInvocationListenerCallbacks | Function | string };
     protected libraryLoaderCallbacks: { [index: string]: ScriptInvocationListenerCallbacks | Function | string };
     protected sdk_version: number;
 
@@ -33,6 +33,8 @@ export class DwarfJavaHelper {
 
         this.classCache = new Array<string>();
         this.sdk_version = 0;
+        this.javaClassLoaderCallbacks = {};
+        this.libraryLoaderCallbacks = {};
 
         this.initalize();
     }
@@ -54,40 +56,49 @@ export class DwarfJavaHelper {
 
         this.sdk_version = Dwarf.getAndroidApiLevel();
 
+        const self = this;
+
         Java.performNow(() => {
             try {
                 logDebug('initializing logicJava with sdk: ' + this.sdk_version);
 
-                // attach to ClassLoader to notify for new loaded class
+                //class loader
                 const ClassLoader = Java.use('java.lang.ClassLoader');
-                const overload = ClassLoader.loadClass.overload('java.lang.String', 'boolean');
-                const self = this;
 
-                overload.implementation = function (clazz, resolve) {
-                    if (self.classCache.indexOf(clazz) === -1) {
-                        self.classCache.push(clazz);
-
-                        //sync ui
-                        Dwarf.sync({ java_class_loaded: clazz });
-
-                        //handle callback
-                        //TODO: callback before overload.call??
-                        // const bla = overload.call(this, clazz, resolve); // this allows onenter/onleave
-                        if (self.javaClassLoaderCallbacks.hasOwnProperty(clazz)) {
-                            const userCallback = self.javaClassLoaderCallbacks[clazz];
-                            if (isFunction(userCallback)) {
-                                (userCallback as Function).call(this);
-                            } else {
-                                if (isString(userCallback) && userCallback === 'breakpoint') {
-                                    Dwarf.onBreakpoint(DwarfHaltReason.CLASS_LOADER, clazz, {}, this);
-                                } else {
-                                    logDebug('Invalid classLoaderCallback: ' + clazz + ' => ' + JSON.stringify(userCallback));
-                                }
-                            }
-                        }
-                        // return bla
-                        return overload.call(this, clazz, resolve);
+                ClassLoader.loadClass.overload('java.lang.String', 'boolean').implementation = function (className: string, resolve: boolean) {
+                    if (self.classCache.indexOf(className) === -1) {
+                        self.classCache.push(className);
                     }
+
+                    let userCallback: ScriptInvocationListenerCallbacks | Function | string = null;
+                    if (self.javaClassLoaderCallbacks.hasOwnProperty(className)) {
+                        userCallback = self.javaClassLoaderCallbacks[className];
+                    } else if (isFunction(userCallback)) {
+                        (userCallback as Function).apply(this, [className, resolve]);
+                    }
+
+                    if (isDefined(userCallback) && userCallback.hasOwnProperty('onEnter')) {
+                        const userOnEnter = (userCallback as ScriptInvocationListenerCallbacks).onEnter;
+                        if (isFunction(userOnEnter)) {
+                            userOnEnter.apply(this, [className, resolve]);
+                        }
+                    }
+
+                    let result = this.loadClass(className, resolve);
+
+                    if (isDefined(userCallback) && userCallback.hasOwnProperty('onLeave')) {
+                        const userOnLeave = (userCallback as ScriptInvocationListenerCallbacks).onLeave;
+                        if (isFunction(userOnLeave)) {
+                            userOnLeave.apply(this, result);
+                        }
+                    } else if (isString(userCallback) && userCallback === 'breakpoint') {
+                        Dwarf.onBreakpoint(DwarfHaltReason.CLASS_LOADER, className, {}, this);
+                    }
+
+                    //sync ui
+                    Dwarf.sync({ java_class_loaded: className });
+                    return result;
+
                 }
 
                 //Library loading
@@ -111,13 +122,13 @@ export class DwarfJavaHelper {
                             if (isFunction(userOnEnter)) {
                                 userOnEnter.apply(this, [callingClassLoader, library]);
                             }
+                        } else if (isFunction(userCallback)) {
+                            (userCallback as Function).apply(this, [callingClassLoader, library]);
                         }
 
                         const loaded = Runtime.getRuntime().loadLibrary0(callingClassLoader, library);
 
-                        if (isFunction(userCallback)) {
-                            (userCallback as Function).apply(this, loaded);
-                        } else if (isDefined(userCallback) && userCallback.hasOwnProperty('onLeave')) {
+                        if (isDefined(userCallback) && userCallback.hasOwnProperty('onLeave')) {
                             const userOnLeave = (userCallback as ScriptInvocationListenerCallbacks).onLeave;
                             if (isFunction(userOnLeave)) {
                                 userOnLeave.apply(this, loaded);
@@ -157,13 +168,13 @@ export class DwarfJavaHelper {
                             if (isFunction(userOnEnter)) {
                                 userOnEnter.apply(this, [callingClassLoader, library]);
                             }
+                        }else if (isFunction(userCallback)) {
+                            (userCallback as Function).apply(this, [callingClassLoader, library]);
                         }
 
                         const loaded = Runtime.getRuntime().load0(callingClassLoader, library);
 
-                        if (isFunction(userCallback)) {
-                            (userCallback as Function).apply(this, loaded);
-                        } else if (isDefined(userCallback) && userCallback.hasOwnProperty('onLeave')) {
+                        if (isDefined(userCallback) && userCallback.hasOwnProperty('onLeave')) {
                             const userOnLeave = (userCallback as ScriptInvocationListenerCallbacks).onLeave;
                             if (isFunction(userOnLeave)) {
                                 userOnLeave.apply(this, loaded);
@@ -209,33 +220,8 @@ export class DwarfJavaHelper {
         this.checkRequirements();
 
         if (useCache && this.classCache.length) {
-            //TODO: whats the reason for the loop { send } and not doing send(classes)? or was it too big?
-            /*Dwarf.loggedSend('enumerate_java_classes_start:::');
-            for (let i = 0; i < LogicJava.javaClasses.length; i++) {
-                send('enumerate_java_classes_match:::' + LogicJava.javaClasses[i]);
-            }
-            Dwarf.loggedSend('enumerate_java_classes_complete:::');*/
             return this.classCache;
         } else {
-            /*Java.performNow(function () {
-                Dwarf.loggedSend('enumerate_java_classes_start:::');
-                try {
-                    Java.enumerateLoadedClasses({
-                        onMatch: function (className) {
-                            if (LogicJava !== null) {
-                                LogicJava.javaClasses.push(className);
-                            }
-                            send('enumerate_java_classes_match:::' + className);
-                        },
-                        onComplete: function () {
-                            send('enumerate_java_classes_complete:::');
-                        }
-                    });
-                } catch (e) {
-                    logErr('enumerateJavaClasses', e);
-                    Dwarf.loggedSend('enumerate_java_classes_complete:::');
-                }
-            });*/
             this.invalidateClassCache();
 
             Java.performNow(() => {
