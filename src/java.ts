@@ -107,7 +107,7 @@ export class DwarfJavaHelper {
                     if (isDefined(userCallback) && userCallback.hasOwnProperty('onEnter')) {
                         const userOnEnter = (userCallback as ScriptInvocationListenerCallbacks).onEnter;
                         if (isFunction(userOnEnter)) {
-                            userOnEnter.apply(this, [library, callingClassLoader]);
+                            userOnEnter.apply(this, [callingClassLoader, library]);
                         }
                     }
 
@@ -144,7 +144,7 @@ export class DwarfJavaHelper {
                     if (isDefined(userCallback) && userCallback.hasOwnProperty('onEnter')) {
                         const userOnEnter = (userCallback as ScriptInvocationListenerCallbacks).onEnter;
                         if (isFunction(userOnEnter)) {
-                            userOnEnter.apply(this, [library, callingClassLoader]);
+                            userOnEnter.apply(this, [callingClassLoader, library]);
                         }
                     }
 
