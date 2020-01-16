@@ -262,7 +262,7 @@ export class DwarfJavaHelper {
      * @param  {boolean=false} permanent when set to true removeClassLoaderHook wont delete hook
      * @returns boolean
      */
-    public addClassLoaderHook = (className: string, callback?: Function | string, permanent: boolean = false): boolean => {
+    public addClassLoaderHook = (className: string, callback?: ScriptInvocationListenerCallbacks | Function | string, permanent: boolean = false): boolean => {
         trace('JavaHelper::addClassLoaderHook()');
 
         this.checkRequirements();
