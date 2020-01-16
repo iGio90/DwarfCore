@@ -55,135 +55,139 @@ export class DwarfJavaHelper {
         this.sdk_version = Dwarf.getAndroidApiLevel();
 
         Java.performNow(() => {
-            logDebug('initializing logicJava with sdk: ' + this.sdk_version);
+            try {
+                logDebug('initializing logicJava with sdk: ' + this.sdk_version);
 
-            // attach to ClassLoader to notify for new loaded class
-            const ClassLoader = Java.use('java.lang.ClassLoader');
-            const overload = ClassLoader.loadClass.overload('java.lang.String', 'boolean');
-            const self = this;
+                // attach to ClassLoader to notify for new loaded class
+                const ClassLoader = Java.use('java.lang.ClassLoader');
+                const overload = ClassLoader.loadClass.overload('java.lang.String', 'boolean');
+                const self = this;
 
-            overload.implementation = function (clazz, resolve) {
-                if (self.classCache.indexOf(clazz) === -1) {
-                    self.classCache.push(clazz);
+                overload.implementation = function (clazz, resolve) {
+                    if (self.classCache.indexOf(clazz) === -1) {
+                        self.classCache.push(clazz);
 
-                    //sync ui
-                    Dwarf.sync({ java_class_loaded: clazz });
+                        //sync ui
+                        Dwarf.sync({ java_class_loaded: clazz });
 
-                    //handle callback
-                    //TODO: callback before overload.call??
-                    // const bla = overload.call(this, clazz, resolve); // this allows onenter/onleave
-                    if (self.javaClassLoaderCallbacks.hasOwnProperty(clazz)) {
-                        const userCallback = self.javaClassLoaderCallbacks[clazz];
-                        if (isFunction(userCallback)) {
-                            (userCallback as Function).call(this);
-                        } else {
-                            if (isString(userCallback) && userCallback === 'breakpoint') {
-                                Dwarf.onBreakpoint(DwarfHaltReason.CLASS_LOADER, clazz, {}, this);
+                        //handle callback
+                        //TODO: callback before overload.call??
+                        // const bla = overload.call(this, clazz, resolve); // this allows onenter/onleave
+                        if (self.javaClassLoaderCallbacks.hasOwnProperty(clazz)) {
+                            const userCallback = self.javaClassLoaderCallbacks[clazz];
+                            if (isFunction(userCallback)) {
+                                (userCallback as Function).call(this);
                             } else {
-                                logDebug('Invalid classLoaderCallback: ' + clazz + ' => ' + JSON.stringify(userCallback));
+                                if (isString(userCallback) && userCallback === 'breakpoint') {
+                                    Dwarf.onBreakpoint(DwarfHaltReason.CLASS_LOADER, clazz, {}, this);
+                                } else {
+                                    logDebug('Invalid classLoaderCallback: ' + clazz + ' => ' + JSON.stringify(userCallback));
+                                }
                             }
                         }
+                        // return bla
+                        return overload.call(this, clazz, resolve);
                     }
-                    // return bla
-                    return overload.call(this, clazz, resolve);
                 }
-            }
 
-            //Library loading
-            const System = Java.use('java.lang.System');
-            const Runtime = Java.use('java.lang.Runtime');
-            const VMStack = Java.use('dalvik.system.VMStack');
+                //Library loading
+                const System = Java.use('java.lang.System');
+                const Runtime = Java.use('java.lang.Runtime');
+                const VMStack = Java.use('dalvik.system.VMStack');
 
-            System.loadLibrary.implementation = function (library: string) {
-                try {
-                    let userCallback: ScriptInvocationListenerCallbacks | Function | string = null;
-                    //strip path
-                    const libraryName = library.substr(library.lastIndexOf('/') + 1);
-                    if (self.libraryLoaderCallbacks.hasOwnProperty(libraryName)) {
-                        userCallback = self.libraryLoaderCallbacks[libraryName];
-                    }
-
-                    const callingClassLoader = VMStack.getCallingClassLoader();
-
-                    if (isDefined(userCallback) && userCallback.hasOwnProperty('onEnter')) {
-                        const userOnEnter = (userCallback as ScriptInvocationListenerCallbacks).onEnter;
-                        if (isFunction(userOnEnter)) {
-                            userOnEnter.apply(this, [callingClassLoader, library]);
+                System.loadLibrary.implementation = function (library: string) {
+                    try {
+                        let userCallback: ScriptInvocationListenerCallbacks | Function | string = null;
+                        //strip path
+                        const libraryName = library.substr(library.lastIndexOf('/') + 1);
+                        if (self.libraryLoaderCallbacks.hasOwnProperty(libraryName)) {
+                            userCallback = self.libraryLoaderCallbacks[libraryName];
                         }
-                    }
 
-                    const loaded = Runtime.getRuntime().loadLibrary0(callingClassLoader, library);
+                        const callingClassLoader = VMStack.getCallingClassLoader();
 
-                    if (isFunction(userCallback)) {
-                        (userCallback as Function).apply(this, loaded);
-                    } else if (isDefined(userCallback) && userCallback.hasOwnProperty('onLeave')) {
-                        const userOnLeave = (userCallback as ScriptInvocationListenerCallbacks).onLeave;
-                        if (isFunction(userOnLeave)) {
-                            userOnLeave.apply(this, loaded);
+                        if (isDefined(userCallback) && userCallback.hasOwnProperty('onEnter')) {
+                            const userOnEnter = (userCallback as ScriptInvocationListenerCallbacks).onEnter;
+                            if (isFunction(userOnEnter)) {
+                                userOnEnter.apply(this, [callingClassLoader, library]);
+                            }
                         }
-                    } else if (isString(userCallback) && userCallback === 'breakpoint') {
-                        Dwarf.onBreakpoint(DwarfHaltReason.MODULE_LOADED, library, {}, this);
-                    }
 
-                    const procModule = Process.findModuleByName(libraryName);
-                    if (isDefined(procModule)) {
-                        let moduleInfo = Object.assign({ imports: [], exports: [], symbols: [] }, procModule);
-                        moduleInfo.imports = procModule.enumerateImports();
-                        moduleInfo.exports = procModule.enumerateExports();
-                        moduleInfo.symbols = procModule.enumerateSymbols();
-                        Dwarf.sync({ modules: moduleInfo });
-                    }
+                        const loaded = Runtime.getRuntime().loadLibrary0(callingClassLoader, library);
 
-                    return loaded;
-                } catch (e) {
-                    logDebug(e);
+                        if (isFunction(userCallback)) {
+                            (userCallback as Function).apply(this, loaded);
+                        } else if (isDefined(userCallback) && userCallback.hasOwnProperty('onLeave')) {
+                            const userOnLeave = (userCallback as ScriptInvocationListenerCallbacks).onLeave;
+                            if (isFunction(userOnLeave)) {
+                                userOnLeave.apply(this, loaded);
+                            }
+                        } else if (isString(userCallback) && userCallback === 'breakpoint') {
+                            Dwarf.onBreakpoint(DwarfHaltReason.MODULE_LOADED, library, {}, this);
+                        }
+
+                        const procModule = Process.findModuleByName(libraryName);
+                        if (isDefined(procModule)) {
+                            let moduleInfo = Object.assign({ imports: [], exports: [], symbols: [] }, procModule);
+                            moduleInfo.imports = procModule.enumerateImports();
+                            moduleInfo.exports = procModule.enumerateExports();
+                            moduleInfo.symbols = procModule.enumerateSymbols();
+                            Dwarf.sync({ modules: moduleInfo });
+                        }
+
+                        return loaded;
+                    } catch (e) {
+                        logDebug(e);
+                    }
                 }
-            }
 
-            System.load.implementation = function (library: string) {
-                try {
-                    let userCallback: ScriptInvocationListenerCallbacks | Function | string = null;
-                    //strip path
-                    const libraryName = library.substr(library.lastIndexOf('/') + 1);
-                    if (self.libraryLoaderCallbacks.hasOwnProperty(libraryName)) {
-                        userCallback = self.libraryLoaderCallbacks[libraryName];
-                    }
-
-                    const callingClassLoader = VMStack.getCallingClassLoader();
-
-                    if (isDefined(userCallback) && userCallback.hasOwnProperty('onEnter')) {
-                        const userOnEnter = (userCallback as ScriptInvocationListenerCallbacks).onEnter;
-                        if (isFunction(userOnEnter)) {
-                            userOnEnter.apply(this, [callingClassLoader, library]);
+                System.load.implementation = function (library: string) {
+                    try {
+                        let userCallback: ScriptInvocationListenerCallbacks | Function | string = null;
+                        //strip path
+                        const libraryName = library.substr(library.lastIndexOf('/') + 1);
+                        if (self.libraryLoaderCallbacks.hasOwnProperty(libraryName)) {
+                            userCallback = self.libraryLoaderCallbacks[libraryName];
                         }
-                    }
 
-                    const loaded = Runtime.getRuntime().load0(callingClassLoader, library);
+                        const callingClassLoader = VMStack.getCallingClassLoader();
 
-                    if (isFunction(userCallback)) {
-                        (userCallback as Function).apply(this, loaded);
-                    } else if (isDefined(userCallback) && userCallback.hasOwnProperty('onLeave')) {
-                        const userOnLeave = (userCallback as ScriptInvocationListenerCallbacks).onLeave;
-                        if (isFunction(userOnLeave)) {
-                            userOnLeave.apply(this, loaded);
+                        if (isDefined(userCallback) && userCallback.hasOwnProperty('onEnter')) {
+                            const userOnEnter = (userCallback as ScriptInvocationListenerCallbacks).onEnter;
+                            if (isFunction(userOnEnter)) {
+                                userOnEnter.apply(this, [callingClassLoader, library]);
+                            }
                         }
-                    } else if (isString(userCallback) && userCallback === 'breakpoint') {
-                        Dwarf.onBreakpoint(DwarfHaltReason.MODULE_LOADED, library, {}, this);
-                    }
 
-                    const procModule = Process.findModuleByName(libraryName);
-                    if (isDefined(procModule)) {
-                        let moduleInfo = Object.assign({ imports: [], exports: [], symbols: [] }, procModule);
-                        moduleInfo.imports = procModule.enumerateImports();
-                        moduleInfo.exports = procModule.enumerateExports();
-                        moduleInfo.symbols = procModule.enumerateSymbols();
-                        Dwarf.sync({ modules: moduleInfo });
-                    }
+                        const loaded = Runtime.getRuntime().load0(callingClassLoader, library);
 
-                    return loaded;
-                } catch (e) {
-                    logDebug(e);
+                        if (isFunction(userCallback)) {
+                            (userCallback as Function).apply(this, loaded);
+                        } else if (isDefined(userCallback) && userCallback.hasOwnProperty('onLeave')) {
+                            const userOnLeave = (userCallback as ScriptInvocationListenerCallbacks).onLeave;
+                            if (isFunction(userOnLeave)) {
+                                userOnLeave.apply(this, loaded);
+                            }
+                        } else if (isString(userCallback) && userCallback === 'breakpoint') {
+                            Dwarf.onBreakpoint(DwarfHaltReason.MODULE_LOADED, library, {}, this);
+                        }
+
+                        const procModule = Process.findModuleByName(libraryName);
+                        if (isDefined(procModule)) {
+                            let moduleInfo = Object.assign({ imports: [], exports: [], symbols: [] }, procModule);
+                            moduleInfo.imports = procModule.enumerateImports();
+                            moduleInfo.exports = procModule.enumerateExports();
+                            moduleInfo.symbols = procModule.enumerateSymbols();
+                            Dwarf.sync({ modules: moduleInfo });
+                        }
+
+                        return loaded;
+                    } catch (e) {
+                        logDebug(e);
+                    }
                 }
+            } catch (e) {
+                logDebug(e);
             }
         });
     }

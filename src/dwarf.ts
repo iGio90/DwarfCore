@@ -182,7 +182,7 @@ export class DwarfCore {
         const exclusions = ['constructor', 'length', 'name', 'prototype'];
         Object.getOwnPropertyNames(this.dwarfApi).forEach(prop => {
             if (exclusions.indexOf(prop) < 0) {
-                global[prop] = this.getApi()[prop];
+                global[prop] = this.dwarfApi[prop];
             }
         });
 
