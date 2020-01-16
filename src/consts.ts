@@ -70,5 +70,7 @@ export const enum DwarfHaltReason {
     INITIAL_CONTEXT = 1,
     BP_INITIALIZATION = 2,
     BREAKPOINT = 3,
-    STEP = 4
+    STEP = 4,
+    CLASS_LOADER = 5,
+    MODULE_LOADED = 6
 }

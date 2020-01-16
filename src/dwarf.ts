@@ -29,6 +29,8 @@ import { DwarfProcessInfo } from "./types/dwarf_processinfo";
 import { NativeBreakpoint } from "./types/native_breakpoint";
 import { DwarfFS } from "./DwarfFS";
 import { DwarfObserver } from "./dwarf_observer";
+import { DwarfJavaHelper } from "./java";
+import { DwarfStalker } from "./stalker";
 
 export class DwarfCore {
     PROC_RESUMED = false;
@@ -43,6 +45,8 @@ export class DwarfCore {
     private dwarfBreakpointManager: DwarfBreakpointManager;
     private dwarfFS: DwarfFS;
     private dwarfObserver: DwarfObserver;
+    private dwarfJavaHelper:DwarfJavaHelper;
+    private dwarfStalker:DwarfStalker;
 
     private _systemPropertyGet: NativeFunction;
     private static instanceRef: DwarfCore;
@@ -67,6 +71,8 @@ export class DwarfCore {
         this.dwarfBreakpointManager = DwarfBreakpointManager.getInstance();
         this.dwarfFS = DwarfFS.getInstance();
         this.dwarfObserver = DwarfObserver.getInstance();
+        this.dwarfJavaHelper = null;
+        this.dwarfStalker = DwarfStalker.getInstance();
     }
 
     /**
@@ -95,6 +101,19 @@ export class DwarfCore {
     getFS = (): DwarfFS => {
         trace('Dwarf::getFS()');
         return this.dwarfFS;
+    }
+
+    getJavaHelper = ():DwarfJavaHelper => {
+        trace('Dwarf::getJavaHelper()');
+        if(this.dwarfJavaHelper === null) {
+            throw new Error('JavaHelper not initialized!');
+        }
+        return this.dwarfJavaHelper;
+    }
+
+    getStalker = ():DwarfStalker => {
+        trace('Dwarf::getStalker()');
+        return this.dwarfStalker;
     }
 
     enableDebug = (): void => {
@@ -145,8 +164,12 @@ export class DwarfCore {
         }
         send('coresync:::' + JSON.stringify(initData));
 
-        if (Java.available) {
-            LogicJava.init(breakStart);
+
+        //Init JavaHelper
+        try {
+            this.dwarfJavaHelper = DwarfJavaHelper.getInstance();
+        } catch(e) {
+            logDebug(e);
         }
 
         LogicInitialization.init();
@@ -428,6 +451,9 @@ export class DwarfCore {
 
     //from https://github.com/frida/frida-java-bridge/blob/master/lib/android.js
     getAndroidSystemProperty = (name: string) => {
+        if (!this.processInfo.isJavaAvailable()) { return; }
+
+        trace('DwarfCore::getAndroidSystemProperty()');
         if (this._systemPropertyGet === null) {
             this._systemPropertyGet = new NativeFunction(Module.findExportByName('libc.so', '__system_property_get'), 'int', ['pointer', 'pointer'], {
                 exceptions: 'propagate'
@@ -440,6 +466,9 @@ export class DwarfCore {
 
     //from https://github.com/frida/frida-java-bridge/blob/master/lib/android.js
     getAndroidApiLevel = () => {
+        if (!this.processInfo.isJavaAvailable()) { return; }
+
+        trace('DwarfCore::getAndroidApiLevel()');
         return parseInt(this.getAndroidSystemProperty('ro.build.version.sdk'), 10);
     }
 }

@@ -30,6 +30,7 @@ import { DwarfObserver } from "./dwarf_observer";
 import { NativeBreakpoint } from "./types/native_breakpoint";
 import { JavaBreakpoint } from "./types/java_breakpoint";
 import { ObjcBreakpoint } from "./types/objc_breakpoint";
+import { DwarfJavaHelper } from "./java";
 
 export class DwarfApi {
     private static instanceRef: DwarfApi;
@@ -420,40 +421,10 @@ export class DwarfApi {
      * Enumerate java classes
      * @param useCache false by default
      */
-    public enumerateJavaClasses = (useCache: boolean = false): void => {
+    public enumerateJavaClasses = (useCache: boolean = false) => {
+        trace('DwarfApi::enumerateJavaClasses()');
 
-        if (useCache && LogicJava !== null && LogicJava.javaClasses.length > 0) {
-            Dwarf.loggedSend('enumerate_java_classes_start:::');
-            for (let i = 0; i < LogicJava.javaClasses.length; i++) {
-                send('enumerate_java_classes_match:::' + LogicJava.javaClasses[i]);
-            }
-            Dwarf.loggedSend('enumerate_java_classes_complete:::');
-        } else {
-            // invalidate cache
-            if (LogicJava !== null) {
-                LogicJava.javaClasses = [];
-            }
-
-            Java.performNow(function () {
-                Dwarf.loggedSend('enumerate_java_classes_start:::');
-                try {
-                    Java.enumerateLoadedClasses({
-                        onMatch: function (className) {
-                            if (LogicJava !== null) {
-                                LogicJava.javaClasses.push(className);
-                            }
-                            send('enumerate_java_classes_match:::' + className);
-                        },
-                        onComplete: function () {
-                            send('enumerate_java_classes_complete:::');
-                        }
-                    });
-                } catch (e) {
-                    logErr('enumerateJavaClasses', e);
-                    Dwarf.loggedSend('enumerate_java_classes_complete:::');
-                }
-            });
-        }
+        return DwarfJavaHelper.getInstance().enumerateLoadedClasses(useCache);
     }
 
     /**
@@ -855,15 +826,25 @@ export class DwarfApi {
      * Receive a callback whenever a java class is going to be loaded by the class loader.
      *
      * ```javascript
-     * hookClassLoaderClassInitialization('com.target.classname', function() {
+     * //custom callback
+     * addClassLoaderHook('com.target.classname', function() {
      *     console.log('target is being loaded');
-     * })
+     * });
+     *
+     * //breakpoint
+     * addClassLoaderHook('com.target.classname');
+     * addClassLoaderHook('com.target.classname', 'breakpoint');
      * ```
      * @param className
      * @param callback
      */
-    public hookClassLoaderClassInitialization = (className: string, callback: Function): boolean => {
-        return LogicJava.hookClassLoaderClassInitialization(className, callback);
+    public addClassLoaderHook = (className:string, callback?:Function | string) => {
+        trace('DwarfApi::addClassLoaderHook()');
+
+        if(!isDefined(className)) {
+            throw new Error('DwarfApi::addClassLoaderHook() => Invalid arguments!');
+        }
+        return DwarfJavaHelper.getInstance().addClassLoaderHook(className, callback);
     }
 
     /**
@@ -1283,12 +1264,14 @@ export class DwarfApi {
      * Remove a java class initialization breakpoint on moduleName
      * @return a boolean indicating if removal was successful
      */
-    public removeJavaClassInitializationBreakpoint = (moduleName: string): boolean => {
-        const ret = LogicJava.removeModuleInitializationBreakpoint(moduleName);
-        if (ret) {
-            Dwarf.loggedSend('breakpoint_deleted:::java_class_initialization:::' + moduleName);
+    public removeClassLoaderHook = (className: string): boolean => {
+        trace('DwarfApi::removeClassLoaderHook()');
+
+        if(!isDefined(className)) {
+            throw new Error('DwarfApi::removeClassLoaderHook() => Invalid arguments!');
         }
-        return ret;
+
+        return DwarfJavaHelper.getInstance().removeClassLoaderHook(className);
     }
 
     /**
