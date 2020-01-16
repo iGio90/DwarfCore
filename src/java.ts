@@ -30,7 +30,7 @@ export class DwarfJavaHelper {
         if (DwarfJavaHelper.instanceRef) {
             throw new Error("JavaHelper already exists! Use DwarfJavaHelper.getInstance()/Dwarf.getJavaHelper()");
         }
-        trace('DwarfBreakpointManager()');
+        trace('DwarfJavaHelper()');
 
         this.classCache = new Array<string>();
         this.sdk_version = 0;
@@ -97,24 +97,24 @@ export class DwarfJavaHelper {
 
             System.loadLibrary.implementation = function (library) {
                 try {
-                    let userCallback:ScriptInvocationListenerCallbacks | Function | string = null;
-                    if(self.libraryLoaderCallbacks.hasOwnProperty(library)) {
+                    let userCallback: ScriptInvocationListenerCallbacks | Function | string = null;
+                    if (self.libraryLoaderCallbacks.hasOwnProperty(library)) {
                         userCallback = self.libraryLoaderCallbacks[library];
                     }
 
                     const callingClassLoader = VMStack.getCallingClassLoader();
 
-                    if(isDefined(userCallback) && userCallback.hasOwnProperty('onEnter')) {
+                    if (isDefined(userCallback) && userCallback.hasOwnProperty('onEnter')) {
                         (userCallback as ScriptInvocationListenerCallbacks).onEnter.apply(this, [library, callingClassLoader]);
                     }
 
                     const loaded = Runtime.getRuntime().loadLibrary0(callingClassLoader, library);
 
-                    if(isFunction(userCallback)) {
+                    if (isFunction(userCallback)) {
                         (userCallback as Function).apply(this, loaded);
-                    } else if(isDefined(userCallback) && userCallback.hasOwnProperty('onLeave')) {
+                    } else if (isDefined(userCallback) && userCallback.hasOwnProperty('onLeave')) {
                         (userCallback as ScriptInvocationListenerCallbacks).onLeave.apply(this, loaded);
-                    } else if(isString(userCallback) && userCallback === 'breakpoint') {
+                    } else if (isString(userCallback) && userCallback === 'breakpoint') {
                         DwarfCore.getInstance().onBreakpoint(DwarfHaltReason.MODULE_LOADED, library, {}, this);
                     }
 
@@ -128,24 +128,24 @@ export class DwarfJavaHelper {
 
             System.load.implementation = function (library) {
                 try {
-                    let userCallback:ScriptInvocationListenerCallbacks | Function | string = null;
-                    if(self.libraryLoaderCallbacks.hasOwnProperty(library)) {
+                    let userCallback: ScriptInvocationListenerCallbacks | Function | string = null;
+                    if (self.libraryLoaderCallbacks.hasOwnProperty(library)) {
                         userCallback = self.libraryLoaderCallbacks[library];
                     }
 
                     const callingClassLoader = VMStack.getCallingClassLoader();
 
-                    if(isDefined(userCallback) && userCallback.hasOwnProperty('onEnter')) {
+                    if (isDefined(userCallback) && userCallback.hasOwnProperty('onEnter')) {
                         (userCallback as ScriptInvocationListenerCallbacks).onEnter.apply(this, [library, callingClassLoader]);
                     }
 
                     const loaded = Runtime.getRuntime().load0(callingClassLoader, library);
 
-                    if(isFunction(userCallback)) {
+                    if (isFunction(userCallback)) {
                         (userCallback as Function).apply(this, loaded);
-                    } else if(isDefined(userCallback) && userCallback.hasOwnProperty('onLeave')) {
+                    } else if (isDefined(userCallback) && userCallback.hasOwnProperty('onLeave')) {
                         (userCallback as ScriptInvocationListenerCallbacks).onLeave.apply(this, loaded);
-                    } else if(isString(userCallback) && userCallback === 'breakpoint') {
+                    } else if (isString(userCallback) && userCallback === 'breakpoint') {
                         DwarfCore.getInstance().onBreakpoint(DwarfHaltReason.MODULE_LOADED, library, {}, this);
                     }
 
