@@ -301,7 +301,6 @@ export class DwarfJavaHelper {
                 throw new Error('DwarfJavaHelper::hookInJVM() => Unable to find class: ' + className);
             }
         });
-        console.log(JSON.stringify(this.oldOverloads));
     }
 
     replaceInJVM = (className: string, methodName: string = '$init', implementation: Function) => {
