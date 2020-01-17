@@ -44,7 +44,6 @@ export class JavaBreakpoint extends DwarfBreakpoint {
             Dwarf.getJavaHelper().hookInJVM(className, methodName, function () {
                 try {
                     let userCallback: ScriptInvocationListenerCallbacks | Function | string = self.bpCallbacks;
-                    console.log(JSON.stringify(self.bpCallbacks));
 
                     if (isFunction(userCallback)) {
                         (userCallback as Function).apply(this, arguments);
