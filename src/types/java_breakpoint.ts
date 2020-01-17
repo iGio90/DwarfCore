@@ -16,18 +16,24 @@
 **/
 
 import { DwarfBreakpoint } from "./dwarf_breakpoint";
-import { DwarfBreakpointType } from "../consts";
+import { DwarfBreakpointType, DwarfHaltReason } from "../consts";
 import { LogicJava } from "../logic_java";
 
 
 export class JavaBreakpoint extends DwarfBreakpoint {
-    protected bpCallbacks: InvocationListenerCallbacks | Function | null;
+    protected bpCallbacks: ScriptInvocationListenerCallbacks | Function | string;
 
-    constructor(bpFunction: string, bpEnabled?: boolean) {
+    constructor(bpFunction: string, bpEnabled?: boolean, bpCallbacks?) {
         if (typeof bpFunction !== 'string') {
             throw new Error('Invalid BreakpointAddress');
         }
         super(DwarfBreakpointType.JAVA, bpFunction, bpEnabled);
+
+        if(isDefined(bpCallbacks)) {
+            this.setCallback(bpCallbacks);
+        } else {
+            this.setCallback('breakpoint');
+        }
 
         //add check for () in bpFunction
         const className = bpFunction.substr(0, bpFunction.lastIndexOf('.'));
@@ -35,29 +41,38 @@ export class JavaBreakpoint extends DwarfBreakpoint {
 
         const self = this;
         Java.performNow(function () {
-            LogicJava.hookInJVM(className, methodName, function () {
+            Dwarf.getJavaHelper().hookInJVM(className, methodName, function () {
+                try {
+                    let userCallback: ScriptInvocationListenerCallbacks | Function | string = self.bpCallbacks;
+                    console.log(JSON.stringify(self.bpCallbacks));
 
-                if(isDefined(self.bpCallbacks)) {
-                    if(isValidFridaListener(self.bpCallbacks) && self.bpCallbacks.hasOwnProperty('onEnter')) {
-                        const bpOnEnter = self.bpCallbacks['onEnter'];
-                        if(isFunction(bpOnEnter)) {
-                            //TODO:
+                    if (isFunction(userCallback)) {
+                        (userCallback as Function).apply(this, arguments);
+                    } else if (isDefined(userCallback) && userCallback.hasOwnProperty('onEnter')) {
+                        const userOnEnter = (userCallback as ScriptInvocationListenerCallbacks).onEnter;
+                        if (isFunction(userOnEnter)) {
+                            userOnEnter.apply(this, arguments);
                         }
                     }
-                }
-                //TODO: handle breakpoint callback when isfunction
-                //TODO: remove LogicJava.jvmbreakpoint call and do it here
-                LogicJava.jvmBreakpoint.call(this, className,
-                    methodName, arguments, this.overload.argumentTypes);
 
-                if(isDefined(self.bpCallbacks)) {
-                    if(isValidFridaListener(self.bpCallbacks) && self.bpCallbacks.hasOwnProperty('onLeave')) {
-                        const bpOnLeave = self.bpCallbacks['onLeave'];
-                        if(isFunction(bpOnLeave)) {
-                            //TODO:
+                    if (!isDefined(userCallback) || (isString(userCallback) && userCallback === 'breakpoint')) {
+                        Dwarf.onBreakpoint(DwarfHaltReason.BREAKPOINT, bpFunction, {}, this);
+                    }
+
+                    let result = this.methodName(arguments);
+
+                    if (isDefined(userCallback) && userCallback.hasOwnProperty('onLeave')) {
+                        const userOnLeave = (userCallback as ScriptInvocationListenerCallbacks).onLeave;
+                        if (isFunction(userOnLeave)) {
+                            userOnLeave.apply(this, result);
                         }
                     }
+
+                    return result;
+                } catch (e) {
+                    console.log(e);
                 }
+
                 //remove singleshots
                 if (self.isSingleShot()) {
                     Dwarf.getBreakpointManager().update();
@@ -66,7 +81,7 @@ export class JavaBreakpoint extends DwarfBreakpoint {
         });
     }
 
-    public setCallback(bpCallback: InvocationListenerCallbacks | Function | null): void {
+    public setCallback(bpCallback: ScriptInvocationListenerCallbacks | Function | string): void {
         this.bpCallbacks = bpCallback;
     }
 

@@ -23,6 +23,7 @@ export class DwarfJavaHelper {
     protected classCache: Array<string>;
     protected javaClassLoaderCallbacks: { [index: string]: ScriptInvocationListenerCallbacks | Function | string };
     protected libraryLoaderCallbacks: { [index: string]: ScriptInvocationListenerCallbacks | Function | string };
+    protected oldOverloads: { [index: string]: Function | Array<Function> };
     protected sdk_version: number;
     protected initDone: boolean;
 
@@ -36,6 +37,7 @@ export class DwarfJavaHelper {
         this.sdk_version = 0;
         this.javaClassLoaderCallbacks = {};
         this.libraryLoaderCallbacks = {};
+        this.oldOverloads = {};
         this.initDone = false;
 
         this.initalize();
@@ -255,6 +257,106 @@ export class DwarfJavaHelper {
         }
     }
 
+    hookInJVM = (className: string, methodName: string = '$init', implementation: Function) => {
+        trace('DwarfJavaHelper::hookInJVM()');
+
+        if (!isString(className)) {
+            throw new Error('DwarfJavaHelper::hookInJVM() => Invalid arguments! -> className');
+        }
+
+        if (!isString(methodName)) {
+            throw new Error('DwarfJavaHelper::hookInJVM() => Invalid arguments! -> methodName');
+        }
+
+        if (!isFunction(implementation)) {
+            throw new Error('DwarfJavaHelper::hookInJVM() => Invalid arguments! -> implementation');
+        }
+
+        Java.performNow(() => {
+            try {
+                const javaWrapper = Java.use(className);
+
+                if (isDefined(javaWrapper) && isDefined(javaWrapper[methodName])) {
+                    try {
+                        const overloadCount = javaWrapper[methodName].overloads.length;
+                        if (overloadCount > 0) {
+                            if (!this.oldOverloads.hasOwnProperty(className + '.' + methodName)) {
+                                this.oldOverloads[className + '.' + methodName] = new Array<Function>();
+                            }
+                            for (var i = 0; i < overloadCount; i++) {
+                                (this.oldOverloads[className + '.' + methodName] as Function[]).push(javaWrapper[methodName].overloads[i].implementation);
+                                javaWrapper[methodName].overloads[i].implementation = implementation;
+                            }
+                        } else {
+                            javaWrapper[methodName].overload.implementation = implementation;
+                        }
+                    } catch (e) {
+                        logDebug('DwarfJavaHelper::hookInJVM() => overload failed -> ' + e);
+                    }
+                } else {
+                    throw new Error('DwarfJavaHelper::hookInJVM() => ' + (className + '.' + methodName) + ' not found!');
+                }
+            } catch (e) {
+                logDebug('DwarfJavaHelper::hookInJVM() => Error: ' + e);
+                throw new Error('DwarfJavaHelper::hookInJVM() => Unable to find class: ' + className);
+            }
+        });
+        console.log(JSON.stringify(this.oldOverloads));
+    }
+
+    replaceInJVM = (className: string, methodName: string = '$init', implementation: Function) => {
+
+    }
+
+    restoreInJVM = (className: string, methodName: string) => {
+        trace('DwarfJavaHelper::restoreInJVM()');
+
+        if (!isString(className)) {
+            throw new Error('DwarfJavaHelper::restoreInJVM() => Invalid arguments! -> className');
+        }
+
+        if (!isString(methodName)) {
+            throw new Error('DwarfJavaHelper::restoreInJVM() => Invalid arguments! -> methodName');
+        }
+
+        Java.performNow(() => {
+            try {
+                const javaWrapper = Java.use(className);
+
+                if (isDefined(javaWrapper) && isDefined(javaWrapper[methodName])) {
+                    try {
+                        const overloadCount = javaWrapper[methodName].overloads.length;
+                        if (overloadCount > 0) {
+                            for (var i = 0; i < overloadCount; i++) {
+                                if (this.oldOverloads.hasOwnProperty(className + '.' + methodName)) {
+                                    if (i < this.oldOverloads[className + '.' + methodName].length) {
+                                        const oldImplementation = (this.oldOverloads[className + '.' + methodName] as Function[])[i];
+                                        javaWrapper[methodName].overloads[i].implementation = oldImplementation;
+                                    } else {
+                                        javaWrapper[methodName].overloads[i].implementation = null;
+                                    }
+                                } else {
+                                    javaWrapper[methodName].overloads[i].implementation = null;
+                                }
+                            }
+                            if (this.oldOverloads.hasOwnProperty(className + '.' + methodName)) {
+                                delete this.oldOverloads[className + '.' + methodName];
+                            }
+                        } else {
+                            javaWrapper[methodName].overload.implementation = null;
+                        }
+                    } catch (e) {
+                        logDebug('DwarfJavaHelper::restoreInJVM() => overload failed -> ' + e);
+                    }
+                } else {
+                    throw new Error('DwarfJavaHelper::restoreInJVM() => ' + (className + '.' + methodName) + ' not found!');
+                }
+            } catch (e) {
+                logDebug('DwarfJavaHelper::restoreInJVM() => Error: ' + e);
+                throw new Error('DwarfJavaHelper::restoreInJVM() => Unable to find class: ' + className);
+            }
+        });
+    }
 
     /**
      * @param  {string} className

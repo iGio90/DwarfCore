@@ -50,6 +50,7 @@ export class DwarfCore {
 
     private _systemPropertyGet: NativeFunction;
     private static instanceRef: DwarfCore;
+    private breakAtStart:boolean;
 
     //Singleton class
     private constructor() {
@@ -73,6 +74,7 @@ export class DwarfCore {
         this.dwarfObserver = DwarfObserver.getInstance();
         this.dwarfJavaHelper = null;
         this.dwarfStalker = DwarfStalker.getInstance();
+        this.breakAtStart = false;
     }
 
     /**
@@ -142,6 +144,10 @@ export class DwarfCore {
             DEBUG = true;
         }
 
+        if(breakStart) {
+            this.breakAtStart = true;
+        }
+
         this.processInfo = new DwarfProcessInfo(
             procName,
             wasSpawned,
@@ -164,6 +170,9 @@ export class DwarfCore {
         }
         send('coresync:::' + JSON.stringify(initData));
 
+    }
+
+    start = () => {
         //Init JavaHelper
         try {
             this.dwarfJavaHelper = DwarfJavaHelper.getInstance();
@@ -171,13 +180,30 @@ export class DwarfCore {
             logDebug(e);
         }
 
+        if (Java.available && this.processInfo.wasSpawned && this.breakAtStart) {
+            //android init breakpoint
+            if (this.getAndroidApiLevel() >= 23) {
+                const initBreakpoint = this.getBreakpointManager().addJavaBreakpoint('com.android.internal.os.RuntimeInit.commonInit');
+                if(isDefined(initBreakpoint)) {
+                    initBreakpoint.setSingleShot(true);
+                }
+            } else {
+                const initBreakpoint = this.getBreakpointManager().addJavaBreakpoint('android.app.Application.onCreate');
+                if(isDefined(initBreakpoint)) {
+                    initBreakpoint.setSingleShot(true);
+                }
+            }
+        }
+
+        LogicJava.init();
+
         LogicInitialization.init();
         DwarfInterceptor.init();
 
         // register global api functions
-        if (globalApiFuncs && globalApiFuncs.length > 0) {
+        /*if (globalApiFuncs && globalApiFuncs.length > 0) {
 
-        }
+        }*/
         const exclusions = ['constructor', 'length', 'name', 'prototype'];
         Object.getOwnPropertyNames(this.dwarfApi).forEach(prop => {
             if (exclusions.indexOf(prop) < 0) {
@@ -201,7 +227,7 @@ export class DwarfCore {
 
         if (Process.platform === 'windows') {
             // break proc at main
-            if (wasSpawned && breakStart) {
+            if (this.processInfo.wasSpawned && this.breakAtStart) {
                 //Inital breakpoint
                 const invocationListener = Interceptor.attach(this.getApi().findExport('RtlUserThreadStart'), function () {
                     trace('Creating startbreakpoint');
@@ -217,20 +243,12 @@ export class DwarfCore {
 
                     if (isDefined(address)) {
                         const initBreakpoint = DwarfCore.getInstance().getBreakpointManager().addNativeBreakpoint(address, true);
-                        initBreakpoint.setSingleShot(true);
+                        if(isDefined(initBreakpoint)) {
+                            initBreakpoint.setSingleShot(true);
+                        }
                         invocationListener.detach();
                     }
                 });
-            }
-        }
-        if (Java.available && wasSpawned && breakStart) {
-            //android init breakpoint
-            if (LogicJava.sdk >= 23) {
-                const initBreakpoint = this.getBreakpointManager().addJavaBreakpoint('com.android.internal.os.RuntimeInit.commonInit');
-                initBreakpoint.setSingleShot(true);
-            } else {
-                const initBreakpoint = this.getBreakpointManager().addJavaBreakpoint('android.app.Application.onCreate');
-                initBreakpoint.setSingleShot(true);
             }
         }
     }

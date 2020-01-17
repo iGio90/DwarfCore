@@ -256,10 +256,13 @@ export class DwarfApi {
                 if (isFunction(bpCallback)) {
                     javaBreakpoint.setCallback(bpCallback as Function);
                 } else if (isValidFridaListener(bpCallback)) {
-                    javaBreakpoint.setCallback(bpCallback as InvocationListenerCallbacks);
+                    javaBreakpoint.setCallback(bpCallback as ScriptInvocationListenerCallbacks);
                 } else {
                     if (isString(bpCallback)) {
                         //TODO: add func wich converts string to function
+                        if(bpCallback === 'breakpoint') {
+                            javaBreakpoint.setCallback('breakpoint');
+                        }
                     } else {
                         throw new Error('DwarfApi::addJavaBreakpoint() => Unable to set callback!');
                     }

@@ -72,6 +72,10 @@ rpc.exports = {
         //init dwarf
         DwarfCore.getInstance().init(proc_name, spawned, breakStart, debug, globalApiFuncs);
     },
+
+    start: function() {
+        DwarfCore.getInstance().start();
+    },
     keywords: function () {
         const map = [];
         Object.getOwnPropertyNames(global).forEach(function (name) {

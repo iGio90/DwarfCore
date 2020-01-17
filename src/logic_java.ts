@@ -226,44 +226,6 @@ export class LogicJava {
                 logDebug('[' + Process.getCurrentThreadId() + '] ' +
                     'initializing logicJava with sdk: ' + LogicJava.sdk);
             }
-
-            /*if (DwarfCore.getInstance().getProcessInfo().wasSpawned && breakAtStart) {
-                if (LogicJava.sdk >= 23) {
-                    // attach to commonInit for init debugging
-                    LogicJava.hookInJVM('com.android.internal.os.RuntimeInit',
-                        'commonInit', function () {
-                            LogicJava.jvmBreakpoint.call(this, 'com.android.internal.os.RuntimeInit',
-                                'commonInit', arguments, this.overload.argumentTypes)
-                        });
-                } else {
-                    LogicJava.hookInJVM('android.app.Application', 'onCreate',
-                        function () {
-                            LogicJava.jvmBreakpoint.call(this, 'android.app.Application',
-                                'onCreate', arguments, this.overload.argumentTypes)
-                        });
-                }
-            }*/
-
-            // attach to ClassLoader to notify for new loaded class
-            const handler = Java.use('java.lang.ClassLoader');
-            const overload = handler.loadClass.overload('java.lang.String', 'boolean');
-            overload.implementation = function (clazz, resolve) {
-                if (LogicJava.javaClasses.indexOf(clazz) === -1) {
-                    LogicJava.javaClasses.push(clazz);
-                    Dwarf.loggedSend('class_loader_loading_class:::' + Process.getCurrentThreadId() + ':::' + clazz);
-
-                    const userCallback = LogicJava.javaClassLoaderCallbacks[clazz];
-                    if (typeof userCallback !== 'undefined') {
-                        if (userCallback !== null) {
-                            userCallback.call(this);
-                        } else {
-                            Dwarf.loggedSend("java_class_initialization_callback:::" + clazz + ':::' + Process.getCurrentThreadId());
-                            DwarfCore.getInstance().onBreakpoint(DwarfHaltReason.BREAKPOINT, clazz, {}, this);
-                        }
-                    }
-                }
-                return overload.call(this, clazz, resolve);
-            };
         });
     };
 
