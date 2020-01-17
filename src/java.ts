@@ -260,6 +260,8 @@ export class DwarfJavaHelper {
     hookInJVM = (className: string, methodName: string = '$init', implementation: Function) => {
         trace('DwarfJavaHelper::hookInJVM()');
 
+        this.checkRequirements();
+
         if (!isString(className)) {
             throw new Error('DwarfJavaHelper::hookInJVM() => Invalid arguments! -> className');
         }
@@ -309,6 +311,8 @@ export class DwarfJavaHelper {
 
     restoreInJVM = (className: string, methodName: string) => {
         trace('DwarfJavaHelper::restoreInJVM()');
+
+        this.checkRequirements();
 
         if (!isString(className)) {
             throw new Error('DwarfJavaHelper::restoreInJVM() => Invalid arguments! -> className');

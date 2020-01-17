@@ -24,6 +24,12 @@ export class JavaBreakpoint extends DwarfBreakpoint {
     protected bpCallbacks: ScriptInvocationListenerCallbacks | Function | string;
 
     constructor(bpFunction: string, bpEnabled?: boolean, bpCallbacks?) {
+        trace('JavaBreakpoint()');
+
+        if(!Java.available) {
+            throw new Error('Java not available!');
+        }
+
         if (typeof bpFunction !== 'string') {
             throw new Error('Invalid BreakpointAddress');
         }

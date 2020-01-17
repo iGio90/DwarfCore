@@ -147,6 +147,10 @@ export class DwarfBreakpointManager {
     public addJavaBreakpoint = (bpAddress: string, bpEnabled?: boolean) => {
         trace('DwarfBreakpointManager::addJavaBreakpoint()');
 
+        if(!Java.available) {
+            throw new Error('Java not available!');
+        }
+
         this.checkExists(bpAddress);
 
         try {
