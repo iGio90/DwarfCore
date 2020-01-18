@@ -67,34 +67,44 @@ export class DwarfBreakpointManager {
      * @param  {NativePointer|string} bpAddress
      * @param  {boolean} bpEnabled?
      */
-    public addBreakpoint = (bpType: DwarfBreakpointType, bpAddress: NativePointer | string, bpEnabled?: boolean) => {
-        trace('DwarfBreakpointManager::addBreakpoint()');
+    public addBreakpoint = (
+        bpType: DwarfBreakpointType,
+        bpAddress: NativePointer | string,
+        bpEnabled?: boolean,
+        bpCallback?) => {
 
-        this.checkExists(bpAddress);
+        trace('DwarfBreakpointManager::addBreakpoint()');
 
         switch (bpType) {
             case DwarfBreakpointType.NATIVE:
                 return this.addNativeBreakpoint(bpAddress, bpEnabled);
             case DwarfBreakpointType.JAVA:
-                return this.addJavaBreakpoint(bpAddress as string, bpEnabled);
+                {
+                    const className = (bpAddress as string).substr(0, (bpAddress as string).lastIndexOf('.'));
+                    const methodName = (bpAddress as string).substr((bpAddress as string).lastIndexOf('.') + 1)
+                    return this.addJavaBreakpoint(className, methodName, bpEnabled, bpCallback);
+                }
             case DwarfBreakpointType.OBJC:
                 return this.addObjCBreakpoint(bpAddress as string, bpEnabled);
             case DwarfBreakpointType.MEMORY:
                 return this.addMemoryBreakpoint(bpAddress, (DwarfMemoryAccessType.READ | DwarfMemoryAccessType.WRITE), bpEnabled);
+            default:
+                break;
         }
         throw new Error('DwarfBreakpointManager::addBreakpoint() -> Unknown BreakpointType!');
     }
 
     /**
+     *
      * @param  {NativePointer|string} bpAddress
      * @param  {boolean} bpEnabled?
      */
-    public addNativeBreakpoint = (bpAddress: NativePointer | string, bpEnabled?: boolean):NativeBreakpoint => {
+    public addNativeBreakpoint = (bpAddress: NativePointer | string, bpEnabled?: boolean): NativeBreakpoint => {
         trace('DwarfBreakpointManager::addNativeBreakpoint()');
 
         bpAddress = makeNativePointer(bpAddress);
 
-        if(!checkNativePointer(bpAddress)) {
+        if (!checkNativePointer(bpAddress)) {
             throw new Error('DwarfBreakpointManager::addNativeBreakpoint() => Invalid Address!');
         }
 
@@ -102,7 +112,7 @@ export class DwarfBreakpointManager {
 
         try {
             const nativeBreakpoint = new NativeBreakpoint(bpAddress, bpEnabled);
-            if(isDefined(nativeBreakpoint)) {
+            if (isDefined(nativeBreakpoint)) {
                 this.dwarfBreakpoints.push(nativeBreakpoint);
                 this.update();
                 return nativeBreakpoint;
@@ -144,20 +154,28 @@ export class DwarfBreakpointManager {
      * @param  {string} bpAddress
      * @param  {boolean} bpEnabled?
      */
-    public addJavaBreakpoint = (bpAddress: string, bpEnabled?: boolean) => {
+    public addJavaBreakpoint = (
+        className: string,
+        methodName: string = '$init',
+        bpEnabled: boolean = true,
+        bpCallbacks: ScriptInvocationListenerCallbacks | Function | string = 'breakpoint') => {
+
         trace('DwarfBreakpointManager::addJavaBreakpoint()');
 
-        if(!Java.available) {
+        if (!Java.available) {
             throw new Error('Java not available!');
         }
 
-        this.checkExists(bpAddress);
+        this.checkExists(className + '.' + methodName);
 
         try {
-            const javaBreakpoint = new JavaBreakpoint(bpAddress, bpEnabled);
-            this.dwarfBreakpoints.push(javaBreakpoint);
-            this.update();
-            return javaBreakpoint;
+            const javaBreakpoint = new JavaBreakpoint(className, methodName, bpEnabled, bpCallbacks);
+            if (isDefined(javaBreakpoint)) {
+                this.dwarfBreakpoints.push(javaBreakpoint);
+                this.update();
+                return javaBreakpoint;
+            }
+            throw new Error('failed');
         } catch (error) {
 
         }

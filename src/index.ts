@@ -25,10 +25,10 @@ global.Dwarf = DwarfCore.getInstance();
 global['ELF_File'] = ELF_File;
 
 rpc.exports = {
-    api: function (tid, apiFunction, apiArguments) {
+    api: function (tid: number, apiFunction, apiArguments) {
         trace('RPC::API() -> ' + apiFunction);
 
-        if (!DwarfCore.getInstance().getApi().hasOwnProperty(apiFunction)) {
+        if (!DwarfCore.getInstance().getApi().hasOwnProperty(apiFunction) && apiFunction !== 'release') {
             throw new Error('Unknown ApiFunction!');
         }
         logDebug('[' + tid + '] RPC-API: ' + apiFunction + ' | ' +
@@ -38,9 +38,10 @@ rpc.exports = {
             apiArguments = [];
         }
 
-        if (Object.keys(DwarfCore.getInstance().threadContexts).length > 0) {
-            const threadContext = DwarfCore.getInstance().threadContexts[tid];
+        if (Object.keys(Dwarf.threadContexts).length > 0) {
+            const threadContext = Dwarf.threadContexts[tid.toString()];
             if (isDefined(threadContext)) {
+                console.log('ThreadApi()');
                 const threadApi = new ThreadApi(apiFunction, apiArguments);
                 threadContext.apiQueue.push(threadApi);
                 const start = Date.now();
@@ -66,14 +67,16 @@ rpc.exports = {
             }
         }
 
+        console.log('GlobalApi()');
         return DwarfCore.getInstance().getApi()[apiFunction].apply(this, apiArguments)
+
     },
     init: function (proc_name, breakStart, debug, spawned, globalApiFuncs?: Array<string>) {
         //init dwarf
         DwarfCore.getInstance().init(proc_name, spawned, breakStart, debug, globalApiFuncs);
     },
 
-    start: function() {
+    start: function () {
         DwarfCore.getInstance().start();
     },
     keywords: function () {
@@ -90,14 +93,14 @@ rpc.exports = {
         });
         return uniqueBy(map);
     },
-    moduleinfo: function (moduleName:string) {
+    moduleinfo: function (moduleName: string) {
         if (Dwarf.modulesBlacklist.indexOf(moduleName) >= 0) {
             return '{}';
         }
         return new Promise(resolve => {
             let procModule = Process.findModuleByName(moduleName);
             if (isDefined(procModule)) {
-                let moduleInfo = Object.assign({ imports: [], exports: [], symbols:[] }, procModule);
+                let moduleInfo = Object.assign({ imports: [], exports: [], symbols: [] }, procModule);
                 moduleInfo.imports = procModule.enumerateImports();
                 moduleInfo.exports = procModule.enumerateExports();
                 moduleInfo.symbols = procModule.enumerateSymbols();

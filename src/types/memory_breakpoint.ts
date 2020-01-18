@@ -247,7 +247,7 @@ export class MemoryBreakpoint extends DwarfBreakpoint {
                 }
             } else {
                 //TODO: it halts only when no callback?
-                DwarfCore.getInstance().onBreakpoint(DwarfHaltReason.BREAKPOINT, invocationContext.context.pc, invocationContext.context);
+                DwarfCore.getInstance().onBreakpoint(Process.getCurrentThreadId(), DwarfHaltReason.BREAKPOINT, invocationContext.context.pc, invocationContext.context);
             }
 
             //reattach if not singleshot

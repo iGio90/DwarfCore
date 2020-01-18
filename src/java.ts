@@ -17,10 +17,15 @@
 
 import { DwarfHaltReason } from "./consts";
 
+interface DwarfJavaClassInfo {
+    className: string;
+    clasMethods: Array<string>;
+}
+
 export class DwarfJavaHelper {
     private static instanceRef: DwarfJavaHelper;
 
-    protected classCache: Array<string>;
+    protected classCache: { [index: string]: DwarfJavaClassInfo };
     protected javaClassLoaderCallbacks: { [index: string]: ScriptInvocationListenerCallbacks | Function | string };
     protected libraryLoaderCallbacks: { [index: string]: ScriptInvocationListenerCallbacks | Function | string };
     protected oldOverloads: { [index: string]: Function | Array<Function> };
@@ -33,7 +38,7 @@ export class DwarfJavaHelper {
         }
         trace('DwarfJavaHelper()');
 
-        this.classCache = new Array<string>();
+        this.classCache = {};
         this.sdk_version = 0;
         this.javaClassLoaderCallbacks = {};
         this.libraryLoaderCallbacks = {};
@@ -75,9 +80,16 @@ export class DwarfJavaHelper {
 
             ClassLoader.loadClass.overload('java.lang.String', 'boolean').implementation = function (className: string, resolve: boolean) {
                 try {
-                    if (self.classCache.indexOf(className) === -1) {
-                        self.classCache.push(className);
-                    }
+                    /*if (!self.classCache.hasOwnProperty(className)) {
+                        const classInfo: DwarfJavaClassInfo = {
+                            className: className,
+                            clasMethods: self.getClassMethods(className)
+                        }
+                        self.classCache[className] = classInfo;
+
+                        //sync ui
+                        Dwarf.sync({ java_class_loaded: classInfo });
+                    }*/
 
                     let userCallback: ScriptInvocationListenerCallbacks | Function | string = null;
                     if (self.javaClassLoaderCallbacks.hasOwnProperty(className)) {
@@ -91,6 +103,8 @@ export class DwarfJavaHelper {
                         if (isFunction(userOnEnter)) {
                             userOnEnter.apply(this, [className, resolve]);
                         }
+                    } else if (isString(userCallback) && userCallback === 'breakpoint') {
+                        Dwarf.onBreakpoint(DwarfHaltReason.CLASS_LOADER, className, {}, this);
                     }
 
                     let result = this.loadClass(className, resolve);
@@ -100,12 +114,7 @@ export class DwarfJavaHelper {
                         if (isFunction(userOnLeave)) {
                             userOnLeave.apply(this, result);
                         }
-                    } else if (isString(userCallback) && userCallback === 'breakpoint') {
-                        Dwarf.onBreakpoint(DwarfHaltReason.CLASS_LOADER, className, {}, this);
                     }
-
-                    //sync ui
-                    Dwarf.sync({ java_class_loaded: className });
                     return result;
                 } catch (e) {
                     if (e.message.indexOf('java.lang.ClassNotFoundException') !== -1) {
@@ -226,7 +235,32 @@ export class DwarfJavaHelper {
 
     invalidateClassCache = () => {
         trace('JavaHelper::invalidateClassCache()');
-        this.classCache = new Array<string>();
+        this.classCache = {};
+    }
+
+    getClassMethods = (className: string): Array<string> => {
+        trace('DwarfJavaHelper::getClassMethods()');
+
+        this.checkRequirements();
+
+        Java.performNow(() => {
+            try {
+                // 0xdea code -> https://github.com/0xdea/frida-scripts/blob/master/raptor_frida_android_trace.js
+                const javaWrapper: Java.Wrapper = Java.use(className);
+                const methods = javaWrapper.class.getDeclaredMethods();
+                javaWrapper.$dispose();
+
+                const parsedMethods = [];
+                methods.forEach(function (method) {
+                    parsedMethods.push(method.toString().replace(className + ".",
+                        "TOKEN").match(/\sTOKEN(.*)\(/)[1]);
+                });
+                return new Array(uniqueBy(parsedMethods));
+            } catch (e) {
+                logDebug('DwarfJavaHelper::getClassMethods() Failed for : "' + className + '" !');
+            }
+        });
+        return new Array<string>();
     }
 
     enumerateLoadedClasses = (useCache: boolean = false) => {
@@ -235,23 +269,37 @@ export class DwarfJavaHelper {
         this.checkRequirements();
 
         if (useCache && this.classCache.length) {
-            return this.classCache;
+            //return this.classCache;
+            Dwarf.sync({ java_classes: this.classCache, cached: useCache });
         } else {
             this.invalidateClassCache();
+
+            const self = this;
+
+            const classList: Array<string> = new Array<string>();
 
             Java.performNow(() => {
                 try {
                     Java.enumerateLoadedClasses({
-                        onMatch: (className) => {
-                            this.classCache.push(className);
+                        onMatch: function (className) {
+                            classList.push(className);
                         },
-                        onComplete: () => {
-                            return this.classCache;
+                        onComplete: function () {
+                            classList.forEach(className => {
+                                if (!self.classCache.hasOwnProperty(className)) {
+                                    const classInfo: DwarfJavaClassInfo = {
+                                        className: className,
+                                        clasMethods: self.getClassMethods(className)
+                                    }
+                                    self.classCache[className] = classInfo;
+                                }
+                            });
+
+                            Dwarf.sync({ java_classes: self.classCache, cached: useCache });
                         }
                     });
                 } catch (e) {
                     logDebug('JavaHelper::enumerateLoadedClasses() => Error: ' + e);
-                    return null;
                 }
             });
         }

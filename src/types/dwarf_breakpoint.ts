@@ -22,7 +22,8 @@ import { DwarfCore } from "../dwarf";
  * DwarfBreakpoint
  */
 export class DwarfBreakpoint {
-    protected bpID:number;
+    protected threadId: number;
+    protected bpID: number;
     protected bpHits: number;
     protected bpEnabled: boolean;
     protected bpType: DwarfBreakpointType;
@@ -41,6 +42,7 @@ export class DwarfBreakpoint {
         if ((bpType < DwarfBreakpointType.NATIVE) || (bpType > DwarfBreakpointType.MEMORY)) {
             throw new Error('Invalid BreakpointType');
         }
+        this.threadId = Process.getCurrentThreadId();
         this.bpID = DwarfCore.getInstance().getBreakpointManager().getNextBreakpointID();
         this.bpHits = 0;
         this.bpSingleShot = false;
@@ -49,7 +51,7 @@ export class DwarfBreakpoint {
         this.bpAddress = bpAddress;
     }
 
-    public getID():number {
+    public getID(): number {
         trace('DwarfBreakpoint::getID()');
         return this.bpID;
     }
@@ -142,4 +144,17 @@ export class DwarfBreakpoint {
         this.bpHits = 0;
     }
 
+    public getThreadId() {
+        return this.threadId;
+    }
+
+    public setThreadId(threadId: number | string) {
+        if(isString(threadId)) {
+            threadId = parseInt((threadId as string), 10);
+        }
+
+        if (isNumber(threadId)) {
+            this.threadId = (threadId as number);
+        }
+    }
 }

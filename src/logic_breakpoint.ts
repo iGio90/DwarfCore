@@ -209,7 +209,7 @@ export class LogicBreakpoint {
             Interceptor['flush']();
 
             //TODO: fix
-            DwarfCore.getInstance().onBreakpoint(DwarfHaltReason.BREAKPOINT, this.context.pc,
+            DwarfCore.getInstance().onBreakpoint(DwarfHaltReason.BREAKPOINT, Process.getCurrentThreadId(), this.context.pc,
                 this.context, null, breakpoint.condition as Function);
 
             if (typeof LogicBreakpoint.breakpoints[breakpoint.target.toString()] !== 'undefined') {

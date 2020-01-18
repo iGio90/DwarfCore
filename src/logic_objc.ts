@@ -461,7 +461,7 @@ export class LogicObjC {
             breakpoint.interceptor.detach();
             Interceptor['flush']();
 
-            DwarfCore.getInstance().onBreakpoint(DwarfHaltReason.BREAKPOINT, this.context.pc,
+            DwarfCore.getInstance().onBreakpoint(Process.getCurrentThreadId(), DwarfHaltReason.BREAKPOINT, this.context.pc,
                 this.context, null, breakpoint.condition as Function);
 
             if (typeof LogicObjC.breakpoints[target] !== 'undefined') {

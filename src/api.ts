@@ -242,15 +242,19 @@ export class DwarfApi {
         }
     }
 
-    public addJavaBreakpoint = (bpAddress: string, bpCallback?: InvocationListenerCallbacks | Function | string | null): JavaBreakpoint => {
+    public addJavaBreakpoint = (className: string, methodName:string='$init', bpCallback?: ScriptInvocationListenerCallbacks | Function | string | null): JavaBreakpoint => {
         trace('DwarfApi::addJavaBreakpoint()');
 
-        if (!isString(bpAddress)) {
+        if (!isString(className)) {
+            throw new Error('DwarfApi::addJavaBreakpoint() => Invalid Adddress!');
+        }
+
+        if (!isString(methodName)) {
             throw new Error('DwarfApi::addJavaBreakpoint() => Invalid Adddress!');
         }
 
         try {
-            const javaBreakpoint = DwarfBreakpointManager.getInstance().addJavaBreakpoint(bpAddress, true);
+            const javaBreakpoint = DwarfBreakpointManager.getInstance().addJavaBreakpoint(className, methodName, true, bpCallback);
 
             if (isDefined(javaBreakpoint) && isDefined(bpCallback)) {
                 if (isFunction(bpCallback)) {
@@ -421,6 +425,7 @@ export class DwarfApi {
     }
 
     /**
+     * TODO: this is used to populate ui we should remove it from api
      * Enumerate java classes
      * @param useCache false by default
      */

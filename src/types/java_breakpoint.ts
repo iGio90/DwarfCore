@@ -23,27 +23,39 @@ import { LogicJava } from "../logic_java";
 export class JavaBreakpoint extends DwarfBreakpoint {
     protected bpCallbacks: ScriptInvocationListenerCallbacks | Function | string;
 
-    constructor(bpFunction: string, bpEnabled?: boolean, bpCallbacks?) {
+    constructor(className:string, methodName: string = '$init', bpEnabled: boolean = true, bpCallbacks:ScriptInvocationListenerCallbacks | Function | string = 'breakpoint') {
         trace('JavaBreakpoint()');
 
-        if(!Java.available) {
+        if (!Java.available) {
             throw new Error('Java not available!');
         }
 
-        if (typeof bpFunction !== 'string') {
-            throw new Error('Invalid BreakpointAddress');
+        if (!isString(className)) {
+            throw new Error('Invalid className!');
         }
-        super(DwarfBreakpointType.JAVA, bpFunction, bpEnabled);
 
-        if(isDefined(bpCallbacks)) {
-            this.setCallback(bpCallbacks);
+        if (!isString(methodName)) {
+            throw new Error('Invalid methodName!');
+        }
+
+        Java.performNow(() => {
+            try {
+                const testWrapper = Java.use(className);
+                if(isDefined(testWrapper) && !isDefined(testWrapper[methodName])) {
+                    throw new Error('JavaBreakpoint() => Method: "' + methodName + '" not in "' + className + '"!');
+                }
+            } catch(e) {
+                throw new Error('JavaBreakpoint() => ClassNotFound: "' + className + '" !');
+            }
+        });
+
+        super(DwarfBreakpointType.JAVA, className + '.' + methodName, bpEnabled);
+
+        if(isDefined) {
+            this.bpCallbacks = bpCallbacks;
         } else {
-            this.setCallback('breakpoint');
+            throw Error('JavaBreakpoint() callback missing');
         }
-
-        //add check for () in bpFunction
-        const className = bpFunction.substr(0, bpFunction.lastIndexOf('.'));
-        const methodName = bpFunction.substr(bpFunction.lastIndexOf('.') + 1);
 
         const self = this;
         Java.performNow(function () {
@@ -60,11 +72,35 @@ export class JavaBreakpoint extends DwarfBreakpoint {
                         }
                     }
 
-                    if (!isDefined(userCallback) || (isString(userCallback) && userCallback === 'breakpoint')) {
-                        Dwarf.onBreakpoint(DwarfHaltReason.BREAKPOINT, bpFunction, {}, this);
+                    const classMethod = className + '.' + methodName;
+                    const newArgs = {};
+                    for (let i = 0; i < arguments.length; i++) {
+                        let value = '';
+                        if (arguments[i] === null || typeof arguments[i] === 'undefined') {
+                            value = 'null';
+                        } else {
+                            if (typeof arguments[i] === 'object') {
+                                value = JSON.stringify(arguments[i]);
+                                if (arguments[i]['className'] === '[B') {
+                                    value += ' (' + Java.use('java.lang.String').$new(arguments[i]) + ")";
+                                }
+                            } else {
+                                value = arguments[i].toString();
+                            }
+                        }
+                        newArgs[i] = {
+                            arg: value,
+                            name: this.overload.argumentTypes[i]['name'],
+                            handle: arguments[i],
+                            className: this.overload.argumentTypes[i]['className'],
+                        }
                     }
 
-                    let result = this.methodName(arguments);
+                    if (!isDefined(userCallback) || (isString(userCallback) && userCallback === 'breakpoint')) {
+                        Dwarf.onBreakpoint(Process.getCurrentThreadId(), DwarfHaltReason.BREAKPOINT, classMethod, newArgs, this);
+                    }
+
+                    let result = this[methodName].apply(this, arguments);
 
                     if (isDefined(userCallback) && userCallback.hasOwnProperty('onLeave')) {
                         const userOnLeave = (userCallback as ScriptInvocationListenerCallbacks).onLeave;

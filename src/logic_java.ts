@@ -254,7 +254,7 @@ export class LogicJava {
             }
         }
 
-        DwarfCore.getInstance().onBreakpoint(DwarfHaltReason.BREAKPOINT, classMethod, newArgs, this, condition);
+        DwarfCore.getInstance().onBreakpoint(Process.getCurrentThreadId(), DwarfHaltReason.BREAKPOINT, classMethod, newArgs, this, condition);
     };
 
     static jvmExplorer(what?: any) {
