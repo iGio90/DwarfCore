@@ -57,7 +57,7 @@ export class LogicInitialization {
                     'module': moduleInfo['name'], 'moduleBase': moduleInfo['base'], 'moduleEntry': moduleInfo['entry']
                 }));
 
-                DwarfCore.getInstance().onBreakpoint(Process.getCurrentThreadId(), DwarfHaltReason.BP_INITIALIZATION,
+                DwarfCore.getInstance().onBreakpoint(0, Process.getCurrentThreadId(), DwarfHaltReason.BP_INITIALIZATION,
                     this['context'].pc, this['context']);
             }
         }

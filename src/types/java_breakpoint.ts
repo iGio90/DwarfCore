@@ -18,12 +18,14 @@
 import { DwarfBreakpoint } from "./dwarf_breakpoint";
 import { DwarfBreakpointType, DwarfHaltReason } from "../consts";
 import { LogicJava } from "../logic_java";
+import { DwarfJavaHelper } from "../java";
 
 
 export class JavaBreakpoint extends DwarfBreakpoint {
     protected bpCallbacks: ScriptInvocationListenerCallbacks | Function | string;
+    private isSetupDone: boolean;
 
-    constructor(className:string, methodName: string = '$init', bpEnabled: boolean = true, bpCallbacks:ScriptInvocationListenerCallbacks | Function | string = 'breakpoint') {
+    constructor(className: string, methodName: string = '$init', bpEnabled: boolean = true, bpCallbacks: ScriptInvocationListenerCallbacks | Function | string = 'breakpoint') {
         trace('JavaBreakpoint()');
 
         if (!Java.available) {
@@ -38,88 +40,82 @@ export class JavaBreakpoint extends DwarfBreakpoint {
             throw new Error('Invalid methodName!');
         }
 
-        Java.performNow(() => {
-            try {
-                const testWrapper = Java.use(className);
-                if(isDefined(testWrapper) && !isDefined(testWrapper[methodName])) {
-                    throw new Error('JavaBreakpoint() => Method: "' + methodName + '" not in "' + className + '"!');
-                }
-            } catch(e) {
-                throw new Error('JavaBreakpoint() => ClassNotFound: "' + className + '" !');
-            }
-        });
-
         super(DwarfBreakpointType.JAVA, className + '.' + methodName, bpEnabled);
 
-        if(isDefined) {
+        if (isDefined) {
             this.bpCallbacks = bpCallbacks;
         } else {
             throw Error('JavaBreakpoint() callback missing');
         }
 
+        this.isSetupDone = false;
+        this.bpEnabled = false;
+
+        Java.performNow(() => {
+            try {
+                const testWrapper = Java.use(className);
+                if (isDefined(testWrapper) && isDefined(testWrapper[methodName])) {
+                    this.setup();
+                }
+            } catch (e) {
+                //this is used in classloader wich setups the bp later when class is loaded
+                DwarfJavaHelper.getInstance().addBreakpointToHook(this);
+            }
+        });
+    }
+
+    setup(): void {
         const self = this;
         Java.performNow(function () {
-            Dwarf.getJavaHelper().hookInJVM(className, methodName, function () {
-                try {
-                    let userCallback: ScriptInvocationListenerCallbacks | Function | string = self.bpCallbacks;
+            const className = (self.bpAddress as string).substr(0, (self.bpAddress as string).lastIndexOf('.'));
+            const methodName = (self.bpAddress as string).substr((self.bpAddress as string).lastIndexOf('.') + 1);
+            try {
+                Dwarf.getJavaHelper().hookInJVM(className, methodName, function () {
+                    try {
+                        self.bpActive = true;
+                        self.bpHits++;
+                        let userCallback: ScriptInvocationListenerCallbacks | Function | string = self.bpCallbacks;
 
-                    if (isFunction(userCallback)) {
-                        (userCallback as Function).apply(this, arguments);
-                    } else if (isDefined(userCallback) && userCallback.hasOwnProperty('onEnter')) {
-                        const userOnEnter = (userCallback as ScriptInvocationListenerCallbacks).onEnter;
-                        if (isFunction(userOnEnter)) {
-                            userOnEnter.apply(this, arguments);
-                        }
-                    }
-
-                    const classMethod = className + '.' + methodName;
-                    const newArgs = {};
-                    for (let i = 0; i < arguments.length; i++) {
-                        let value = '';
-                        if (arguments[i] === null || typeof arguments[i] === 'undefined') {
-                            value = 'null';
-                        } else {
-                            if (typeof arguments[i] === 'object') {
-                                value = JSON.stringify(arguments[i]);
-                                if (arguments[i]['className'] === '[B') {
-                                    value += ' (' + Java.use('java.lang.String').$new(arguments[i]) + ")";
-                                }
-                            } else {
-                                value = arguments[i].toString();
+                        if (isFunction(userCallback)) {
+                            (userCallback as Function).apply(this, arguments);
+                        } else if (isDefined(userCallback) && userCallback.hasOwnProperty('onEnter')) {
+                            const userOnEnter = (userCallback as ScriptInvocationListenerCallbacks).onEnter;
+                            if (isFunction(userOnEnter)) {
+                                userOnEnter.apply(this, arguments);
                             }
                         }
-                        newArgs[i] = {
-                            arg: value,
-                            name: this.overload.argumentTypes[i]['name'],
-                            handle: arguments[i],
-                            className: this.overload.argumentTypes[i]['className'],
+
+                        if (!isDefined(userCallback) || (isString(userCallback) && userCallback === 'breakpoint')) {
+                            Dwarf.onBreakpoint(self.bpID, self.threadId, DwarfHaltReason.BREAKPOINT, className + '.' + methodName, {}, this);
                         }
-                    }
 
-                    if (!isDefined(userCallback) || (isString(userCallback) && userCallback === 'breakpoint')) {
-                        Dwarf.onBreakpoint(Process.getCurrentThreadId(), DwarfHaltReason.BREAKPOINT, classMethod, newArgs, this);
-                    }
+                        let result = this[methodName].apply(this, arguments);
+                        //let result = Function.apply(null, arguments);
 
-                    let result = this[methodName].apply(this, arguments);
-
-                    if (isDefined(userCallback) && userCallback.hasOwnProperty('onLeave')) {
-                        const userOnLeave = (userCallback as ScriptInvocationListenerCallbacks).onLeave;
-                        if (isFunction(userOnLeave)) {
-                            userOnLeave.apply(this, result);
+                        if (isDefined(userCallback) && userCallback.hasOwnProperty('onLeave')) {
+                            const userOnLeave = (userCallback as ScriptInvocationListenerCallbacks).onLeave;
+                            if (isFunction(userOnLeave)) {
+                                userOnLeave.apply(this, result);
+                            }
                         }
+
+                        self.bpActive = false;
+                        //remove singleshots
+                        if (self.isSingleShot()) {
+                            Dwarf.getBreakpointManager().update();
+                        }
+
+                        return result;
+                    } catch (e) {
+                        console.log(e);
                     }
-
-                    return result;
-                } catch (e) {
-                    console.log(e);
-                }
-
-                //remove singleshots
-                if (self.isSingleShot()) {
-                    Dwarf.getBreakpointManager().update();
-                }
-            });
+                });
+            } catch (e) {
+                this.isSetupDone = false;
+            }
         });
+        this.isSetupDone = true;
+        this.bpEnabled = this.isSetupDone;
     }
 
     public setCallback(bpCallback: ScriptInvocationListenerCallbacks | Function | string): void {
@@ -128,5 +124,9 @@ export class JavaBreakpoint extends DwarfBreakpoint {
 
     public removeCallback(): void {
         this.bpCallbacks = null;
+    }
+
+    public isHooked(): boolean {
+        return this.isSetupDone;
     }
 }

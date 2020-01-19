@@ -291,13 +291,16 @@ export class DwarfCore {
         return send(message, data);
     }
 
-    onBreakpoint = (threadId:number, haltReason: DwarfHaltReason, address_or_class, context, java_handle?, condition?: Function) => {
+    onBreakpoint = (breakpointId:number, threadId:number, haltReason: DwarfHaltReason, address_or_class, context, java_handle?, condition?: Function) => {
         trace('DwarfCore::onBreakpoint()');
         //const tid = Process.getCurrentThreadId();
+
+        threadId = Process.getCurrentThreadId();
 
         logDebug('[' + threadId + '] breakpoint ' + address_or_class + ' - reason: ' + haltReason);
 
         const breakpointData = {
+            "bpid": breakpointId,
             "tid": threadId,
             "reason": haltReason
         };
@@ -318,7 +321,7 @@ export class DwarfCore {
 
                 logDebug('[' + threadId + '] sendInfos - preparing native backtrace');
 
-                breakpointData['backtrace'] = { 'bt': this.getApi().backtrace(context), 'type': 'native' };
+                breakpointData['backtrace'] = { 'bt': Dwarf.dwarfApi.backtrace(context), 'type': 'native' };
 
                 logDebug('[' + threadId + '] sendInfos - preparing context registers');
 
@@ -330,7 +333,7 @@ export class DwarfCore {
 
                     logDebug('[' + threadId + '] getting register information:', reg, val);
 
-                    const ts = this.getApi().getAddressTs(val);
+                    const ts = Dwarf.dwarfApi.getAddressTs(val);
                     isValidPtr = ts[0] > 0;
                     newCtx[reg] = {
                         'value': val,
@@ -363,21 +366,21 @@ export class DwarfCore {
 
                 logDebug('[' + threadId + '] sendInfos - preparing java backtrace');
 
-                breakpointData['backtrace'] = { 'bt': this.dwarfApi.javaBacktrace(), 'type': 'java' };
+                breakpointData['backtrace'] = { 'bt': Dwarf.dwarfApi.javaBacktrace(), 'type': 'java' };
             }
         }
 
-        let threadContext: ThreadContext = this.threadContexts[threadId.toString()];
+        let threadContext: ThreadContext = Dwarf.threadContexts[threadId.toString()];
 
         if (!isDefined(threadContext) && isDefined(context)) {
             threadContext = new ThreadContext(threadId);
             threadContext.context = context;
-            this.threadContexts[threadId.toString()] = threadContext;
+            Dwarf.threadContexts[threadId.toString()] = threadContext;
         }
 
         if (isDefined(condition)) {
             if (!condition.call(threadContext)) {
-                delete this.threadContexts[threadId.toString()];
+                delete Dwarf.threadContexts[threadId.toString()];
                 return;
             }
         }
@@ -390,7 +393,7 @@ export class DwarfCore {
             Dwarf.loopApi(threadId, threadContext);
 
             logDebug('[' + threadId + '] ThreadContext has been released');
-            Dwarf.loggedSend('release:::' + threadId + ':::' + haltReason);
+            Dwarf.sync({ threads: [], breakpoint: {} });
         }
     }
 

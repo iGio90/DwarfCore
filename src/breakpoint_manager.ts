@@ -67,11 +67,7 @@ export class DwarfBreakpointManager {
      * @param  {NativePointer|string} bpAddress
      * @param  {boolean} bpEnabled?
      */
-    public addBreakpoint = (
-        bpType: DwarfBreakpointType,
-        bpAddress: NativePointer | string,
-        bpEnabled?: boolean,
-        bpCallback?) => {
+    public addBreakpoint = (bpType: DwarfBreakpointType, bpAddress: NativePointer | string, bpEnabled?: boolean, bpCallback?) => {
 
         trace('DwarfBreakpointManager::addBreakpoint()');
 
@@ -94,11 +90,6 @@ export class DwarfBreakpointManager {
         throw new Error('DwarfBreakpointManager::addBreakpoint() -> Unknown BreakpointType!');
     }
 
-    /**
-     *
-     * @param  {NativePointer|string} bpAddress
-     * @param  {boolean} bpEnabled?
-     */
     public addNativeBreakpoint = (bpAddress: NativePointer | string, bpEnabled?: boolean): NativeBreakpoint => {
         trace('DwarfBreakpointManager::addNativeBreakpoint()');
 
@@ -124,10 +115,6 @@ export class DwarfBreakpointManager {
         }
     }
 
-    /**
-     * @param  {NativePointer|string} bpAddress
-     * @param  {number=(DwarfMemoryAccessType.READ|DwarfMemoryAccessType.WRITE} bpFlags
-     */
     public addMemoryBreakpoint = (bpAddress: NativePointer | string, bpFlags: number = (DwarfMemoryAccessType.READ | DwarfMemoryAccessType.WRITE), bpEnabled?: boolean) => {
         trace('DwarfBreakpointManager::addMemoryBreakpoint');
 
@@ -362,7 +349,7 @@ export class DwarfBreakpointManager {
         trace('DwarfBreakpointManager::update()');
         //remove singleshots
         this.dwarfBreakpoints = this.dwarfBreakpoints.filter((dwarfBreakpoint) => {
-            return !(dwarfBreakpoint.isSingleShot() && (dwarfBreakpoint.getHits() > 0));
+            return !(dwarfBreakpoint.isSingleShot() && (dwarfBreakpoint.getHits() > 0) && !dwarfBreakpoint.isActive());
         });
 
         //sync ui

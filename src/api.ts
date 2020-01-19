@@ -436,6 +436,7 @@ export class DwarfApi {
     }
 
     /**
+    *   TODO: this is used to populate ui we should remove it from api
      * Enumerate method for the given class
      */
     public enumerateJavaMethods = (className: string): void => {
@@ -452,8 +453,8 @@ export class DwarfApi {
                         "TOKEN").match(/\sTOKEN(.*)\(/)[1]);
                 });
                 const result = uniqueBy(parsedMethods);
-                Dwarf.loggedSend('enumerate_java_methods_complete:::' + className + ':::' +
-                    JSON.stringify(result));
+
+                Dwarf.sync({ class_methods: result });
             });
         }
     }

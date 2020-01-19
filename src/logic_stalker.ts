@@ -247,7 +247,7 @@ export class LogicStalker {
             stalkerInfo.context = context;
             stalkerInfo.lastContextAddress = context.pc;
 
-            DwarfCore.getInstance().onBreakpoint(DwarfHaltReason.STEP, pc, stalkerInfo.context, null);
+            DwarfCore.getInstance().onBreakpoint(0, Process.getCurrentThreadId(), DwarfHaltReason.STEP, pc, stalkerInfo.context, null);
 
             if (DEBUG) {
                 logDebug('[' + tid + '] callOut: ' + 'post onHook');

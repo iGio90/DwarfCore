@@ -29,6 +29,7 @@ export class DwarfBreakpoint {
     protected bpType: DwarfBreakpointType;
     protected bpAddress: NativePointer | string;
     protected bpSingleShot: boolean;
+    protected bpActive: boolean;
 
     /**
      * Creates an instance of DwarfBreakpoint.
@@ -49,6 +50,7 @@ export class DwarfBreakpoint {
         this.bpEnabled = bpEnabled;
         this.bpType = bpType;
         this.bpAddress = bpAddress;
+        this.bpActive = false;
     }
 
     public getID(): number {
@@ -149,12 +151,16 @@ export class DwarfBreakpoint {
     }
 
     public setThreadId(threadId: number | string) {
-        if(isString(threadId)) {
+        if (isString(threadId)) {
             threadId = parseInt((threadId as string), 10);
         }
 
         if (isNumber(threadId)) {
             this.threadId = (threadId as number);
         }
+    }
+
+    public isActive() {
+        return this.bpActive;
     }
 }

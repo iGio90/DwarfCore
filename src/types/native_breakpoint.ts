@@ -63,7 +63,7 @@ export class NativeBreakpoint extends DwarfBreakpoint {
 
             self.bpHits++;
 
-            DwarfCore.getInstance().onBreakpoint(self.threadId, DwarfHaltReason.BREAKPOINT, invocationContext.context.pc,
+            DwarfCore.getInstance().onBreakpoint(self.bpID, self.threadId, DwarfHaltReason.BREAKPOINT, invocationContext.context.pc,
                 invocationContext.context, null, self.bpCondition);
 
             if (self.isSingleShot()) {

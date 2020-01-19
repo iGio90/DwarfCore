@@ -233,6 +233,8 @@ export class MemoryBreakpoint extends DwarfBreakpoint {
         this.disable();
         this.bpHits++;
 
+        const self = this;
+
         const invocationListener = Interceptor.attach(fromPtr, function (args) {
             const invocationContext: InvocationContext = this;
             invocationListener.detach();
@@ -247,7 +249,7 @@ export class MemoryBreakpoint extends DwarfBreakpoint {
                 }
             } else {
                 //TODO: it halts only when no callback?
-                DwarfCore.getInstance().onBreakpoint(Process.getCurrentThreadId(), DwarfHaltReason.BREAKPOINT, invocationContext.context.pc, invocationContext.context);
+                DwarfCore.getInstance().onBreakpoint(self.bpID, Process.getCurrentThreadId(), DwarfHaltReason.BREAKPOINT, invocationContext.context.pc, invocationContext.context);
             }
 
             //reattach if not singleshot
