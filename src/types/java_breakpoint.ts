@@ -77,7 +77,10 @@ export class JavaBreakpoint extends DwarfBreakpoint {
                         let userCallback: ScriptInvocationListenerCallbacks | Function | string = self.bpCallbacks;
 
                         if (isFunction(userCallback)) {
-                            (userCallback as Function).apply(this, arguments);
+                            let userReturn = (userCallback as Function).apply(this, arguments);
+                            if(isDefined(userReturn) && userReturn == 1) {
+                                breakExecution = true;
+                            }
                         } else if (isDefined(userCallback) && userCallback.hasOwnProperty('onEnter')) {
                             const userOnEnter = (userCallback as ScriptInvocationListenerCallbacks).onEnter;
                             if (isFunction(userOnEnter)) {
