@@ -330,13 +330,15 @@ export class DwarfJavaHelper {
                         const overloads = javaWrapper[methodName].overloads;
                         for(let i in overloads) {
                             if(overloads[i].hasOwnProperty('argumentTypes')) {
-                                let argTypes = [];
-                                let args = [];
+                                const overload = javaWrapper[methodName].overloads[i];
+                                let types = [];
                                 for(let j in overloads[i].argumentTypes) {
-                                    argTypes.push(overloads[i].argumentTypes[j].className);
-                                    args.push('arg_' + j);
+                                    types.push( {name: overloads[i].argumentTypes[j].name, className: overloads[i].argumentTypes[j].className});
                                 }
-                                javaWrapper[methodName].overload.apply(this, argTypes).implementation = implementation;
+                                overload.implementation = function() {
+                                    this.types = types;
+                                    return implementation.apply(this, arguments);
+                                };
                             }
                         }
                         /*const overloadCount = javaWrapper[methodName].overloads.length;

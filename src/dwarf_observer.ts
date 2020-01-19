@@ -386,6 +386,14 @@ export class DwarfObserver {
         return false;
     }
 
+    public getSizes = () => {
+        const retSizes = [];
+        this.allowedTypes.forEach(type => {
+            retSizes.push({ typeName: type, typeSize: this.getSizeForType(type) });
+        });
+        Dwarf.sync({ observer_sizes: retSizes });
+    }
+
     /**
      * Helper to get our locations in MemoryAccessMonitor
      * @returns Array
