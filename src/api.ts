@@ -425,17 +425,6 @@ export class DwarfApi {
     }
 
     /**
-     * TODO: this is used to populate ui we should remove it from api
-     * Enumerate java classes
-     * @param useCache false by default
-     */
-    public enumerateJavaClasses = (useCache: boolean = false) => {
-        trace('DwarfApi::enumerateJavaClasses()');
-
-        return DwarfJavaHelper.getInstance().enumerateLoadedClasses(useCache);
-    }
-
-    /**
     *   TODO: this is used to populate ui we should remove it from api
      * Enumerate method for the given class
      */

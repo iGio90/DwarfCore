@@ -27,13 +27,13 @@ interface DwarfJavaClassInfo {
 export class DwarfJavaHelper {
     private static instanceRef: DwarfJavaHelper;
 
-    protected classCache:Array<string>;//{ [index: string]: DwarfJavaClassInfo };
+    protected classCache: Array<string>;//{ [index: string]: DwarfJavaClassInfo };
     protected javaClassLoaderCallbacks: { [index: string]: ScriptInvocationListenerCallbacks | Function | string };
     protected libraryLoaderCallbacks: { [index: string]: ScriptInvocationListenerCallbacks | Function | string };
     protected oldOverloads: { [index: string]: Function | Array<Function> };
     protected sdk_version: number;
     protected initDone: boolean;
-    protected breakpointsToHook:Array<JavaBreakpoint>;
+    protected breakpointsToHook: Array<JavaBreakpoint>;
 
     private constructor() {
         if (DwarfJavaHelper.instanceRef) {
@@ -84,12 +84,12 @@ export class DwarfJavaHelper {
 
             ClassLoader.loadClass.overload('java.lang.String', 'boolean').implementation = function (className: string, resolve: boolean) {
                 try {
-                    if(self.classCache.indexOf(className) === -1) {
+                    if (self.classCache.indexOf(className) === -1) {
                         self.classCache.push(className);
 
-                        if(self.breakpointsToHook.length > 0) {
+                        if (self.breakpointsToHook.length > 0) {
                             self.breakpointsToHook.forEach(javaBreakpoint => {
-                                if((javaBreakpoint.getAddress() as string).indexOf(className) !== -1) {
+                                if ((javaBreakpoint.getAddress() as string).indexOf(className) !== -1) {
                                     javaBreakpoint.setup();
                                     Dwarf.sync({ breakpoints: DwarfBreakpointManager.getInstance().getBreakpoints() });
                                 }
@@ -250,7 +250,7 @@ export class DwarfJavaHelper {
     }
 
     getClassMethods = (className: string): Array<string> => {
-        //trace('DwarfJavaHelper::getClassMethods()');
+        trace('DwarfJavaHelper::getClassMethods()');
 
         this.checkRequirements();
 
@@ -321,21 +321,21 @@ export class DwarfJavaHelper {
         }
 
         const self = this;
-        Java.performNow(function() {
+        Java.performNow(function () {
             try {
                 const javaWrapper = Java.use(className);
 
                 if (isDefined(javaWrapper) && isDefined(javaWrapper[methodName])) {
                     try {
                         const overloads = javaWrapper[methodName].overloads;
-                        for(let i in overloads) {
-                            if(overloads[i].hasOwnProperty('argumentTypes')) {
+                        for (let i in overloads) {
+                            if (overloads[i].hasOwnProperty('argumentTypes')) {
                                 const overload = javaWrapper[methodName].overloads[i];
                                 let types = [];
-                                for(let j in overloads[i].argumentTypes) {
-                                    types.push( {name: overloads[i].argumentTypes[j].name, className: overloads[i].argumentTypes[j].className});
+                                for (let j in overloads[i].argumentTypes) {
+                                    types.push({ name: overloads[i].argumentTypes[j].name, className: overloads[i].argumentTypes[j].className });
                                 }
-                                overload.implementation = function() {
+                                overload.implementation = function () {
                                     this.types = types;
                                     return implementation.apply(this, arguments);
                                 };
@@ -486,7 +486,7 @@ export class DwarfJavaHelper {
 
     }
 
-    addBreakpointToHook = (javaBreakpoint:JavaBreakpoint) => {
+    addBreakpointToHook = (javaBreakpoint: JavaBreakpoint) => {
         this.breakpointsToHook.push(javaBreakpoint);
     }
 

@@ -35,7 +35,7 @@ import { DwarfStalker } from "./stalker";
 export class DwarfCore {
     PROC_RESUMED = false;
 
-    threadContexts: { [index: string]:ThreadContext } = {};
+    threadContexts: { [index: string]: ThreadContext } = {};
 
     modulesBlacklist = [];
 
@@ -45,12 +45,12 @@ export class DwarfCore {
     private dwarfBreakpointManager: DwarfBreakpointManager;
     private dwarfFS: DwarfFS;
     private dwarfObserver: DwarfObserver;
-    private dwarfJavaHelper:DwarfJavaHelper;
-    private dwarfStalker:DwarfStalker;
+    private dwarfJavaHelper: DwarfJavaHelper;
+    private dwarfStalker: DwarfStalker;
 
     private _systemPropertyGet: NativeFunction;
     private static instanceRef: DwarfCore;
-    private breakAtStart:boolean;
+    private breakAtStart: boolean;
 
     //Singleton class
     private constructor() {
@@ -105,15 +105,15 @@ export class DwarfCore {
         return this.dwarfFS;
     }
 
-    getJavaHelper = ():DwarfJavaHelper => {
+    getJavaHelper = (): DwarfJavaHelper => {
         trace('Dwarf::getJavaHelper()');
-        if(this.dwarfJavaHelper === null) {
+        if (this.dwarfJavaHelper === null) {
             throw new Error('JavaHelper not initialized!');
         }
         return this.dwarfJavaHelper;
     }
 
-    getStalker = ():DwarfStalker => {
+    getStalker = (): DwarfStalker => {
         trace('Dwarf::getStalker()');
         return this.dwarfStalker;
     }
@@ -144,7 +144,7 @@ export class DwarfCore {
             DEBUG = true;
         }
 
-        if(breakStart) {
+        if (breakStart) {
             this.breakAtStart = true;
         }
 
@@ -169,34 +169,14 @@ export class DwarfCore {
             'threads': Process.enumerateThreads()
         }
         send('coresync:::' + JSON.stringify(initData));
-
-    }
-
-    start = () => {
         //Init JavaHelper
         try {
             this.dwarfJavaHelper = DwarfJavaHelper.getInstance();
-        } catch(e) {
+        } catch (e) {
             logDebug(e);
         }
-
-        if (Java.available && this.processInfo.wasSpawned && this.breakAtStart) {
-            //android init breakpoint
-            if (this.getAndroidApiLevel() >= 23) {
-                const initBreakpoint = this.getBreakpointManager().addJavaBreakpoint('com.android.internal.os.RuntimeInit', 'commonInit');
-                if(isDefined(initBreakpoint)) {
-                    initBreakpoint.setSingleShot(true);
-                }
-            } else {
-                const initBreakpoint = this.getBreakpointManager().addJavaBreakpoint('android.app.Application', 'onCreate');
-                if(isDefined(initBreakpoint)) {
-                    initBreakpoint.setSingleShot(true);
-                }
-            }
-        }
-
-        if(Java.available) {
-        LogicJava.init();
+        if (Java.available) {
+            LogicJava.init();
         }
 
         LogicInitialization.init();
@@ -226,6 +206,24 @@ export class DwarfCore {
         }
 
         Process.setExceptionHandler(this.handleException);
+    }
+
+    start = () => {
+        //attach init breakpoints
+        if (Java.available && this.processInfo.wasSpawned && this.breakAtStart) {
+            //android init breakpoint
+            if (this.getAndroidApiLevel() >= 23) {
+                const initBreakpoint = this.getBreakpointManager().addJavaBreakpoint('com.android.internal.os.RuntimeInit', 'commonInit');
+                if (isDefined(initBreakpoint)) {
+                    initBreakpoint.setSingleShot(true);
+                }
+            } else {
+                const initBreakpoint = this.getBreakpointManager().addJavaBreakpoint('android.app.Application', 'onCreate');
+                if (isDefined(initBreakpoint)) {
+                    initBreakpoint.setSingleShot(true);
+                }
+            }
+        }
 
         if (Process.platform === 'windows') {
             // break proc at main
@@ -245,7 +243,7 @@ export class DwarfCore {
 
                     if (isDefined(address)) {
                         const initBreakpoint = DwarfCore.getInstance().getBreakpointManager().addNativeBreakpoint(address, true);
-                        if(isDefined(initBreakpoint)) {
+                        if (isDefined(initBreakpoint)) {
                             initBreakpoint.setSingleShot(true);
                         }
                         invocationListener.detach();
@@ -291,7 +289,7 @@ export class DwarfCore {
         return send(message, data);
     }
 
-    onBreakpoint = (breakpointId:number, threadId:number, haltReason: DwarfHaltReason, address_or_class, context, java_handle?, condition?: Function) => {
+    onBreakpoint = (breakpointId: number, threadId: number, haltReason: DwarfHaltReason, address_or_class, context, java_handle?, condition?: Function) => {
         trace('DwarfCore::onBreakpoint()');
         //const tid = Process.getCurrentThreadId();
 
