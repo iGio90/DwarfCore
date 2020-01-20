@@ -249,7 +249,7 @@ export class DwarfJavaHelper {
         this.classCache = new Array<string>();
     }
 
-    getClassMethods = (className: string): Array<string> => {
+    getClassMethods = (className: string, syncUi: boolean = false): Array<string> => {
         trace('DwarfJavaHelper::getClassMethods()');
 
         this.checkRequirements();
@@ -266,13 +266,20 @@ export class DwarfJavaHelper {
                     parsedMethods.push(method.toString().replace(className + ".",
                         "TOKEN").match(/\sTOKEN(.*)\(/)[1]);
                 });
-
-                return new Array(uniqueBy(parsedMethods));
+                if (syncUi) {
+                    Dwarf.sync({ class_methods: uniqueBy(parsedMethods) });
+                } else {
+                    return new Array(uniqueBy(parsedMethods));
+                }
             } catch (e) {
                 logDebug('DwarfJavaHelper::getClassMethods() Failed for : "' + className + '" !');
             }
         });
-        return new Array<string>();
+        if (syncUi) {
+            Dwarf.sync({ class_methods: [] });
+        } else {
+            return new Array();
+        }
     }
 
     enumerateLoadedClasses = (useCache: boolean = false) => {
