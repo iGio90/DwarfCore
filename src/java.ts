@@ -254,6 +254,8 @@ export class DwarfJavaHelper {
 
         this.checkRequirements();
 
+        const parsedMethods:Array<string> = new Array<string>();
+
         Java.performNow(() => {
             try {
                 // 0xdea code -> https://github.com/0xdea/frida-scripts/blob/master/raptor_frida_android_trace.js
@@ -261,24 +263,26 @@ export class DwarfJavaHelper {
                 const methods = javaWrapper.class.getDeclaredMethods();
                 javaWrapper.$dispose();
 
-                const parsedMethods = [];
                 methods.forEach(function (method) {
                     parsedMethods.push(method.toString().replace(className + ".",
                         "TOKEN").match(/\sTOKEN(.*)\(/)[1]);
                 });
-                if (syncUi) {
-                    Dwarf.sync({ class_methods: uniqueBy(parsedMethods) });
-                } else {
-                    return new Array(uniqueBy(parsedMethods));
-                }
             } catch (e) {
                 logDebug('DwarfJavaHelper::getClassMethods() Failed for : "' + className + '" !');
             }
         });
-        if (syncUi) {
-            Dwarf.sync({ class_methods: [] });
+        if (parsedMethods.length > 0) {
+            if (syncUi) {
+                return Dwarf.sync({ class_methods: uniqueBy(parsedMethods) });
+            } else {
+                return new Array(uniqueBy(parsedMethods));
+            }
         } else {
-            return new Array();
+            if (syncUi) {
+                return Dwarf.sync({ class_methods: [] });
+            } else {
+                return new Array();
+            }
         }
     }
 
