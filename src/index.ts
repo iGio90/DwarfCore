@@ -111,13 +111,17 @@ rpc.exports = {
             return JSON.stringify(moduleInfo);
         });
     },
-    fetchmem: function (address) {
+    fetchmem: function (address, length=0) {
         var nativePointer = ptr(address);
         return new Promise(function (resolve) {
             var memoryRange = Process.findRangeByAddress(nativePointer);
             if (isDefined(memoryRange)) {
                 if (memoryRange && memoryRange.hasOwnProperty('protection') && (memoryRange.protection.indexOf('r') === 0)) {
-                    memoryRange['data'] = ba2hex(memoryRange.base.readByteArray(memoryRange.size) || new ArrayBuffer(0));
+                    if(!length) {
+                        memoryRange['data'] = ba2hex(memoryRange.base.readByteArray(memoryRange.size) || new ArrayBuffer(0));
+                    } else {
+                        memoryRange['data'] = ba2hex(memoryRange.base.readByteArray(length) || new ArrayBuffer(0));
+                    }
                     resolve(memoryRange);
                 } else {
                     resolve('Memory not readable!');
