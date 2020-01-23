@@ -22,8 +22,8 @@ import { DwarfCore } from "../dwarf";
 
 export class NativeBreakpoint extends DwarfBreakpoint {
     protected bpCallbacks: InvocationListenerCallbacks | Function | null;
-    protected bpDebugSymbol:DebugSymbol;
-    protected bpCondition:Function;
+    protected bpDebugSymbol: DebugSymbol;
+    protected bpCondition: Function;
 
     /**
      * Creates an instance of DwarfBreakpoint.
@@ -31,7 +31,7 @@ export class NativeBreakpoint extends DwarfBreakpoint {
      * @param  {DwarfBreakpointType} bpType
      * @param  {NativePointer|string} bpAddress
      */
-    constructor(bpAddress: NativePointer | string, bpEnabled?: boolean, bpCallback?: InvocationListenerCallbacks | Function) {
+    constructor(bpAddress: NativePointer | string, bpEnabled?: boolean, bpCallback?: ScriptInvocationListenerCallbacks | Function) {
         let natPtr;
         if (typeof bpAddress === 'string') {
             natPtr = ptr(bpAddress);
@@ -56,21 +56,104 @@ export class NativeBreakpoint extends DwarfBreakpoint {
         this.bpCallbacks = bpCallback || null;
 
         const self = this;
-        const invocationListener = Interceptor.attach(natPtr, function () {
-            const invocationContext = this;
-            invocationListener.detach();
-            Interceptor.flush();
 
-            self.bpHits++;
+        if (!isDefined(this.bpCallbacks) || (isString(this.bpCallbacks) && this.bpCallbacks === 'breakpoint')) {
+            const invocationListener = Interceptor.attach(natPtr, function () {
+                const invocationContext = this;
 
-            DwarfCore.getInstance().onBreakpoint(self.bpID, self.threadId, DwarfHaltReason.BREAKPOINT, invocationContext.context.pc,
-                invocationContext.context, null, self.bpCondition);
+                self.bpActive = true;
+                self.bpHits++;
 
-            if (self.isSingleShot()) {
-                invocationListener.detach();
-                DwarfCore.getInstance().getBreakpointManager().update();
-            }
-        });
+                DwarfCore.getInstance().onBreakpoint(self.bpID, self.threadId, DwarfHaltReason.BREAKPOINT, invocationContext.context.pc,
+                    invocationContext.context, null, self.bpCondition);
+
+                self.bpActive = false;
+                if (self.isSingleShot()) {
+                    invocationListener.detach();
+                    Interceptor.flush();
+                    DwarfCore.getInstance().getBreakpointManager().update();
+                }
+            });
+        } else if (isDefined(this.bpCallbacks) && isFunction(this.bpCallbacks)) {
+            const invocationListener = Interceptor.attach(natPtr, function () {
+                const invocationContext = this;
+                let breakExecution = false;
+
+                self.bpActive = true;
+                self.bpHits++;
+
+                if (isDefined(self.bpCallbacks)) {
+                    const userReturn = (self.bpCallbacks as Function).apply(this, arguments);
+                    if (isDefined(userReturn) && userReturn == 1) {
+                        breakExecution = true;
+                    }
+                }
+
+                if (breakExecution) {
+                    DwarfCore.getInstance().onBreakpoint(self.bpID, self.threadId, DwarfHaltReason.BREAKPOINT, invocationContext.context.pc,
+                        invocationContext.context, null, self.bpCondition);
+                }
+
+                self.bpActive = false;
+                if (self.isSingleShot()) {
+                    invocationListener.detach();
+                    Interceptor.flush();
+                    DwarfCore.getInstance().getBreakpointManager().update();
+                }
+            });
+        } else if (isDefined(this.bpCallbacks) && (this.bpCallbacks.hasOwnProperty('onEnter') || this.bpCallbacks.hasOwnProperty('onLeave'))) {
+            const invocationListener = Interceptor.attach(natPtr, {
+                onEnter: function () {
+                    const invocationContext = this;
+                    let breakExecution = false;
+
+                    self.bpActive = true;
+                    self.bpHits++;
+
+                    if (isDefined(self.bpCallbacks) && self.bpCallbacks.hasOwnProperty('onEnter')) {
+                        const userOnEnter = (self.bpCallbacks as ScriptInvocationListenerCallbacks).onEnter;
+                        if (isFunction(userOnEnter)) {
+                            let userReturn = userOnEnter.apply(this, arguments);
+                            if (isDefined(userReturn) && userReturn == 1) {
+                                breakExecution = true;
+                            }
+                        }
+                    }
+
+                    if (breakExecution) {
+                        DwarfCore.getInstance().onBreakpoint(self.bpID, self.threadId, DwarfHaltReason.BREAKPOINT, invocationContext.context.pc,
+                            invocationContext.context, null, self.bpCondition);
+                    }
+                },
+                onLeave: function (result) {
+                    const invocationContext = this;
+                    let breakExecution = false;
+
+                    if (isDefined(self.bpCallbacks) && self.bpCallbacks.hasOwnProperty('onLeave')) {
+                        const userOnLeave = (self.bpCallbacks as ScriptInvocationListenerCallbacks).onLeave;
+                        if (isFunction(userOnLeave)) {
+                            let userReturn = userOnLeave.apply(this, result);
+                            if (isDefined(userReturn) && userReturn == 1) {
+                                breakExecution = true;
+                            }
+                        }
+                    }
+
+                    if (breakExecution) {
+                        DwarfCore.getInstance().onBreakpoint(self.bpID, self.threadId, DwarfHaltReason.BREAKPOINT, invocationContext.context.pc,
+                            invocationContext.context, null, self.bpCondition);
+                    }
+
+                    self.bpActive = false;
+                    if (self.isSingleShot()) {
+                        invocationListener.detach();
+                        Interceptor.flush();
+                        DwarfCore.getInstance().getBreakpointManager().update();
+                    }
+                    return result;
+                }
+            });
+        }
     }
 
     public setCallback(bpCallback: InvocationListenerCallbacks | Function | null): void {
@@ -82,10 +165,10 @@ export class NativeBreakpoint extends DwarfBreakpoint {
     }
 
     public setCondition(bpCondition: string | Function): void {
-        if(typeof bpCondition === 'string') {
+        if (typeof bpCondition === 'string') {
             this.bpCondition = new Function(bpCondition);
         } else {
-            if(typeof bpCondition === 'function') {
+            if (typeof bpCondition === 'function') {
                 this.bpCondition = bpCondition;
             } else {
                 logDebug('NativeBreakpoint::setCondition() -> Unknown bpCondition!');
@@ -93,11 +176,11 @@ export class NativeBreakpoint extends DwarfBreakpoint {
         }
     }
 
-    public getCondition():Function {
+    public getCondition(): Function {
         return this.bpCondition;
     }
 
-    public removeCondition():void {
+    public removeCondition(): void {
         this.bpCondition = null;
     }
 }

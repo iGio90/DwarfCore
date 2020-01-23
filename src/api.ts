@@ -221,20 +221,7 @@ export class DwarfApi {
             if (!checkNativePointer(bpAddress)) {
                 throw new Error('DwarfApi::addNativeBreakpoint() => Invalid Address!');
             }
-            const nativeBreakpoint = DwarfBreakpointManager.getInstance().addNativeBreakpoint(bpAddress, true);
-            if (isDefined(nativeBreakpoint) && isDefined(bpCallback)) {
-                if (isFunction(bpCallback)) {
-                    nativeBreakpoint.setCallback(bpCallback as Function);
-                } else if (isValidFridaListener(bpCallback)) {
-                    nativeBreakpoint.setCallback(bpCallback as InvocationListenerCallbacks);
-                } else {
-                    if (isString(bpCallback)) {
-                        //TODO: add func wich converts string to function
-                    } else {
-                        throw new Error('DwarfApi::addNativeBreakpoint() => Unable to set callback!');
-                    }
-                }
-            }
+            const nativeBreakpoint = DwarfBreakpointManager.getInstance().addNativeBreakpoint(bpAddress, true, bpCallback);
             return nativeBreakpoint;
         } catch (error) {
             logErr('DwarfApi::addNativeBreakpoint()', error);
@@ -255,23 +242,6 @@ export class DwarfApi {
 
         try {
             const javaBreakpoint = DwarfBreakpointManager.getInstance().addJavaBreakpoint(className, methodName, true, bpCallback);
-
-            if (isDefined(javaBreakpoint) && isDefined(bpCallback)) {
-                if (isFunction(bpCallback)) {
-                    javaBreakpoint.setCallback(bpCallback as Function);
-                } else if (isValidFridaListener(bpCallback)) {
-                    javaBreakpoint.setCallback(bpCallback as ScriptInvocationListenerCallbacks);
-                } else {
-                    if (isString(bpCallback)) {
-                        //TODO: add func wich converts string to function
-                        if(bpCallback === 'breakpoint') {
-                            javaBreakpoint.setCallback('breakpoint');
-                        }
-                    } else {
-                        throw new Error('DwarfApi::addJavaBreakpoint() => Unable to set callback!');
-                    }
-                }
-            }
             return javaBreakpoint;
         } catch (error) {
             logErr('DwarfApi::addNativeBreakpoint()', error);

@@ -255,6 +255,7 @@ export class DwarfCore {
 
     handleException = (exception: ExceptionDetails) => {
         trace('DwarfCore::handleException()');
+
         if (DEBUG) {
             let dontLog = false;
             if (Process.platform === 'windows') {

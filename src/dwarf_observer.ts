@@ -26,7 +26,7 @@ export interface DwarfObserverLocation {
     type: string;
     mode: string;
     handler: string | Function;
-    storedValue: ArrayBuffer;
+    storedValue: any;
     event: string;
     fromPtr: NativePointer;
 }
@@ -94,19 +94,9 @@ export class DwarfObserver {
 
         //check name
         for (let observeLocation of this.observeLocations) {
-            if (observeLocation.name.toLowerCase() === name.toLowerCase()) {
-                if(observeLocation.name.indexOf('#') != -1) {
-                    let counter:any = observeLocation.name.split('#')[1];
-                    try {
-                        counter = parseInt(counter, 10);
-                        name = name.substr(0, name.lastIndexOf('#'));
-                        name = name + '#' + counter.toString();
-                    } catch(e) {
-                        name = name + '#1';
-                    }
-                } else {
-                    name = name + '#1';
-                }
+            if (observeLocation.address.toString() == npAddress.toString()) {
+                logDebug('DwarfObserver::addLocation() => Address already exists!');
+                return;
             }
         }
 
@@ -214,7 +204,7 @@ export class DwarfObserver {
         return false;
     }
 
-    removeAll = ():boolean => {
+    removeAll = (): boolean => {
         this.observeLocations = new Array<DwarfObserverLocation>();
 
         DwarfCore.getInstance().getBreakpointManager().updateMemoryBreakpoints();
@@ -305,6 +295,8 @@ export class DwarfObserver {
 
                     }
                 }
+
+                DwarfCore.getInstance().getBreakpointManager().updateMemoryBreakpoints();
             }
         }
     }

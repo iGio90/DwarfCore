@@ -90,7 +90,7 @@ export class DwarfBreakpointManager {
         throw new Error('DwarfBreakpointManager::addBreakpoint() -> Unknown BreakpointType!');
     }
 
-    public addNativeBreakpoint = (bpAddress: NativePointer | string, bpEnabled?: boolean): NativeBreakpoint => {
+    public addNativeBreakpoint = (bpAddress: NativePointer | string, bpEnabled?: boolean, bpCallback?): NativeBreakpoint => {
         trace('DwarfBreakpointManager::addNativeBreakpoint()');
 
         bpAddress = makeNativePointer(bpAddress);
@@ -102,7 +102,7 @@ export class DwarfBreakpointManager {
         this.checkExists(bpAddress);
 
         try {
-            const nativeBreakpoint = new NativeBreakpoint(bpAddress, bpEnabled);
+            const nativeBreakpoint = new NativeBreakpoint(bpAddress, bpEnabled, bpCallback);
             if (isDefined(nativeBreakpoint)) {
                 this.dwarfBreakpoints.push(nativeBreakpoint);
                 this.update();
@@ -110,13 +110,13 @@ export class DwarfBreakpointManager {
             }
             return null;
         } catch (error) {
-            logErr('DwarfBreakpointManager::addMemoryBreakpoint', error);
+            logDebug('DwarfBreakpointManager::addNativeBreakpoint()', error);
             return null;
         }
     }
 
     public addMemoryBreakpoint = (bpAddress: NativePointer | string, bpFlags: number = (DwarfMemoryAccessType.READ | DwarfMemoryAccessType.WRITE), bpEnabled?: boolean) => {
-        trace('DwarfBreakpointManager::addMemoryBreakpoint');
+        trace('DwarfBreakpointManager::addMemoryBreakpoint()');
 
         this.checkExists(bpAddress);
 
@@ -305,26 +305,30 @@ export class DwarfBreakpointManager {
 
         MemoryAccessMonitor.disable();
 
+        const self = this;
+
         //Get Watchlocations
         let memoryBreakpoints: Array<MemoryAccessRange> = DwarfObserver.getInstance().getLocationsInternal();
 
         //append our membreakpoints
-        for (let memBreakpoint of this.dwarfBreakpoints) {
+        for (let memBreakpoint of self.dwarfBreakpoints) {
             if (memBreakpoint.getType() === DwarfBreakpointType.MEMORY) {
                 if (memBreakpoint.isEnabled()) {
                     memoryBreakpoints.push({ 'base': (memBreakpoint.getAddress() as NativePointer), 'size': 1 });
                 }
             }
         }
+        console.log(JSON.stringify(memoryBreakpoints));
         if (memoryBreakpoints.length > 0) {
+            console.log('MemMonitor: enabled');
             MemoryAccessMonitor.enable(memoryBreakpoints, { onAccess: this.handleMemoryBreakpoints });
         }
     }
 
-    public handleMemoryBreakpoints = (details: /*ExceptionDetails |*/ MemoryAccessDetails) => {
+    public handleMemoryBreakpoints = (details: MemoryAccessDetails) => {
         trace('DwarfBreakpointManager::handleMemoryBreakpoints()');
 
-        const memoryAddress = (details as MemoryAccessDetails).address;
+        const memoryAddress = details.address;
         const dwarfBreakpoint = this.getBreakpointByAddress(memoryAddress, true, DwarfBreakpointType.MEMORY);
 
         //not in breakpoints
