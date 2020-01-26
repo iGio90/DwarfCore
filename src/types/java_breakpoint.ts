@@ -71,6 +71,7 @@ export class JavaBreakpoint extends DwarfBreakpoint {
                 Dwarf.getJavaHelper().hookInJVM(className, methodName, function () {
                     try {
                         const types = this.types;
+                        const newArgs = [].slice.call(arguments);
 
                         self.bpActive = true;
                         let breakExecution = false;
@@ -78,16 +79,17 @@ export class JavaBreakpoint extends DwarfBreakpoint {
                         let userCallback: ScriptInvocationListenerCallbacks | Function | string = self.bpCallbacks;
 
                         if (isFunction(userCallback)) {
-                            let userReturn = (userCallback as Function).apply(this, arguments);
-                            if(isDefined(userReturn) && userReturn == 1) {
+                            let userReturn = (userCallback as Function).apply(this, newArgs);
+                            if (isDefined(userReturn) && userReturn == 1) {
                                 breakExecution = true;
                             }
                         } else if (isDefined(userCallback) && userCallback.hasOwnProperty('onEnter')) {
                             const userOnEnter = (userCallback as ScriptInvocationListenerCallbacks).onEnter;
                             if (isFunction(userOnEnter)) {
                                 let userReturn = 0;
-                                userReturn = userOnEnter.apply(this, arguments);
-                                if(isDefined(userReturn) && userReturn == 1) {
+                                userReturn = userOnEnter.apply(this, newArgs);
+
+                                if (isDefined(userReturn) && userReturn == 1) {
                                     breakExecution = true;
                                 }
                             }
@@ -95,12 +97,11 @@ export class JavaBreakpoint extends DwarfBreakpoint {
 
                         let breakpointInfo = [];
 
-                        for(let i in arguments) {
+                        for (let i in newArgs) {
                             breakpointInfo.push({
-                                value: arguments[i],
+                                value: newArgs[i],
                                 type: types[i]
                             });
-                            //newArgs[i] = Java.use(types[i]).$new(newArgs[i]);
                         }
 
                         if (!isDefined(userCallback) || (isString(userCallback) && userCallback === 'breakpoint') || breakExecution) {
@@ -108,7 +109,7 @@ export class JavaBreakpoint extends DwarfBreakpoint {
                         }
 
                         //TODO: arguments not changed
-                        let result = this[methodName].apply(this, arguments);
+                        let result = this[methodName].apply(this, newArgs);
 
                         if (isDefined(userCallback) && userCallback.hasOwnProperty('onLeave')) {
                             const userOnLeave = (userCallback as ScriptInvocationListenerCallbacks).onLeave;

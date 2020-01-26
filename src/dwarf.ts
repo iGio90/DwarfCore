@@ -494,4 +494,20 @@ export class DwarfCore {
         trace('DwarfCore::getAndroidApiLevel()');
         return parseInt(this.getAndroidSystemProperty('ro.build.version.sdk'), 10);
     }
+
+    memoryScan = (startAddress, size, pattern) => {
+        const self = this;
+        startAddress = makeNativePointer(startAddress);
+        Memory.scan(startAddress, size, pattern, {
+            onMatch: (foundAddress, foundSize) => {
+                self.sync({ search_result: { address: foundAddress, size: foundSize }});
+            },
+            onComplete: () => {
+                self.sync({ search_finished: true });
+            },
+            onError: (reason) => {
+                self.sync({ search_error: reason });
+            }
+        });
+    }
 }

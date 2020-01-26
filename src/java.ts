@@ -143,8 +143,12 @@ export class DwarfJavaHelper {
             System.loadLibrary.implementation = function (library: string) {
                 try {
                     let userCallback: ScriptInvocationListenerCallbacks | Function | string = null;
-                    //strip path
-                    const libraryName = library.substr(library.lastIndexOf('/') + 1);
+
+                    let libraryName = library;
+                    if(libraryName.indexOf('/') != -1) {
+                        libraryName = libraryName.substring(libraryName.lastIndexOf('/') + 1);
+                    }
+
                     if (self.libraryLoaderCallbacks.hasOwnProperty(libraryName)) {
                         userCallback = self.libraryLoaderCallbacks[libraryName];
                     }
@@ -171,27 +175,29 @@ export class DwarfJavaHelper {
                         Dwarf.onBreakpoint(DwarfHaltReason.MODULE_LOADED, library, {}, this);
                     }
 
-                    const procModule = Process.findModuleByName(libraryName);
+                    Dwarf.sync({ module_loaded: library });
+
+                    /*const procModule = Process.findModuleByName(libraryName);
                     if (isDefined(procModule)) {
                         let moduleInfo = Object.assign({ imports: [], exports: [], symbols: [] }, procModule);
                         moduleInfo.imports = procModule.enumerateImports();
                         moduleInfo.exports = procModule.enumerateExports();
                         moduleInfo.symbols = procModule.enumerateSymbols();
                         Dwarf.sync({ modules: moduleInfo });
-                    }
-
+                    }*/
                     return loaded;
                 } catch (e) {
-                    logDebug(e);
-                    throw e;
+                   logDebug(e);
                 }
             }
 
             System.load.implementation = function (library: string) {
                 try {
                     let userCallback: ScriptInvocationListenerCallbacks | Function | string = null;
-                    //strip path
-                    const libraryName = library.substr(library.lastIndexOf('/') + 1);
+                    let libraryName = library;
+                    if(libraryName.indexOf('/') != -1) {
+                        libraryName = libraryName.substring(libraryName.lastIndexOf('/') + 1);
+                    }
                     if (self.libraryLoaderCallbacks.hasOwnProperty(libraryName)) {
                         userCallback = self.libraryLoaderCallbacks[libraryName];
                     }
@@ -218,19 +224,19 @@ export class DwarfJavaHelper {
                         Dwarf.onBreakpoint(DwarfHaltReason.MODULE_LOADED, library, {}, this);
                     }
 
-                    const procModule = Process.findModuleByName(libraryName);
+                    /*const procModule = Process.findModuleByName(libraryName);
                     if (isDefined(procModule)) {
                         let moduleInfo = Object.assign({ imports: [], exports: [], symbols: [] }, procModule);
                         moduleInfo.imports = procModule.enumerateImports();
                         moduleInfo.exports = procModule.enumerateExports();
                         moduleInfo.symbols = procModule.enumerateSymbols();
                         Dwarf.sync({ modules: moduleInfo });
-                    }
+                    }*/
+                    Dwarf.sync({ module_loaded: library });
 
                     return loaded;
                 } catch (e) {
                     logDebug(e);
-                    throw e;
                 }
             }
         });
@@ -254,7 +260,7 @@ export class DwarfJavaHelper {
 
         this.checkRequirements();
 
-        const parsedMethods:Array<string> = new Array<string>();
+        const parsedMethods: Array<string> = new Array<string>();
 
         Java.performNow(() => {
             try {
@@ -346,10 +352,10 @@ export class DwarfJavaHelper {
                                 for (let j in overload.argumentTypes) {
                                     parameters.push(overloads[i].argumentTypes[j].className);
                                 }
-                                javaWrapper[methodName].overloads[i].implementation = function() {
+
+                                javaWrapper[methodName].overloads[i].implementation = function () {
                                     this.types = parameters;
-                                    this.arguments = [].slice.call(arguments);
-                                    return implementation.apply(this, this.arguments);
+                                    return implementation.apply(this, arguments);
                                 };
                             }
                         }
