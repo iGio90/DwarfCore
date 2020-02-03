@@ -145,7 +145,7 @@ export class DwarfJavaHelper {
                     let userCallback: ScriptInvocationListenerCallbacks | Function | string = null;
 
                     let libraryName = library;
-                    if(libraryName.indexOf('/') != -1) {
+                    if (libraryName.indexOf('/') != -1) {
                         libraryName = libraryName.substring(libraryName.lastIndexOf('/') + 1);
                     }
 
@@ -175,7 +175,7 @@ export class DwarfJavaHelper {
                         Dwarf.onBreakpoint(DwarfHaltReason.MODULE_LOADED, library, {}, this);
                     }
 
-                    Dwarf.sync({ module_loaded: library });
+                    Dwarf.sync({ module_loaded: { name: library, caller: VMStack.getStackClass2().getName() } });
 
                     /*const procModule = Process.findModuleByName(libraryName);
                     if (isDefined(procModule)) {
@@ -187,7 +187,8 @@ export class DwarfJavaHelper {
                     }*/
                     return loaded;
                 } catch (e) {
-                   logDebug(e);
+                    logDebug(e.message);
+                    throw e;
                 }
             }
 
@@ -195,7 +196,7 @@ export class DwarfJavaHelper {
                 try {
                     let userCallback: ScriptInvocationListenerCallbacks | Function | string = null;
                     let libraryName = library;
-                    if(libraryName.indexOf('/') != -1) {
+                    if (libraryName.indexOf('/') != -1) {
                         libraryName = libraryName.substring(libraryName.lastIndexOf('/') + 1);
                     }
                     if (self.libraryLoaderCallbacks.hasOwnProperty(libraryName)) {
@@ -232,11 +233,12 @@ export class DwarfJavaHelper {
                         moduleInfo.symbols = procModule.enumerateSymbols();
                         Dwarf.sync({ modules: moduleInfo });
                     }*/
-                    Dwarf.sync({ module_loaded: library });
+                    Dwarf.sync({ module_loaded: { name: library, caller: VMStack.getStackClass2().getName() } });
 
                     return loaded;
                 } catch (e) {
                     logDebug(e);
+                    throw e;
                 }
             }
         });
