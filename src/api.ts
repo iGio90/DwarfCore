@@ -318,6 +318,18 @@ export class DwarfApi {
         return DwarfObserver.getInstance().removeByName(observeName);
     }
 
+    public hookModuleInitialization = (libraryName: string, callback: ScriptInvocationListenerCallbacks | Function | string) => {
+        if(Java.available) {
+            return DwarfJavaHelper.getInstance().addLibraryLoaderHook(libraryName, callback);
+        }
+    }
+
+    public removeModuleInitializationBreakpoint = (libraryName: string) => {
+        if(Java.available) {
+            return DwarfJavaHelper.getInstance().removeLibraryLoadHook(libraryName);
+        }
+    }
+
     private _internalMemoryScan(start, size, pattern) {
         if (size > 4096) {
             // scan in chunks of 4096

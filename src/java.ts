@@ -546,6 +546,22 @@ export class DwarfJavaHelper {
         return delete this.javaClassLoaderCallbacks[className];
     }
 
+    public removeLibraryLoadHook = (libraryName: string): boolean => {
+        trace('JavaHelper::removeLibraryLoadHook()');
+
+        this.checkRequirements();
+
+        if (!isString(libraryName)) {
+            throw new Error('DwarfJavaHelper::removeLibraryLoadHook() => Invalid arguments!');
+        }
+
+        if (!this.libraryLoaderCallbacks.hasOwnProperty(libraryName)) {
+            throw new Error('DwarfJavaHelper::removeLibraryLoadHook() => Not hooked!');
+        }
+
+        return delete this.libraryLoaderCallbacks[libraryName];
+    }
+
     addBreakpointToHook = (javaBreakpoint: JavaBreakpoint) => {
         this.breakpointsToHook.push(javaBreakpoint);
     }
