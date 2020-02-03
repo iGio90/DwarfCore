@@ -486,6 +486,50 @@ export class DwarfJavaHelper {
         return true;
     }
 
+    /**
+     * @param  {string} libraryName
+     * @param  {Function} callback?
+     * @param  {boolean=false} permanent when set to true removeClassLoaderHook wont delete hook
+     * @returns boolean
+     */
+    public addLibraryLoaderHook = (libraryName: string, callback: ScriptInvocationListenerCallbacks | Function | string, permanent: boolean = false): boolean => {
+        trace('JavaHelper::addLibraryLoaderHook()');
+
+        this.checkRequirements();
+
+        if (!isString(libraryName)) {
+            throw new Error('DwarfJavaHelper::addLibraryLoaderHook() => Invalid arguments!');
+        }
+
+        if (this.libraryLoaderCallbacks.hasOwnProperty(libraryName)) {
+            throw new Error('DwarfJavaHelper::addLibraryLoaderHook() => Already hooked!');
+        }
+
+        if (isFunction(callback)) {
+            if (permanent) {
+                Object.defineProperty(this.libraryLoaderCallbacks, libraryName, { value: callback, configurable: false, writable: false });
+            } else {
+                this.libraryLoaderCallbacks[libraryName] = callback;
+            }
+        } else {
+            if (isString(callback)) {
+                if (permanent) {
+                    Object.defineProperty(this.libraryLoaderCallbacks, libraryName, { value: 'breakpoint', configurable: false, writable: false });
+                } else {
+                    this.libraryLoaderCallbacks[libraryName] = 'breakpoint';
+                }
+            } else {
+                if (isDefined(callback)) {
+                    if ((callback.hasOwnProperty('onEnter') && isFunction((callback as ScriptInvocationListenerCallbacks).onEnter)) ||
+                        (callback.hasOwnProperty('onLeave') && isFunction((callback as ScriptInvocationListenerCallbacks).onLeave))) {
+                        this.libraryLoaderCallbacks[libraryName] = callback;
+                    }
+                }
+            }
+        }
+        return true;
+    }
+
     public removeClassLoaderHook = (className: string): boolean => {
         trace('JavaHelper::removeClassLoaderHook()');
 
@@ -500,10 +544,6 @@ export class DwarfJavaHelper {
         }
 
         return delete this.javaClassLoaderCallbacks[className];
-    }
-
-    public addLibraryLoaderHook = () => {
-
     }
 
     addBreakpointToHook = (javaBreakpoint: JavaBreakpoint) => {
