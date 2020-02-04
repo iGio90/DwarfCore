@@ -205,8 +205,10 @@ Date.prototype['getHourMinuteSecond'] = function () {
     return this.getTwoDigitHour() + ':' + this.getTwoDigitMinute() + ':' + this.getTwoDigitSecond();
 };
 
-global.readStdString = function (arg:NativePointer): string {
-    if ((arg.readU8() & 1) === 0) {
+//https://codeshare.frida.re/@oleavr/read-std-string/
+global.readStdString = function (arg: NativePointer): string {
+    const isTiny = (arg.readU8() & 1) === 0;
+    if (isTiny) {
         return arg.add(1).readUtf8String();
     }
 
