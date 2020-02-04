@@ -135,6 +135,9 @@ export class DwarfJavaHelper {
                 }
             }
 
+            /*
+                TODO: check
+
             //Library loading
             const System = Java.use('java.lang.System');
             const Runtime = Java.use('java.lang.Runtime');
@@ -177,14 +180,6 @@ export class DwarfJavaHelper {
 
                     Dwarf.sync({ module_loaded: { name: library, caller: VMStack.getStackClass2().getName() } });
 
-                    /*const procModule = Process.findModuleByName(libraryName);
-                    if (isDefined(procModule)) {
-                        let moduleInfo = Object.assign({ imports: [], exports: [], symbols: [] }, procModule);
-                        moduleInfo.imports = procModule.enumerateImports();
-                        moduleInfo.exports = procModule.enumerateExports();
-                        moduleInfo.symbols = procModule.enumerateSymbols();
-                        Dwarf.sync({ modules: moduleInfo });
-                    }*/
                     return loaded;
                 } catch (e) {
                     logDebug(e.message);
@@ -225,14 +220,6 @@ export class DwarfJavaHelper {
                         Dwarf.onBreakpoint(DwarfHaltReason.MODULE_LOADED, library, {}, this);
                     }
 
-                    /*const procModule = Process.findModuleByName(libraryName);
-                    if (isDefined(procModule)) {
-                        let moduleInfo = Object.assign({ imports: [], exports: [], symbols: [] }, procModule);
-                        moduleInfo.imports = procModule.enumerateImports();
-                        moduleInfo.exports = procModule.enumerateExports();
-                        moduleInfo.symbols = procModule.enumerateSymbols();
-                        Dwarf.sync({ modules: moduleInfo });
-                    }*/
                     Dwarf.sync({ module_loaded: { name: library, caller: VMStack.getStackClass2().getName() } });
 
                     return loaded;
@@ -240,7 +227,7 @@ export class DwarfJavaHelper {
                     logDebug(e);
                     throw e;
                 }
-            }
+            }*/
         });
         this.initDone = true;
     }
@@ -486,50 +473,6 @@ export class DwarfJavaHelper {
         return true;
     }
 
-    /**
-     * @param  {string} libraryName
-     * @param  {Function} callback?
-     * @param  {boolean=false} permanent when set to true removeClassLoaderHook wont delete hook
-     * @returns boolean
-     */
-    public addLibraryLoaderHook = (libraryName: string, callback: ScriptInvocationListenerCallbacks | Function | string, permanent: boolean = false): boolean => {
-        trace('JavaHelper::addLibraryLoaderHook()');
-
-        this.checkRequirements();
-
-        if (!isString(libraryName)) {
-            throw new Error('DwarfJavaHelper::addLibraryLoaderHook() => Invalid arguments!');
-        }
-
-        if (this.libraryLoaderCallbacks.hasOwnProperty(libraryName)) {
-            throw new Error('DwarfJavaHelper::addLibraryLoaderHook() => Already hooked!');
-        }
-
-        if (isFunction(callback)) {
-            if (permanent) {
-                Object.defineProperty(this.libraryLoaderCallbacks, libraryName, { value: callback, configurable: false, writable: false });
-            } else {
-                this.libraryLoaderCallbacks[libraryName] = callback;
-            }
-        } else {
-            if (isString(callback)) {
-                if (permanent) {
-                    Object.defineProperty(this.libraryLoaderCallbacks, libraryName, { value: 'breakpoint', configurable: false, writable: false });
-                } else {
-                    this.libraryLoaderCallbacks[libraryName] = 'breakpoint';
-                }
-            } else {
-                if (isDefined(callback)) {
-                    if ((callback.hasOwnProperty('onEnter') && isFunction((callback as ScriptInvocationListenerCallbacks).onEnter)) ||
-                        (callback.hasOwnProperty('onLeave') && isFunction((callback as ScriptInvocationListenerCallbacks).onLeave))) {
-                        this.libraryLoaderCallbacks[libraryName] = callback;
-                    }
-                }
-            }
-        }
-        return true;
-    }
-
     public removeClassLoaderHook = (className: string): boolean => {
         trace('JavaHelper::removeClassLoaderHook()');
 
@@ -544,22 +487,6 @@ export class DwarfJavaHelper {
         }
 
         return delete this.javaClassLoaderCallbacks[className];
-    }
-
-    public removeLibraryLoadHook = (libraryName: string): boolean => {
-        trace('JavaHelper::removeLibraryLoadHook()');
-
-        this.checkRequirements();
-
-        if (!isString(libraryName)) {
-            throw new Error('DwarfJavaHelper::removeLibraryLoadHook() => Invalid arguments!');
-        }
-
-        if (!this.libraryLoaderCallbacks.hasOwnProperty(libraryName)) {
-            throw new Error('DwarfJavaHelper::removeLibraryLoadHook() => Not hooked!');
-        }
-
-        return delete this.libraryLoaderCallbacks[libraryName];
     }
 
     addBreakpointToHook = (javaBreakpoint: JavaBreakpoint) => {

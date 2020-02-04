@@ -31,6 +31,7 @@ import { NativeBreakpoint } from "./types/native_breakpoint";
 import { JavaBreakpoint } from "./types/java_breakpoint";
 import { ObjcBreakpoint } from "./types/objc_breakpoint";
 import { DwarfJavaHelper } from "./java";
+import { ModuleLoadBreakpoint } from "./types/module_breakpoint";
 
 export class DwarfApi {
     private static instanceRef: DwarfApi;
@@ -58,7 +59,7 @@ export class DwarfApi {
      *
      * TODO: add ObjcBreakpoints
      */
-    public addBreakpoint = (breakpointType: DwarfBreakpointType | string | number, bpAddress: NativePointer | string | number, bpEnabled?: boolean): NativeBreakpoint | MemoryBreakpoint | JavaBreakpoint => {
+    public addBreakpoint = (breakpointType: DwarfBreakpointType | string | number, bpAddress: NativePointer | string | number, bpEnabled?: boolean): NativeBreakpoint | MemoryBreakpoint | JavaBreakpoint | ModuleLoadBreakpoint => {
         trace('DwarfApi::addBreakpoint()');
 
         let bpType: DwarfBreakpointType = 0;
@@ -82,6 +83,9 @@ export class DwarfApi {
                     case 'objc':
                         bpType = DwarfBreakpointType.OBJC;
                         break;
+                    case 'module_load':
+                        bpType = DwarfBreakpointType.MODULE;
+                        break;
                     default:
                         throw new Error('DwarfApi::addBreakpoint() => Invalid BreakpointType!');
                 }
@@ -92,7 +96,7 @@ export class DwarfApi {
             }
         }
 
-        if ((bpType < DwarfBreakpointType.NATIVE) || (bpType > DwarfBreakpointType.MEMORY)) {
+        if ((bpType < DwarfBreakpointType.NATIVE) || (bpType > DwarfBreakpointType.MODULE)) {
             throw new Error('DwarfApi::addBreakpoint() => Invalid BreakpointType!');
         }
 
@@ -108,7 +112,7 @@ export class DwarfApi {
         if (!isDefined(bpAddress)) {
             throw new Error('DwarfApi::addBreakpoint() => No Address given!');
         } else {
-            if (bpType == DwarfBreakpointType.NATIVE || bpType == DwarfBreakpointType.MEMORY) {
+            if (bpType == DwarfBreakpointType.NATIVE || bpType == DwarfBreakpointType.MODULE) {
                 bpAddress = makeNativePointer(bpAddress);
                 if (checkNativePointer(bpAddress)) {
                     checkedAddress = bpAddress;
@@ -319,15 +323,11 @@ export class DwarfApi {
     }
 
     public hookModuleInitialization = (libraryName: string, callback: ScriptInvocationListenerCallbacks | Function | string) => {
-        if(Java.available) {
-            return DwarfJavaHelper.getInstance().addLibraryLoaderHook(libraryName, callback);
-        }
+        DwarfBreakpointManager.getInstance().addModuleLoadBreakpoint(libraryName, callback);
     }
 
     public removeModuleInitializationBreakpoint = (libraryName: string) => {
-        if(Java.available) {
-            return DwarfJavaHelper.getInstance().removeLibraryLoadHook(libraryName);
-        }
+        DwarfBreakpointManager.getInstance().removeBreakpointAtAddress(libraryName);
     }
 
     private _internalMemoryScan(start, size, pattern) {
@@ -870,20 +870,6 @@ export class DwarfApi {
     }
 
     /**
-     * Receive a callback when the native module is being loaded
-     * ```javascript
-     * hookModuleInitialization('libtarget.so', function() {
-     *     console.log('libtarget is being loaded');
-     * });
-     * ```
-     * @param moduleName
-     * @param callback
-     */
-    public hookModuleInitialization = (moduleName: string, callback: Function): boolean => {
-        return LogicInitialization.hookModuleInitialization(moduleName, callback);
-    }
-
-    /**
      * Map the given blob as hex string using memfd:create with the given name
      *
      * @return a negative integer if error or fd
@@ -1260,18 +1246,6 @@ export class DwarfApi {
         }
 
         return DwarfJavaHelper.getInstance().removeClassLoaderHook(className);
-    }
-
-    /**
-     * Remove a module initialization breakpoint on moduleName
-     * @return a boolean indicating if removal was successful
-     */
-    public removeModuleInitializationBreakpoint = (moduleName: string): boolean => {
-        const ret = LogicInitialization.removeModuleInitializationBreakpoint(moduleName);
-        if (ret) {
-            Dwarf.loggedSend('breakpoint_deleted:::module_initialization:::' + moduleName);
-        }
-        return ret;
     }
 
     public removeNativeBreakpoint = (breakpointAddress: NativePointer | string | number): boolean => {

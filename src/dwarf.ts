@@ -179,7 +179,8 @@ export class DwarfCore {
             LogicJava.init();
         }
 
-        LogicInitialization.init();
+        //LogicInitialization.init();
+        DwarfBreakpointManager.getInstance().attachModuleLoadingHooks();
         DwarfInterceptor.init();
 
         // register global api functions

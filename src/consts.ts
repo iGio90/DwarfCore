@@ -57,7 +57,8 @@ export const enum DwarfBreakpointType {
     NATIVE = 1,
     JAVA = 2,
     OBJC = 3,
-    MEMORY = 4
+    MEMORY = 4,
+    MODULE = 5
 }
 
 export const enum DwarfMemoryAccessType {

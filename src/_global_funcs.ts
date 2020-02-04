@@ -34,16 +34,16 @@ global.isString = function (value: any) {
     return false;
 }
 
-global.isFunction = function(value:any) {
-    if(isDefined(value)) {
+global.isFunction = function (value: any) {
+    if (isDefined(value)) {
         return (typeof value === 'function');
     }
     return false;
 }
 
-global.isValidFridaListener = function(value:any) {
-    if(isDefined(value)) {
-        if(value.hasOwnProperty('onEnter') || value.hasOwnProperty('onLeave')) {
+global.isValidFridaListener = function (value: any) {
+    if (isDefined(value)) {
+        if (value.hasOwnProperty('onEnter') || value.hasOwnProperty('onLeave')) {
             return true;
         }
     }
@@ -204,3 +204,11 @@ Date.prototype['getTwoDigitSecond'] = function () {
 Date.prototype['getHourMinuteSecond'] = function () {
     return this.getTwoDigitHour() + ':' + this.getTwoDigitMinute() + ':' + this.getTwoDigitSecond();
 };
+
+global.readStdString = function (arg:NativePointer): string {
+    if ((arg.readU8() & 1) === 0) {
+        return arg.add(1).readUtf8String();
+    }
+
+    return arg.add(2 * Process.pointerSize).readPointer().readUtf8String();
+}

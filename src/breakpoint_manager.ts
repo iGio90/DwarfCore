@@ -22,6 +22,7 @@ import { MemoryBreakpoint } from "./types/memory_breakpoint";
 import { DwarfCore } from "./dwarf";
 import { DwarfBreakpointType, DwarfMemoryAccessType, DwarfHaltReason } from "./consts";
 import { DwarfObserver } from "./dwarf_observer";
+import { ModuleLoadBreakpoint } from "./types/module_breakpoint";
 
 /**
  * DwarfBreakpointManager Singleton
@@ -47,6 +48,114 @@ export class DwarfBreakpointManager {
             DwarfBreakpointManager.instanceRef = new this();
         }
         return DwarfBreakpointManager.instanceRef;
+    }
+
+    public attachModuleLoadingHooks() {
+        //TODO: add onEnter/onLeave
+        const self = this;
+        if (Process.platform === 'windows') {
+            // windows native onload code
+            const module = Process.findModuleByName('kernel32.dll');
+            if (module !== null) {
+                const symbols = module.enumerateExports();
+                let loadliba_ptr = NULL;
+                let loadlibexa_ptr = NULL;
+                let loadlibw_ptr = NULL;
+                let loadlibexw_ptr = NULL;
+
+                symbols.forEach(symbol => {
+                    if (symbol.name.indexOf('LoadLibraryA') >= 0) {
+                        loadliba_ptr = symbol.address;
+                    } else if (symbol.name.indexOf('LoadLibraryW') >= 0) {
+                        loadlibw_ptr = symbol.address;
+                    } else if (symbol.name.indexOf('LoadLibraryExA') >= 0) {
+                        loadlibexa_ptr = symbol.address;
+                    } else if (symbol.name.indexOf('LoadLibraryExW') >= 0) {
+                        loadlibexw_ptr = symbol.address;
+                    }
+
+                    if ((loadliba_ptr != NULL) && (loadlibw_ptr != NULL) && (loadlibexa_ptr != NULL) && (loadlibexw_ptr != NULL)) {
+                        return;
+                    }
+                });
+
+                if ((loadliba_ptr != NULL) && (loadlibw_ptr != NULL) && (loadlibexa_ptr != NULL) && (loadlibexw_ptr != NULL)) {
+                    Interceptor.attach(loadliba_ptr, function (args) {
+                        try {
+                            const w = args[0].readAnsiString();
+                            self.handleModuleLoadBreakpoints.apply(this, [w]);
+                        } catch (e) {
+                            logErr('Dwarf.start', e);
+                        }
+                    });
+                    Interceptor.attach(loadlibexa_ptr, function (args) {
+                        try {
+                            const w = args[0].readAnsiString();
+                            self.handleModuleLoadBreakpoints.apply(this, [w]);
+                        } catch (e) {
+                            logErr('Dwarf.start', e);
+                        }
+                    });
+                    Interceptor.attach(loadlibw_ptr, function (args) {
+                        try {
+                            const w = args[0].readUtf16String();
+                            self.handleModuleLoadBreakpoints.apply(this, [w]);
+                        } catch (e) {
+                            logErr('Dwarf.start', e);
+                        }
+                    });
+                    Interceptor.attach(loadlibexw_ptr, function (args) {
+                        try {
+                            const w = args[0].readUtf16String();
+                            self.handleModuleLoadBreakpoints.apply(this, [w]);
+                        } catch (e) {
+                            logErr('Dwarf.start', e);
+                        }
+                    });
+                }
+            }
+        } else if (Java.available) {
+            //https://android.googlesource.com/platform/art/+/android-6.0.0_r26/runtime/java_vm_ext.cc#596
+            const artModule = Process.findModuleByName("libart.so");
+            if (artModule) {
+                for (let moduleExportDetail of artModule.enumerateExports()) {
+                    if (moduleExportDetail.name.indexOf('LoadNativeLibrary') != -1) {
+                        Interceptor.attach(moduleExportDetail.address, function (args) {
+                            try {
+                                let libName = '';
+                                try {
+                                    libName = readStdString(args[1]);
+                                } catch(e) {
+                                    libName = readStdString(args[2]);
+                                }
+                                if(libName.indexOf('.so') == -1) {
+                                    return;
+                                }
+                                self.handleModuleLoadBreakpoints.apply(this, [libName]);
+                            } catch (e) {
+                                logErr('libart', e);
+                            }
+                        });
+                    }
+                }
+            }
+            //https://android.googlesource.com/platform/dalvik/+/eclair-release/vm/Native.c#443
+            const dvmModule = Process.findModuleByName("libdvm.so");
+            if (dvmModule) {
+                for (let moduleExportDetail of dvmModule.enumerateExports()) {
+                    if (moduleExportDetail.name.indexOf('dvmLoadNativeCode') != -1) {
+                        Interceptor.attach(moduleExportDetail.address, function (args) {
+                            try {
+                                const w = args[0].readUtf8String();
+                                self.handleModuleLoadBreakpoints.apply(this, [w]);
+                            } catch (e) {
+                                logErr('libdvm', e);
+                            }
+                        });
+                    }
+                }
+            }
+        }
     }
 
     public getNextBreakpointID(): number {
@@ -84,6 +193,8 @@ export class DwarfBreakpointManager {
                 return this.addObjCBreakpoint(bpAddress as string, bpEnabled);
             case DwarfBreakpointType.MEMORY:
                 return this.addMemoryBreakpoint(bpAddress, (DwarfMemoryAccessType.READ | DwarfMemoryAccessType.WRITE), bpEnabled);
+            case DwarfBreakpointType.MODULE:
+                return this.addModuleLoadBreakpoint(bpAddress as string, bpCallback);
             default:
                 break;
         }
@@ -179,6 +290,32 @@ export class DwarfBreakpointManager {
 
 
         throw new Error('DwarfBreakpointManager::addObjCBreakpoint() -> Not implemented');
+    }
+
+    /**
+    * @param  {string} bpAddress
+    * @param  {boolean} bpEnabled?
+    */
+    public addModuleLoadBreakpoint = (moduleName: string, bpCallback?: InvocationListenerCallbacks | Function | string, bpEnabled?: boolean) => {
+        trace('DwarfBreakpointManager::addModuleLoadBreakpoint()');
+
+        if (!isString(moduleName)) {
+            throw new Error('DwarfBreakpointManager::addModuleLoadBreakpoint() -> Invalid Arguments!');
+        }
+
+        this.checkExists(moduleName);
+
+        try {
+            const moduleLoadBreakpoint = new ModuleLoadBreakpoint(moduleName, bpEnabled, bpCallback);
+            if (moduleLoadBreakpoint) {
+                this.dwarfBreakpoints.push(moduleLoadBreakpoint);
+                this.update();
+                return moduleLoadBreakpoint;
+            }
+        } catch (e) {
+            console.log(JSON.stringify(e));
+        }
+
     }
 
     /**
@@ -339,6 +476,41 @@ export class DwarfBreakpointManager {
             const memoryBreakpoint = dwarfBreakpoint as MemoryBreakpoint;
             memoryBreakpoint.onHit(details);
         }
+    }
+
+    public handleModuleLoadBreakpoints(moduleName:string) {
+
+        if(moduleName.indexOf('/') != -1) {
+            moduleName = moduleName.substring(moduleName.lastIndexOf('/') + 1);
+        }
+
+        for (let bp of DwarfBreakpointManager.getInstance().dwarfBreakpoints) {
+            if (bp.getType() === DwarfBreakpointType.MODULE) {
+                if (bp.getAddress() === moduleName) {
+                    const moduleLoadBreakpoint = (bp as ModuleLoadBreakpoint);
+                    const userCallback = moduleLoadBreakpoint.getCallback();
+                    let breakExecution = false;
+                    if(isFunction(userCallback)) {
+                        let userReturn = 0;
+                        try {
+                            userReturn = (userCallback as Function).apply(this, [moduleName]);
+                        } catch(e) {
+                            logDebug('ModuleLoadCallback() -> ' + JSON.stringify(e) );
+                            breakExecution = true;
+                        }
+                        if (isDefined(userReturn) && userReturn == 1) {
+                            breakExecution = true;
+                        }
+                    } else {
+                        breakExecution = true;
+                    }
+                    if(breakExecution) {
+                        DwarfCore.getInstance().onBreakpoint(bp.getID(), Process.getCurrentThreadId(), DwarfHaltReason.MODULE_LOADED, moduleName, this);
+                    }
+                }
+            }
+        }
+        Dwarf.sync({ module_loaded: { name: moduleName } });
     }
 
     public getBreakpoints = (): Array<DwarfBreakpoint> => {

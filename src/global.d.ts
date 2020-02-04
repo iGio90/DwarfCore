@@ -34,6 +34,7 @@ declare namespace NodeJS {
         checkNativePointer:any;
         trace:any;
         Dwarf:any;
+        readStdString:any;
     }
 }
 
@@ -50,6 +51,7 @@ declare function logDebug(...data):void;
 declare function trace(...data):void;
 declare function logErr(tag, err):void;
 declare function makeNativePointer(value:any):NativePointer;
+declare function readStdString(str:any):string;
 /**
  * Checks if given ptrValue is NativePointer
  *

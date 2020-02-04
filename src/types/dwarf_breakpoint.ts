@@ -40,7 +40,7 @@ export class DwarfBreakpoint {
      */
     public constructor(bpType: DwarfBreakpointType, bpAddress: NativePointer | string, bpEnabled: boolean = true) {
         trace('DwarfBreakpoint()');
-        if ((bpType < DwarfBreakpointType.NATIVE) || (bpType > DwarfBreakpointType.MEMORY)) {
+        if ((bpType < DwarfBreakpointType.NATIVE) || (bpType > DwarfBreakpointType.MODULE)) {
             throw new Error('Invalid BreakpointType');
         }
         this.threadId = Process.getCurrentThreadId();
@@ -75,6 +75,7 @@ export class DwarfBreakpoint {
                 return this.bpAddress;
             case DwarfBreakpointType.JAVA:
             case DwarfBreakpointType.OBJC:
+            case DwarfBreakpointType.MODULE:
                 return this.bpAddress as string;
             default:
                 return null;
