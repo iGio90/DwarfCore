@@ -112,7 +112,7 @@ export class DwarfApi {
         if (!isDefined(bpAddress)) {
             throw new Error('DwarfApi::addBreakpoint() => No Address given!');
         } else {
-            if (bpType == DwarfBreakpointType.NATIVE || bpType == DwarfBreakpointType.MODULE) {
+            if (bpType == DwarfBreakpointType.NATIVE || bpType == DwarfBreakpointType.MEMORY) {
                 bpAddress = makeNativePointer(bpAddress);
                 if (checkNativePointer(bpAddress)) {
                     checkedAddress = bpAddress;
