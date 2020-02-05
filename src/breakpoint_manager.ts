@@ -24,6 +24,11 @@ import { DwarfBreakpointType, DwarfMemoryAccessType, DwarfHaltReason } from "./c
 import { DwarfObserver } from "./dwarf_observer";
 import { ModuleLoadBreakpoint } from "./types/module_breakpoint";
 
+
+export interface DwarfModuleLoadBreakpointLeave {
+    breakpointID: number;
+    onLeaveFunction: Function;
+}
 /**
  * DwarfBreakpointManager Singleton
  *
@@ -33,6 +38,7 @@ export class DwarfBreakpointManager {
     private static instanceRef: DwarfBreakpointManager;
     protected nextBPID: number;
     protected dwarfBreakpoints: Array<DwarfBreakpoint>;
+    protected moduleLoadLeave: DwarfModuleLoadBreakpointLeave;
 
     private constructor() {
         if (DwarfBreakpointManager.instanceRef) {
@@ -41,6 +47,7 @@ export class DwarfBreakpointManager {
         trace('DwarfBreakpointManager()');
         this.dwarfBreakpoints = new Array<DwarfBreakpoint>();
         this.nextBPID = 0;
+        this.moduleLoadLeave = null;
     }
 
     static getInstance() {
@@ -51,7 +58,6 @@ export class DwarfBreakpointManager {
     }
 
     public attachModuleLoadingHooks() {
-        //TODO: add onEnter/onLeave
         const self = this;
         if (Process.platform === 'windows') {
             // windows native onload code
@@ -80,36 +86,40 @@ export class DwarfBreakpointManager {
                 });
 
                 if ((loadliba_ptr != NULL) && (loadlibw_ptr != NULL) && (loadlibexa_ptr != NULL) && (loadlibexw_ptr != NULL)) {
-                    Interceptor.attach(loadliba_ptr, function (args) {
-                        try {
-                            const w = args[0].readAnsiString();
-                            self.handleModuleLoadBreakpoints.apply(this, [w]);
-                        } catch (e) {
-                            logErr('Dwarf.start', e);
+                    Interceptor.attach(loadliba_ptr, {
+                        onEnter: function (args) {
+                            const moduleName = args[0].readAnsiString();
+                            self.handleModuleLoadOnEnter.apply(null, [this, moduleName, args]);
+                        },
+                        onLeave: function (retVal) {
+                            self.handleModuleLoadOnLeave.apply(this, [this, retVal]);
                         }
                     });
-                    Interceptor.attach(loadlibexa_ptr, function (args) {
-                        try {
-                            const w = args[0].readAnsiString();
-                            self.handleModuleLoadBreakpoints.apply(this, [w]);
-                        } catch (e) {
-                            logErr('Dwarf.start', e);
+                    Interceptor.attach(loadlibexa_ptr, {
+                        onEnter: function (args) {
+                            const moduleName = args[0].readAnsiString();
+                            self.handleModuleLoadOnEnter.apply(null, [this, moduleName, args]);
+                        },
+                        onLeave: function (retVal) {
+                            self.handleModuleLoadOnLeave.apply(this, [this, retVal]);
                         }
                     });
-                    Interceptor.attach(loadlibw_ptr, function (args) {
-                        try {
-                            const w = args[0].readUtf16String();
-                            self.handleModuleLoadBreakpoints.apply(this, [w]);
-                        } catch (e) {
-                            logErr('Dwarf.start', e);
+                    Interceptor.attach(loadlibw_ptr, {
+                        onEnter: function (args) {
+                            const moduleName = args[0].readUtf16String();
+                            self.handleModuleLoadOnEnter.apply(null, [this, moduleName, args]);
+                        },
+                        onLeave: function (retVal) {
+                            self.handleModuleLoadOnLeave.apply(this, [this, retVal]);
                         }
                     });
-                    Interceptor.attach(loadlibexw_ptr, function (args) {
-                        try {
-                            const w = args[0].readUtf16String();
-                            self.handleModuleLoadBreakpoints.apply(this, [w]);
-                        } catch (e) {
-                            logErr('Dwarf.start', e);
+                    Interceptor.attach(loadlibexw_ptr, {
+                        onEnter: function (args) {
+                            const moduleName = args[0].readUtf16String();
+                            self.handleModuleLoadOnEnter.apply(null, [this, moduleName, args]);
+                        },
+                        onLeave: function (retVal) {
+                            self.handleModuleLoadOnLeave.apply(this, [this, retVal]);
                         }
                     });
                 }
@@ -124,12 +134,13 @@ export class DwarfBreakpointManager {
                         //<=22 args = (void *JavaVMExt, std::string &path,...)
                         //>=23 args = (void *JavaVMExt, JNIEnv *env, std::string &path, ...)
                         const argNum = (Dwarf.getAndroidApiLevel() <= 22) ? 1 : 2;
-                        Interceptor.attach(moduleExportDetail.address, function (args) {
-                            try {
+                        Interceptor.attach(moduleExportDetail.address, {
+                            onEnter: function (args) {
                                 const moduleName = readStdString(args[argNum]);
-                                self.handleModuleLoadBreakpoints.apply(this, [moduleName]);
-                            } catch (e) {
-                                logErr('libart', e);
+                                self.handleModuleLoadOnEnter.apply(null, [this, moduleName, args]);
+                            },
+                            onLeave: function (retVal) {
+                                self.handleModuleLoadOnLeave.apply(this, [this, retVal]);
                             }
                         });
                     }
@@ -140,12 +151,13 @@ export class DwarfBreakpointManager {
             if (dvmModule) {
                 for (let moduleExportDetail of dvmModule.enumerateExports()) {
                     if (moduleExportDetail.name.indexOf('dvmLoadNativeCode') != -1) {
-                        Interceptor.attach(moduleExportDetail.address, function (args) {
-                            try {
-                                const w = args[0].readUtf8String();
-                                self.handleModuleLoadBreakpoints.apply(this, [w]);
-                            } catch (e) {
-                                logErr('libdvm', e);
+                        Interceptor.attach(moduleExportDetail.address, {
+                            onEnter: function (args) {
+                                const moduleName = args[0].readUtf8String();
+                                self.handleModuleLoadOnEnter.apply(null, [this, moduleName, args]);
+                            },
+                            onLeave: function (retVal) {
+                                self.handleModuleLoadOnLeave.apply(this, [this, retVal]);
                             }
                         });
                     }
@@ -474,39 +486,68 @@ export class DwarfBreakpointManager {
         }
     }
 
-    public handleModuleLoadBreakpoints(moduleName:string) {
-
-        if(moduleName.indexOf('/') != -1) {
+    public handleModuleLoadOnEnter = (thisArg: any, moduleName: string, funcArgs: InvocationArguments) => {
+        if (moduleName.indexOf('/') != -1) {
             moduleName = moduleName.substring(moduleName.lastIndexOf('/') + 1);
         }
 
-        for (let bp of DwarfBreakpointManager.getInstance().dwarfBreakpoints) {
+        for (let bp of this.dwarfBreakpoints) {
             if (bp.getType() === DwarfBreakpointType.MODULE) {
                 if (bp.getAddress() === moduleName) {
                     const moduleLoadBreakpoint = (bp as ModuleLoadBreakpoint);
                     const userCallback = moduleLoadBreakpoint.getCallback();
                     let breakExecution = false;
-                    if(isFunction(userCallback)) {
+                    if (isFunction(userCallback)) {
                         let userReturn = 0;
                         try {
-                            userReturn = (userCallback as Function).apply(this, [moduleName]);
-                        } catch(e) {
-                            logDebug('ModuleLoadCallback() -> ' + JSON.stringify(e) );
+                            userReturn = (userCallback as Function).apply(thisArg, [funcArgs]);
+                        } catch (e) {
+                            logErr('ModuleLoadCallback() -> ', e);
                             breakExecution = true;
                         }
                         if (isDefined(userReturn) && userReturn == 1) {
                             breakExecution = true;
                         }
+                    } else if (userCallback.hasOwnProperty('onEnter') || userCallback.hasOwnProperty('onLeave')) {
+                        if (userCallback.hasOwnProperty('onEnter') && isFunction(userCallback['onEnter'])) {
+                            let userReturn = 0;
+                            try {
+                                userReturn = (userCallback as ScriptInvocationListenerCallbacks).onEnter.apply(thisArg, [funcArgs]);
+                            } catch (e) {
+                                logErr('ModuleLoadCallback::onEnter() -> ', e);
+                                breakExecution = true;
+                            }
+                            if (isDefined(userReturn) && userReturn == 1) {
+                                breakExecution = true;
+                            }
+                        }
+                        if (userCallback.hasOwnProperty('onLeave') && isFunction(userCallback['onLeave'])) {
+                            this.moduleLoadLeave = { breakpointID: bp.getID(), onLeaveFunction: (userCallback as ScriptInvocationListenerCallbacks).onLeave };
+                        }
                     } else {
                         breakExecution = true;
                     }
-                    if(breakExecution) {
-                        DwarfCore.getInstance().onBreakpoint(bp.getID(), Process.getCurrentThreadId(), DwarfHaltReason.MODULE_LOADED, moduleName, this);
+                    if (breakExecution) {
+                        DwarfCore.getInstance().onBreakpoint(bp.getID(), Process.getCurrentThreadId(), DwarfHaltReason.MODULE_LOADED, moduleName, thisArg);
                     }
                 }
             }
         }
         Dwarf.sync({ module_loaded: { name: moduleName } });
+    }
+
+    public handleModuleLoadOnLeave = (thisArg: any, retVal: InvocationReturnValue) => {
+        if (this.moduleLoadLeave) {
+            const userOnLeave = this.moduleLoadLeave.onLeaveFunction;
+            if (isFunction(userOnLeave)) {
+                try {
+                    userOnLeave.apply(thisArg, [retVal]);
+                } catch (e) {
+                    logErr('ModuleLoadCallback::onLeave() -> ', e);
+                }
+            }
+        }
+        this.moduleLoadLeave = null;
     }
 
     public getBreakpoints = (): Array<DwarfBreakpoint> => {

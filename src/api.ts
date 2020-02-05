@@ -322,7 +322,7 @@ export class DwarfApi {
         return DwarfObserver.getInstance().removeByName(observeName);
     }
 
-    public hookModuleInitialization = (libraryName: string, callback: ScriptInvocationListenerCallbacks | Function | string) => {
+    public hookModuleInitialization = (libraryName: string, callback?: ScriptInvocationListenerCallbacks | Function | string) => {
         DwarfBreakpointManager.getInstance().addModuleLoadBreakpoint(libraryName, callback);
     }
 

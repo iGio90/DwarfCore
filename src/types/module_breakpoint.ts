@@ -29,21 +29,17 @@ export class ModuleLoadBreakpoint extends DwarfBreakpoint {
      * @param  {DwarfBreakpointType} bpType
      * @param  {NativePointer|string} bpAddress
      */
-    constructor(moduleName: string, bpEnabled?: boolean, bpCallback?: InvocationListenerCallbacks | Function | string | null) {
+    constructor(moduleName: string, bpEnabled?: boolean, bpCallback: InvocationListenerCallbacks | Function | string  = 'breakpoint') {
         if (!isString(moduleName)) {
             throw new Error('ModuleLoadBreakpoint() -> Invalid Arguments!');
         }
 
         super(DwarfBreakpointType.MODULE, moduleName, bpEnabled);
-
-        if(!isDefined(bpCallback)) {
-            this.bpCallbacks = 'breakpoint';
-        } else {
-            this.bpCallbacks = bpCallback;
-        }
+        this.bpCallbacks = bpCallback;
     }
 
     public getCallback() {
+        console.log('getcallback() ' + JSON.stringify(this.bpCallbacks));
         return this.bpCallbacks;
     }
 }
