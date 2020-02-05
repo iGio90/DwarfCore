@@ -92,7 +92,7 @@ export class DwarfBreakpointManager {
                             self.handleModuleLoadOnEnter.apply(null, [this, moduleName, args]);
                         },
                         onLeave: function (retVal) {
-                            self.handleModuleLoadOnLeave.apply(this, [this, retVal]);
+                            self.handleModuleLoadOnLeave.apply(null, [this, retVal]);
                         }
                     });
                     Interceptor.attach(loadlibexa_ptr, {
@@ -101,7 +101,7 @@ export class DwarfBreakpointManager {
                             self.handleModuleLoadOnEnter.apply(null, [this, moduleName, args]);
                         },
                         onLeave: function (retVal) {
-                            self.handleModuleLoadOnLeave.apply(this, [this, retVal]);
+                            self.handleModuleLoadOnLeave.apply(null, [this, retVal]);
                         }
                     });
                     Interceptor.attach(loadlibw_ptr, {
@@ -110,7 +110,7 @@ export class DwarfBreakpointManager {
                             self.handleModuleLoadOnEnter.apply(null, [this, moduleName, args]);
                         },
                         onLeave: function (retVal) {
-                            self.handleModuleLoadOnLeave.apply(this, [this, retVal]);
+                            self.handleModuleLoadOnLeave.apply(null, [this, retVal]);
                         }
                     });
                     Interceptor.attach(loadlibexw_ptr, {
@@ -119,7 +119,7 @@ export class DwarfBreakpointManager {
                             self.handleModuleLoadOnEnter.apply(null, [this, moduleName, args]);
                         },
                         onLeave: function (retVal) {
-                            self.handleModuleLoadOnLeave.apply(this, [this, retVal]);
+                            self.handleModuleLoadOnLeave.apply(null, [this, retVal]);
                         }
                     });
                 }
@@ -140,7 +140,7 @@ export class DwarfBreakpointManager {
                                 self.handleModuleLoadOnEnter.apply(null, [this, moduleName, args]);
                             },
                             onLeave: function (retVal) {
-                                self.handleModuleLoadOnLeave.apply(this, [this, retVal]);
+                                self.handleModuleLoadOnLeave.apply(null, [this, retVal]);
                             }
                         });
                     }
@@ -157,7 +157,7 @@ export class DwarfBreakpointManager {
                                 self.handleModuleLoadOnEnter.apply(null, [this, moduleName, args]);
                             },
                             onLeave: function (retVal) {
-                                self.handleModuleLoadOnLeave.apply(this, [this, retVal]);
+                                self.handleModuleLoadOnLeave.apply(null, [this, retVal]);
                             }
                         });
                     }
@@ -537,7 +537,7 @@ export class DwarfBreakpointManager {
     }
 
     public handleModuleLoadOnLeave = (thisArg: any, retVal: InvocationReturnValue) => {
-        if (this.moduleLoadLeave) {
+        if (isDefined(this.moduleLoadLeave) && this.moduleLoadLeave.breakpointID) {
             const userOnLeave = this.moduleLoadLeave.onLeaveFunction;
             if (isFunction(userOnLeave)) {
                 try {
