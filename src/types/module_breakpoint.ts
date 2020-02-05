@@ -39,7 +39,6 @@ export class ModuleLoadBreakpoint extends DwarfBreakpoint {
     }
 
     public getCallback() {
-        console.log('getcallback() ' + JSON.stringify(this.bpCallbacks));
         return this.bpCallbacks;
     }
 }
