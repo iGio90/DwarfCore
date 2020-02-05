@@ -168,7 +168,7 @@ export class DwarfBreakpoint {
         return this.bpActive;
     }
 
-    public onEnterCallback(thisArg: any, funcArgs: InvocationArguments) {
+    public onEnterCallback(thisArg: any, funcArgs: InvocationArguments | IArguments) {
         if (!this.isEnabled()) { return; }
 
         this.bpActive = true;
@@ -202,7 +202,18 @@ export class DwarfBreakpoint {
         }
 
         if (breakExecution) {
-            DwarfCore.getInstance().onBreakpoint(this.bpID, Process.getCurrentThreadId(), DwarfHaltReason.BREAKPOINT, this.bpAddress, thisArg.context);
+            if (this.bpType == DwarfBreakpointType.JAVA) {
+                let breakpointInfo = [];
+                for (let i in funcArgs) {
+                    breakpointInfo.push({
+                        value: funcArgs[i],
+                        type: thisArg.types[i]
+                    });
+                }
+                DwarfCore.getInstance().onBreakpoint(this.bpID, this.threadId, DwarfHaltReason.BREAKPOINT, this.bpAddress, breakpointInfo, this);
+            } else {
+                DwarfCore.getInstance().onBreakpoint(this.bpID, Process.getCurrentThreadId(), DwarfHaltReason.BREAKPOINT, this.bpAddress, thisArg.context);
+            }
         }
     }
 
@@ -222,7 +233,11 @@ export class DwarfBreakpoint {
                 breakExecution = true;
             }
             if (breakExecution) {
-                DwarfCore.getInstance().onBreakpoint(this.bpID, Process.getCurrentThreadId(), DwarfHaltReason.BREAKPOINT, this.bpAddress, thisArg.context);
+                if (this.bpType == DwarfBreakpointType.JAVA) {
+
+                } else {
+                    DwarfCore.getInstance().onBreakpoint(this.bpID, Process.getCurrentThreadId(), DwarfHaltReason.BREAKPOINT, this.bpAddress, thisArg.context);
+                }
             }
         }
 

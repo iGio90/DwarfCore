@@ -344,22 +344,11 @@ export class DwarfJavaHelper {
 
                                 javaWrapper[methodName].overloads[i].implementation = function () {
                                     this.types = parameters;
-                                    return implementation.apply(this, [arguments]);
+                                    var args = [].slice.call(arguments);
+                                    return implementation.apply(this, args);
                                 };
                             }
                         }
-                        /*const overloadCount = javaWrapper[methodName].overloads.length;
-                        if (overloadCount > 0) {
-                            if (!self.oldOverloads.hasOwnProperty(className + '.' + methodName)) {
-                                self.oldOverloads[className + '.' + methodName] = new Array<Function>();
-                            }
-                            for (var i = 0; i < overloadCount; i++) {
-                                (self.oldOverloads[className + '.' + methodName] as Function[]).push(javaWrapper[methodName].overloads[i].implementation);
-                                javaWrapper[methodName].overloads[i].implementation = implementation;
-                            }
-                        } else {
-                            javaWrapper[methodName].overload.implementation = implementation;
-                        }*/
                     } catch (e) {
                         logDebug('DwarfJavaHelper::hookInJVM() => overload failed -> ' + e);
                     }

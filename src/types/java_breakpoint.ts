@@ -68,60 +68,14 @@ export class JavaBreakpoint extends DwarfBreakpoint {
             const className = (self.bpAddress as string).substr(0, (self.bpAddress as string).lastIndexOf('.'));
             const methodName = (self.bpAddress as string).substr((self.bpAddress as string).lastIndexOf('.') + 1);
             try {
-                Dwarf.getJavaHelper().hookInJVM(className, methodName, function (args) {
+                Dwarf.getJavaHelper().hookInJVM(className, methodName, function () {
                     try {
-                        const types = this.types;
+                        let result = null;
+                        self.onEnterCallback(this, arguments);
 
-                        self.bpActive = true;
-                        let breakExecution = false;
-                        self.bpHits++;
-                        let userCallback: ScriptInvocationListenerCallbacks | Function | string = self.bpCallbacks;
+                        result = this[methodName].apply(this, arguments);
 
-                        if (isFunction(userCallback)) {
-                            let userReturn = (userCallback as Function).apply(this, args);
-                            if (isDefined(userReturn) && userReturn == 1) {
-                                breakExecution = true;
-                            }
-                        } else if (isDefined(userCallback) && userCallback.hasOwnProperty('onEnter')) {
-                            const userOnEnter = (userCallback as ScriptInvocationListenerCallbacks).onEnter;
-                            if (isFunction(userOnEnter)) {
-                                let userReturn = 0;
-                                userReturn = userOnEnter.apply(this, args);
-
-                                if (isDefined(userReturn) && userReturn == 1) {
-                                    breakExecution = true;
-                                }
-                            }
-                        }
-
-                        let breakpointInfo = [];
-                        for (let i in args) {
-                            breakpointInfo.push({
-                                value: args[i],
-                                type: types[i]
-                            });
-                        }
-
-                        if (!isDefined(userCallback) || (isString(userCallback) && userCallback === 'breakpoint') || breakExecution) {
-                            Dwarf.onBreakpoint(self.bpID, self.threadId, DwarfHaltReason.BREAKPOINT, className + '.' + methodName, breakpointInfo, this);
-                        }
-
-                        //TODO: arguments not changed
-                        let result = this[methodName].apply(this, args);
-
-                        if (isDefined(userCallback) && userCallback.hasOwnProperty('onLeave')) {
-                            const userOnLeave = (userCallback as ScriptInvocationListenerCallbacks).onLeave;
-                            if (isFunction(userOnLeave)) {
-                                userOnLeave.apply(this, result);
-                            }
-                        }
-
-                        self.bpActive = false;
-                        //remove singleshots
-                        if (self.isSingleShot()) {
-                            Dwarf.getBreakpointManager().update();
-                        }
-
+                        self.onLeaveCallback(this, result);
                         return result;
                     } catch (e) {
                         console.log(e);
