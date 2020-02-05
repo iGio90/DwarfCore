@@ -16,14 +16,13 @@
 **/
 
 import { DwarfBreakpoint } from "./dwarf_breakpoint";
-import { DwarfBreakpointType, DwarfHaltReason } from "../consts";
-import { DwarfCore } from "../dwarf";
+import { DwarfBreakpointType } from "../consts";
 
 
 export class NativeBreakpoint extends DwarfBreakpoint {
-    protected bpCallbacks: InvocationListenerCallbacks | Function | null;
     protected bpDebugSymbol: DebugSymbol;
     protected bpCondition: Function;
+    protected invocationListener: InvocationListener;
 
     /**
      * Creates an instance of DwarfBreakpoint.
@@ -31,132 +30,37 @@ export class NativeBreakpoint extends DwarfBreakpoint {
      * @param  {DwarfBreakpointType} bpType
      * @param  {NativePointer|string} bpAddress
      */
-    constructor(bpAddress: NativePointer | string, bpEnabled?: boolean, bpCallback?: ScriptInvocationListenerCallbacks | Function) {
-        let natPtr;
-        if (typeof bpAddress === 'string') {
-            natPtr = ptr(bpAddress);
-        } else {
-            natPtr = bpAddress;
-        }
+    constructor(bpAddress: NativePointer | string, bpEnabled?: boolean, bpCallback: ScriptInvocationListenerCallbacks | Function | string = 'breakpoint') {
+        const nativePtr = makeNativePointer(bpAddress);
 
-        if (natPtr.isNull()) {
+        if (nativePtr.isNull()) {
             throw new Error('NativeBreakpoint() -> Invalid Address!');
         }
 
         try {
-            natPtr.readU8();
+            nativePtr.readU8();
         } catch (error) {
             logErr('NativeBreakpoint()', error);
             throw new Error('NativeBreakpoint() -> Invalid Address!');
         }
 
-        super(DwarfBreakpointType.NATIVE, natPtr, bpEnabled);
+        super(DwarfBreakpointType.NATIVE, nativePtr, bpEnabled);
 
-        this.bpDebugSymbol = DebugSymbol.fromAddress(natPtr);
-        this.bpCallbacks = bpCallback || null;
+        this.bpDebugSymbol = DebugSymbol.fromAddress(nativePtr);
+        this.bpCallbacks = bpCallback;
 
         const self = this;
-
-        if (!isDefined(this.bpCallbacks) || (isString(this.bpCallbacks) && this.bpCallbacks === 'breakpoint')) {
-            const invocationListener = Interceptor.attach(natPtr, function () {
-                const invocationContext = this;
-
-                self.bpActive = true;
-                self.bpHits++;
-
-                DwarfCore.getInstance().onBreakpoint(self.bpID, self.threadId, DwarfHaltReason.BREAKPOINT, invocationContext.context.pc,
-                    invocationContext.context, null, self.bpCondition);
-
-                self.bpActive = false;
-                if (self.isSingleShot()) {
-                    invocationListener.detach();
-                    Interceptor.flush();
-                    DwarfCore.getInstance().getBreakpointManager().update();
-                }
-            });
-        } else if (isDefined(this.bpCallbacks) && isFunction(this.bpCallbacks)) {
-            const invocationListener = Interceptor.attach(natPtr, function () {
-                const invocationContext = this;
-                let breakExecution = false;
-
-                self.bpActive = true;
-                self.bpHits++;
-
-                if (isDefined(self.bpCallbacks)) {
-                    const userReturn = (self.bpCallbacks as Function).apply(this, arguments);
-                    if (isDefined(userReturn) && userReturn == 1) {
-                        breakExecution = true;
-                    }
-                }
-
-                if (breakExecution) {
-                    DwarfCore.getInstance().onBreakpoint(self.bpID, self.threadId, DwarfHaltReason.BREAKPOINT, invocationContext.context.pc,
-                        invocationContext.context, null, self.bpCondition);
-                }
-
-                self.bpActive = false;
-                if (self.isSingleShot()) {
-                    invocationListener.detach();
-                    Interceptor.flush();
-                    DwarfCore.getInstance().getBreakpointManager().update();
-                }
-            });
-        } else if (isDefined(this.bpCallbacks) && (this.bpCallbacks.hasOwnProperty('onEnter') || this.bpCallbacks.hasOwnProperty('onLeave'))) {
-            const invocationListener = Interceptor.attach(natPtr, {
-                onEnter: function () {
-                    const invocationContext = this;
-                    let breakExecution = false;
-
-                    self.bpActive = true;
-                    self.bpHits++;
-
-                    if (isDefined(self.bpCallbacks) && self.bpCallbacks.hasOwnProperty('onEnter')) {
-                        const userOnEnter = (self.bpCallbacks as ScriptInvocationListenerCallbacks).onEnter;
-                        if (isFunction(userOnEnter)) {
-                            let userReturn = userOnEnter.apply(this, arguments);
-                            if (isDefined(userReturn) && userReturn == 1) {
-                                breakExecution = true;
-                            }
-                        }
-                    }
-
-                    if (breakExecution) {
-                        DwarfCore.getInstance().onBreakpoint(self.bpID, self.threadId, DwarfHaltReason.BREAKPOINT, invocationContext.context.pc,
-                            invocationContext.context, null, self.bpCondition);
-                    }
-                },
-                onLeave: function (result) {
-                    const invocationContext = this;
-                    let breakExecution = false;
-
-                    if (isDefined(self.bpCallbacks) && self.bpCallbacks.hasOwnProperty('onLeave')) {
-                        const userOnLeave = (self.bpCallbacks as ScriptInvocationListenerCallbacks).onLeave;
-                        if (isFunction(userOnLeave)) {
-                            let userReturn = userOnLeave.apply(this, result);
-                            if (isDefined(userReturn) && userReturn == 1) {
-                                breakExecution = true;
-                            }
-                        }
-                    }
-
-                    if (breakExecution) {
-                        DwarfCore.getInstance().onBreakpoint(self.bpID, self.threadId, DwarfHaltReason.BREAKPOINT, invocationContext.context.pc,
-                            invocationContext.context, null, self.bpCondition);
-                    }
-
-                    self.bpActive = false;
-                    if (self.isSingleShot()) {
-                        invocationListener.detach();
-                        Interceptor.flush();
-                        DwarfCore.getInstance().getBreakpointManager().update();
-                    }
-                    return result;
-                }
-            });
-        }
+        this.invocationListener = Interceptor.attach(nativePtr, {
+            onEnter: function(args) {
+                self.onEnterCallback(this, args);
+            },
+            onLeave: function(returnVal) {
+                self.onLeaveCallback(this, returnVal);
+            }
+        });
     }
 
-    public setCallback(bpCallback: InvocationListenerCallbacks | Function | null): void {
+    public setCallback(bpCallback: ScriptInvocationListenerCallbacks | Function | null): void {
         this.bpCallbacks = bpCallback;
     }
 
@@ -182,5 +86,11 @@ export class NativeBreakpoint extends DwarfBreakpoint {
 
     public removeCondition(): void {
         this.bpCondition = null;
+    }
+
+    public detach(): void {
+        if (isDefined(this.invocationListener)) {
+            this.invocationListener.detach();
+        }
     }
 }

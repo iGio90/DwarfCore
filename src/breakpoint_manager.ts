@@ -22,13 +22,8 @@ import { MemoryBreakpoint } from "./types/memory_breakpoint";
 import { DwarfCore } from "./dwarf";
 import { DwarfBreakpointType, DwarfMemoryAccessType, DwarfHaltReason } from "./consts";
 import { DwarfObserver } from "./dwarf_observer";
-import { ModuleLoadBreakpoint } from "./types/module_breakpoint";
+import { ModuleLoadBreakpoint } from "./types/module_load_breakpoint";
 
-
-export interface DwarfModuleLoadBreakpointLeave {
-    breakpointID: number;
-    onLeaveFunction: Function;
-}
 /**
  * DwarfBreakpointManager Singleton
  *
@@ -38,7 +33,7 @@ export class DwarfBreakpointManager {
     private static instanceRef: DwarfBreakpointManager;
     protected nextBPID: number;
     protected dwarfBreakpoints: Array<DwarfBreakpoint>;
-    protected moduleLoadLeave: DwarfModuleLoadBreakpointLeave;
+    protected moduleLoadBreakpoint: ModuleLoadBreakpoint;
 
     private constructor() {
         if (DwarfBreakpointManager.instanceRef) {
@@ -47,7 +42,7 @@ export class DwarfBreakpointManager {
         trace('DwarfBreakpointManager()');
         this.dwarfBreakpoints = new Array<DwarfBreakpoint>();
         this.nextBPID = 0;
-        this.moduleLoadLeave = null;
+        this.moduleLoadBreakpoint = null;
     }
 
     static getInstance() {
@@ -201,7 +196,7 @@ export class DwarfBreakpointManager {
                 return this.addObjCBreakpoint(bpAddress as string, bpEnabled);
             case DwarfBreakpointType.MEMORY:
                 return this.addMemoryBreakpoint(bpAddress, (DwarfMemoryAccessType.READ | DwarfMemoryAccessType.WRITE), bpEnabled);
-            case DwarfBreakpointType.MODULE:
+            case DwarfBreakpointType.MODULE_LOAD:
                 return this.addModuleLoadBreakpoint(bpAddress as string, bpCallback);
             default:
                 break;
@@ -304,7 +299,7 @@ export class DwarfBreakpointManager {
     * @param  {string} bpAddress
     * @param  {boolean} bpEnabled?
     */
-    public addModuleLoadBreakpoint = (moduleName: string, bpCallback?: InvocationListenerCallbacks | Function | string, bpEnabled?: boolean) => {
+    public addModuleLoadBreakpoint = (moduleName: string, bpCallback?: ScriptInvocationListenerCallbacks | Function | string, bpEnabled?: boolean) => {
         trace('DwarfBreakpointManager::addModuleLoadBreakpoint()');
 
         if (!isString(moduleName)) {
@@ -323,7 +318,15 @@ export class DwarfBreakpointManager {
         } catch (e) {
             console.log(JSON.stringify(e));
         }
+    }
 
+    public removeModuleLoadBreakpoint = (moduleName: string): boolean => {
+        trace('DwarfBreakpointManager::removeModuleLoadBreakpoint()');
+
+        if (!isString(moduleName)) {
+            throw new Error('DwarfBreakpointManager::removeModuleLoadBreakpoint() -> Invalid Arguments!');
+        }
+        return this.removeBreakpointAtAddress(moduleName);
     }
 
     /**
@@ -333,7 +336,11 @@ export class DwarfBreakpointManager {
     public removeBreakpointAtAddress = (bpAddress: NativePointer | string): boolean => {
         trace('DwarfBreakpointManager::removeBreakpointAtAddress()');
         let dwarfBreakpoint = this.getBreakpointByAddress(bpAddress);
+
         if (dwarfBreakpoint !== null) {
+            if (dwarfBreakpoint.getType() == DwarfBreakpointType.NATIVE) {
+                (dwarfBreakpoint as NativeBreakpoint).detach();
+            }
             this.dwarfBreakpoints = this.dwarfBreakpoints.filter((breakpoint) => {
                 return breakpoint !== dwarfBreakpoint;
             });
@@ -350,20 +357,10 @@ export class DwarfBreakpointManager {
     public removeBreakpointByID = (bpID: number): boolean => {
         trace('DwarfBreakpointManager::removeBreakpointByID()');
 
-        let bpExisits = false;
         for (let dwarfBreakpoint of this.dwarfBreakpoints) {
             if (dwarfBreakpoint.getID() === bpID) {
-                bpExisits = true;
-                break;
+                return this.removeBreakpointAtAddress(dwarfBreakpoint.getAddress());
             }
-        }
-
-        if (bpExisits) {
-            this.dwarfBreakpoints = this.dwarfBreakpoints.filter((dwarfBreakpoint) => {
-                return dwarfBreakpoint.getID() !== bpID;
-            });
-            this.update();
-            return true;
         }
         return false;
     }
@@ -492,44 +489,10 @@ export class DwarfBreakpointManager {
         }
 
         for (let bp of this.dwarfBreakpoints) {
-            if (bp.getType() === DwarfBreakpointType.MODULE) {
+            if (bp.getType() === DwarfBreakpointType.MODULE_LOAD) {
                 if (bp.getAddress() === moduleName) {
-                    const moduleLoadBreakpoint = (bp as ModuleLoadBreakpoint);
-                    const userCallback = moduleLoadBreakpoint.getCallback();
-                    let breakExecution = false;
-                    if (isFunction(userCallback)) {
-                        let userReturn = 0;
-                        try {
-                            userReturn = (userCallback as Function).apply(thisArg, [funcArgs]);
-                        } catch (e) {
-                            logErr('ModuleLoadCallback() -> ', e);
-                            breakExecution = true;
-                        }
-                        if (isDefined(userReturn) && userReturn == 1) {
-                            breakExecution = true;
-                        }
-                    } else if (userCallback.hasOwnProperty('onEnter') || userCallback.hasOwnProperty('onLeave')) {
-                        if (userCallback.hasOwnProperty('onEnter') && isFunction(userCallback['onEnter'])) {
-                            let userReturn = 0;
-                            try {
-                                userReturn = (userCallback as ScriptInvocationListenerCallbacks).onEnter.apply(thisArg, [funcArgs]);
-                            } catch (e) {
-                                logErr('ModuleLoadCallback::onEnter() -> ', e);
-                                breakExecution = true;
-                            }
-                            if (isDefined(userReturn) && userReturn == 1) {
-                                breakExecution = true;
-                            }
-                        }
-                        if (userCallback.hasOwnProperty('onLeave') && isFunction(userCallback['onLeave'])) {
-                            this.moduleLoadLeave = { breakpointID: bp.getID(), onLeaveFunction: (userCallback as ScriptInvocationListenerCallbacks).onLeave };
-                        }
-                    } else {
-                        breakExecution = true;
-                    }
-                    if (breakExecution) {
-                        DwarfCore.getInstance().onBreakpoint(bp.getID(), Process.getCurrentThreadId(), DwarfHaltReason.MODULE_LOADED, moduleName, thisArg);
-                    }
+                    this.moduleLoadBreakpoint = (bp as ModuleLoadBreakpoint);
+                    this.moduleLoadBreakpoint.onEnterCallback(thisArg, funcArgs);
                 }
             }
         }
@@ -537,17 +500,10 @@ export class DwarfBreakpointManager {
     }
 
     public handleModuleLoadOnLeave = (thisArg: any, retVal: InvocationReturnValue) => {
-        if (isDefined(this.moduleLoadLeave) && this.moduleLoadLeave.breakpointID) {
-            const userOnLeave = this.moduleLoadLeave.onLeaveFunction;
-            if (isFunction(userOnLeave)) {
-                try {
-                    userOnLeave.apply(thisArg, [retVal]);
-                } catch (e) {
-                    logErr('ModuleLoadCallback::onLeave() -> ', e);
-                }
-            }
+        if (isDefined(this.moduleLoadBreakpoint)) {
+            this.moduleLoadBreakpoint.onLeaveCallback(thisArg, retVal);
         }
-        this.moduleLoadLeave = null;
+        this.moduleLoadBreakpoint = null;
     }
 
     public getBreakpoints = (): Array<DwarfBreakpoint> => {
@@ -561,9 +517,18 @@ export class DwarfBreakpointManager {
     public update = () => {
         trace('DwarfBreakpointManager::update()');
         //remove singleshots
-        this.dwarfBreakpoints = this.dwarfBreakpoints.filter((dwarfBreakpoint) => {
-            return !(dwarfBreakpoint.isSingleShot() && (dwarfBreakpoint.getHits() > 0) && !dwarfBreakpoint.isActive());
-        });
+
+        const newBreakpoints = [];
+        for(let dwarfBreakpoint of this.dwarfBreakpoints) {
+            if(dwarfBreakpoint.isSingleShot() && dwarfBreakpoint.getHits()) {
+                if(dwarfBreakpoint.getType() == DwarfBreakpointType.NATIVE) {
+                    (dwarfBreakpoint as NativeBreakpoint).detach();
+                }
+            } else {
+                newBreakpoints.push(dwarfBreakpoint);
+            }
+        }
+        this.dwarfBreakpoints = newBreakpoints;
 
         //sync ui
         DwarfCore.getInstance().sync({ breakpoints: this.dwarfBreakpoints });

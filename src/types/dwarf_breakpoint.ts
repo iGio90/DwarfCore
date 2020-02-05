@@ -15,8 +15,9 @@
     along with this program.  If not, see <https://www.gnu.org/licenses/>
 **/
 
-import { DwarfBreakpointType } from "../consts";
+import { DwarfBreakpointType, DwarfHaltReason } from "../consts";
 import { DwarfCore } from "../dwarf";
+import { NativeBreakpoint } from "./native_breakpoint";
 
 /**
  * DwarfBreakpoint
@@ -30,6 +31,7 @@ export class DwarfBreakpoint {
     protected bpAddress: NativePointer | string;
     protected bpSingleShot: boolean;
     protected bpActive: boolean;
+    protected bpCallbacks: ScriptInvocationListenerCallbacks | Function | string;
 
     /**
      * Creates an instance of DwarfBreakpoint.
@@ -40,7 +42,7 @@ export class DwarfBreakpoint {
      */
     public constructor(bpType: DwarfBreakpointType, bpAddress: NativePointer | string, bpEnabled: boolean = true) {
         trace('DwarfBreakpoint()');
-        if ((bpType < DwarfBreakpointType.NATIVE) || (bpType > DwarfBreakpointType.MODULE)) {
+        if ((bpType < DwarfBreakpointType.NATIVE) || (bpType > DwarfBreakpointType.CLASS_LOAD)) {
             throw new Error('Invalid BreakpointType');
         }
         this.threadId = Process.getCurrentThreadId();
@@ -75,7 +77,8 @@ export class DwarfBreakpoint {
                 return this.bpAddress;
             case DwarfBreakpointType.JAVA:
             case DwarfBreakpointType.OBJC:
-            case DwarfBreakpointType.MODULE:
+            case DwarfBreakpointType.MODULE_LOAD:
+            case DwarfBreakpointType.CLASS_LOAD:
                 return this.bpAddress as string;
             default:
                 return null;
@@ -163,5 +166,66 @@ export class DwarfBreakpoint {
 
     public isActive() {
         return this.bpActive;
+    }
+
+    public onEnterCallback(thisArg: any, funcArgs: InvocationArguments) {
+        if (!this.isEnabled()) { return; }
+
+        this.bpActive = true;
+        this.bpHits++;
+
+        let breakExecution = false;
+        if (isFunction(this.bpCallbacks)) {
+            let userReturn = 0;
+            try {
+                userReturn = (this.bpCallbacks as Function).apply(thisArg, [funcArgs]);
+                if (isDefined(userReturn) && userReturn == 1) {
+                    breakExecution = true;
+                }
+            } catch (e) {
+                logErr('DwarfBreakpoint::onEnterCallback() => userFunction() -> ', e);
+                breakExecution = true;
+            }
+        } else if (this.bpCallbacks.hasOwnProperty('onEnter') && isFunction(this.bpCallbacks['onEnter'])) {
+            let userReturn = 0;
+            try {
+                userReturn = (this.bpCallbacks as ScriptInvocationListenerCallbacks).onEnter.apply(thisArg, [funcArgs]);
+                if (isDefined(userReturn) && userReturn == 1) {
+                    breakExecution = true;
+                }
+            } catch (e) {
+                logErr('DwarfBreakpoint::onEnterCallback() => userOnEnter() -> ', e);
+                breakExecution = true;
+            }
+        } else {
+            breakExecution = true;
+        }
+
+        if (breakExecution) {
+            DwarfCore.getInstance().onBreakpoint(this.bpID, Process.getCurrentThreadId(), DwarfHaltReason.BREAKPOINT, this.bpAddress, thisArg.context);
+        }
+    }
+
+    public onLeaveCallback(thisArg: any, returnValue: InvocationReturnValue) {
+        if (!this.isEnabled()) { return; }
+
+        if (this.bpCallbacks.hasOwnProperty('onLeave') && isFunction(this.bpCallbacks['onLeave'])) {
+            let userReturn = 0;
+            let breakExecution = false;
+            try {
+                userReturn = (this.bpCallbacks as ScriptInvocationListenerCallbacks).onLeave.apply(thisArg, [returnValue]);
+                if (isDefined(userReturn) && userReturn == 1) {
+                    breakExecution = true;
+                }
+            } catch (e) {
+                logErr('DwarfBreakpoint::onLeaveCallback() => userOnEnter() -> ', e);
+                breakExecution = true;
+            }
+            if (breakExecution) {
+                DwarfCore.getInstance().onBreakpoint(this.bpID, Process.getCurrentThreadId(), DwarfHaltReason.BREAKPOINT, this.bpAddress, thisArg.context);
+            }
+        }
+
+        this.bpActive = false;
     }
 }

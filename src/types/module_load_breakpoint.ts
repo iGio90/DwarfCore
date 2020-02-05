@@ -16,29 +16,21 @@
 **/
 
 import { DwarfBreakpoint } from "./dwarf_breakpoint";
-import { DwarfBreakpointType, DwarfHaltReason } from "../consts";
-import { DwarfCore } from "../dwarf";
-
+import { DwarfBreakpointType } from "../consts";
 
 export class ModuleLoadBreakpoint extends DwarfBreakpoint {
-    protected bpCallbacks: InvocationListenerCallbacks | Function | string | null;
-
     /**
      * Creates an instance of DwarfBreakpoint.
      *
      * @param  {DwarfBreakpointType} bpType
      * @param  {NativePointer|string} bpAddress
      */
-    constructor(moduleName: string, bpEnabled?: boolean, bpCallback: InvocationListenerCallbacks | Function | string  = 'breakpoint') {
+    constructor(moduleName: string, bpEnabled?: boolean, bpCallback: ScriptInvocationListenerCallbacks | Function | string = 'breakpoint') {
         if (!isString(moduleName)) {
             throw new Error('ModuleLoadBreakpoint() -> Invalid Arguments!');
         }
 
-        super(DwarfBreakpointType.MODULE, moduleName, bpEnabled);
+        super(DwarfBreakpointType.MODULE_LOAD, moduleName, bpEnabled);
         this.bpCallbacks = bpCallback;
-    }
-
-    public getCallback() {
-        return this.bpCallbacks;
     }
 }

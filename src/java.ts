@@ -115,7 +115,7 @@ export class DwarfJavaHelper {
                             userOnEnter.apply(this, [className, resolve]);
                         }
                     } else if (isString(userCallback) && userCallback === 'breakpoint') {
-                        Dwarf.onBreakpoint(DwarfHaltReason.CLASS_LOADER, className, {}, this);
+                        Dwarf.onBreakpoint(DwarfHaltReason.BREAKPOINT, className, {}, this);
                     }
 
                     let result = this.loadClass(className, resolve);
@@ -344,7 +344,7 @@ export class DwarfJavaHelper {
 
                                 javaWrapper[methodName].overloads[i].implementation = function () {
                                     this.types = parameters;
-                                    return implementation.apply(this, arguments);
+                                    return implementation.apply(this, [arguments]);
                                 };
                             }
                         }

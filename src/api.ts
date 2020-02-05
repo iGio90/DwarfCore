@@ -31,7 +31,7 @@ import { NativeBreakpoint } from "./types/native_breakpoint";
 import { JavaBreakpoint } from "./types/java_breakpoint";
 import { ObjcBreakpoint } from "./types/objc_breakpoint";
 import { DwarfJavaHelper } from "./java";
-import { ModuleLoadBreakpoint } from "./types/module_breakpoint";
+import { ModuleLoadBreakpoint } from "./types/module_load_breakpoint";
 
 export class DwarfApi {
     private static instanceRef: DwarfApi;
@@ -84,7 +84,7 @@ export class DwarfApi {
                         bpType = DwarfBreakpointType.OBJC;
                         break;
                     case 'module_load':
-                        bpType = DwarfBreakpointType.MODULE;
+                        bpType = DwarfBreakpointType.MODULE_LOAD;
                         break;
                     default:
                         throw new Error('DwarfApi::addBreakpoint() => Invalid BreakpointType!');
@@ -96,7 +96,7 @@ export class DwarfApi {
             }
         }
 
-        if ((bpType < DwarfBreakpointType.NATIVE) || (bpType > DwarfBreakpointType.MODULE)) {
+        if ((bpType < DwarfBreakpointType.NATIVE) || (bpType > DwarfBreakpointType.CLASS_LOAD)) {
             throw new Error('DwarfApi::addBreakpoint() => Invalid BreakpointType!');
         }
 
@@ -322,11 +322,11 @@ export class DwarfApi {
         return DwarfObserver.getInstance().removeByName(observeName);
     }
 
-    public hookModuleInitialization = (libraryName: string, callback?: ScriptInvocationListenerCallbacks | Function | string) => {
+    public addModuleLoadHook = (libraryName: string, callback?: ScriptInvocationListenerCallbacks | Function | string) => {
         DwarfBreakpointManager.getInstance().addModuleLoadBreakpoint(libraryName, callback);
     }
 
-    public removeModuleInitializationBreakpoint = (libraryName: string) => {
+    public removeModuleLoadHook = (libraryName: string) => {
         DwarfBreakpointManager.getInstance().removeBreakpointAtAddress(libraryName);
     }
 

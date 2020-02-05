@@ -58,7 +58,8 @@ export const enum DwarfBreakpointType {
     JAVA = 2,
     OBJC = 3,
     MEMORY = 4,
-    MODULE = 5
+    MODULE_LOAD = 5,
+    CLASS_LOAD = 6
 }
 
 export const enum DwarfMemoryAccessType {
@@ -71,7 +72,5 @@ export const enum DwarfHaltReason {
     INITIAL_CONTEXT = 1,
     BP_INITIALIZATION = 2,
     BREAKPOINT = 3,
-    STEP = 4,
-    CLASS_LOADER = 5,
-    MODULE_LOADED = 6
+    STEP = 4
 }

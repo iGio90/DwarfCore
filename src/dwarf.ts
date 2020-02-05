@@ -397,6 +397,7 @@ export class DwarfCore {
 
             logDebug('[' + threadId + '] ThreadContext has been released');
             Dwarf.sync({ threads: [], breakpoint: {} });
+            DwarfBreakpointManager.getInstance().update();
         }
     }
 
