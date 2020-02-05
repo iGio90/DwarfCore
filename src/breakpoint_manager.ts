@@ -120,18 +120,14 @@ export class DwarfBreakpointManager {
             if (artModule) {
                 for (let moduleExportDetail of artModule.enumerateExports()) {
                     if (moduleExportDetail.name.indexOf('LoadNativeLibrary') != -1) {
+                        //changed in sdk 22, 23, 25 but we're only interested in path arg
+                        //<=22 args = (void *JavaVMExt, std::string &path,...)
+                        //>=23 args = (void *JavaVMExt, JNIEnv *env, std::string &path, ...)
+                        const argNum = (Dwarf.getAndroidApiLevel() <= 22) ? 1 : 2;
                         Interceptor.attach(moduleExportDetail.address, function (args) {
                             try {
-                                let libName = '';
-                                try {
-                                    libName = readStdString(args[1]);
-                                } catch(e) {
-                                    libName = readStdString(args[2]);
-                                }
-                                if(libName.indexOf('.so') == -1) {
-                                    return;
-                                }
-                                self.handleModuleLoadBreakpoints.apply(this, [libName]);
+                                const moduleName = readStdString(args[argNum]);
+                                self.handleModuleLoadBreakpoints.apply(this, [moduleName]);
                             } catch (e) {
                                 logErr('libart', e);
                             }

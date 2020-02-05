@@ -51,6 +51,7 @@ export class DwarfCore {
     private _systemPropertyGet: NativeFunction;
     private static instanceRef: DwarfCore;
     private breakAtStart: boolean;
+    private androidApiLevel:number;
 
     //Singleton class
     private constructor() {
@@ -75,6 +76,7 @@ export class DwarfCore {
         this.dwarfJavaHelper = null;
         this.dwarfStalker = DwarfStalker.getInstance();
         this.breakAtStart = false;
+        this.androidApiLevel = 0;
     }
 
     /**
@@ -176,6 +178,7 @@ export class DwarfCore {
             logDebug(e);
         }
         if (Java.available) {
+            this.androidApiLevel = this.getAndroidApiLevel();
             LogicJava.init();
         }
 
@@ -490,9 +493,13 @@ export class DwarfCore {
 
     //from https://github.com/frida/frida-java-bridge/blob/master/lib/android.js
     getAndroidApiLevel = () => {
-        if (!this.processInfo.isJavaAvailable()) { return; }
+        if (!Java.available) { return; }
 
         trace('DwarfCore::getAndroidApiLevel()');
+        if(this.androidApiLevel) {
+            return this.androidApiLevel;
+        }
+
         return parseInt(this.getAndroidSystemProperty('ro.build.version.sdk'), 10);
     }
 
