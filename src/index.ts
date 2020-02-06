@@ -36,7 +36,7 @@ rpc.exports = {
         ) {
             throw new Error("Unknown ApiFunction!");
         }
-        logDebug("[" + tid + "] RPC-API: " + apiFunction + " | " + "args: " + apiArguments + " (" + Process.getCurrentThreadId() + ")");
+        //logDebug("[" + tid + "] RPC-API: " + apiFunction + " | " + "args: " + apiArguments + " (" + Process.getCurrentThreadId() + ")");
 
         if (typeof apiArguments === "undefined" || apiArguments === null) {
             apiArguments = [];
@@ -46,14 +46,13 @@ rpc.exports = {
             if (Object.keys(Dwarf.threadContexts).length > 0) {
                 const threadContext = Dwarf.threadContexts[tid.toString()];
                 if (isDefined(threadContext)) {
-                    console.log("ThreadApi()");
                     const threadApi = new ThreadApi(apiFunction, apiArguments);
                     threadContext.apiQueue.push(threadApi);
                     const start = Date.now();
                     while (!threadApi.consumed) {
                         Thread.sleep(0.5);
 
-                        logDebug("[" + tid + "] RPC-API: " + apiFunction + " waiting for api result");
+                        //logDebug("[" + tid + "] RPC-API: " + apiFunction + " waiting for api result");
 
                         if (Date.now() - start > 3 * 1000) {
                             threadApi.result = "";
@@ -66,13 +65,12 @@ rpc.exports = {
                         ret = "";
                     }
 
-                    logDebug("[" + tid + "] RPC-API: " + apiFunction + " api result: " + ret);
+                    //logDebug("[" + tid + "] RPC-API: " + apiFunction + " api result: " + ret);
 
                     return ret;
                 }
             }
 
-            console.log("GlobalApi()");
             return DwarfCore.getInstance()
                 .getApi()
                 [apiFunction].apply(this, apiArguments);

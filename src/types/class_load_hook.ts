@@ -17,6 +17,7 @@
 
 import { DwarfHook } from "./dwarf_hook";
 import { DwarfHookType } from "../consts";
+import { DwarfJavaHelper } from "../java";
 
 export class ClassLoadHook extends DwarfHook {
     /**
@@ -25,7 +26,18 @@ export class ClassLoadHook extends DwarfHook {
      * @param  {DwarfHookType} bpType
      * @param  {NativePointer|string} bpAddress
      */
-    constructor(className: string, userCallback: DwarfCallback = "breakpoint", isEnabled: boolean = true, isSingleShot: boolean = false) {
+    constructor(
+        className: string,
+        userCallback: DwarfCallback = "breakpoint",
+        isEnabled: boolean = true,
+        isSingleShot: boolean = false
+    ) {
+        trace("ClassLoadHook()");
+
+        if (!Java.available) {
+            throw new Error("Java not available!");
+        }
+
         if (!isString(className)) {
             throw new Error("ClassLoadHook() -> Invalid Arguments!");
         }

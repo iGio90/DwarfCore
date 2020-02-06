@@ -164,13 +164,9 @@ export class DwarfCore {
             threads: Process.enumerateThreads()
         };
         send("coresync:::" + JSON.stringify(initData));
-        //Init JavaHelper
-        try {
-            this.dwarfJavaHelper = DwarfJavaHelper.getInstance();
-        } catch (e) {
-            logDebug(e);
-        }
+
         if (Java.available) {
+            this.dwarfJavaHelper.initalize();
             this.androidApiLevel = this.getAndroidApiLevel();
             LogicJava.init();
         }
@@ -210,14 +206,14 @@ export class DwarfCore {
         if (Java.available && this.processInfo.wasSpawned && this.breakAtStart) {
             //android init breakpoint
             if (this.getAndroidApiLevel() >= 23) {
-                const initBreakpoint = this.getHooksManager().addJavaHook("com.android.internal.os.RuntimeInit", "commonInit");
-                if (isDefined(initBreakpoint)) {
-                    initBreakpoint.setSingleShot(true);
+                const initBreakpoint = this.getHooksManager().addJavaHook("com.android.internal.os.RuntimeInit", "commonInit", 'breakpoint', true, true);
+                if(!isDefined(initBreakpoint)) {
+                    logDebug('Failed to attach initHook!');
                 }
             } else {
-                const initBreakpoint = this.getHooksManager().addJavaHook("android.app.Application", "onCreate");
-                if (isDefined(initBreakpoint)) {
-                    initBreakpoint.setSingleShot(true);
+                const initBreakpoint = this.getHooksManager().addJavaHook("android.app.Application", "onCreate", 'breakpoint', true, true);
+                if(!isDefined(initBreakpoint)) {
+                    logDebug('Failed to attach initHook!');
                 }
             }
         }

@@ -15,20 +15,20 @@
     along with this program.  If not, see <https://www.gnu.org/licenses/>
 **/
 
-import { DwarfHaltReason } from "./consts";
+import { DwarfHaltReason, DwarfHookType } from "./consts";
 import { JavaHook } from "./types/java_hook";
 import { DwarfHooksManager } from "./hooks_manager";
+import { ClassLoadHook } from "./types/class_load_hook";
 
 export class DwarfJavaHelper {
     private static instanceRef: DwarfJavaHelper;
 
     protected classCache: Array<string>;
     protected javaClassLoaderCallbacks: { [index: string]: ScriptInvocationListenerCallbacks | Function | string };
-    protected libraryLoaderCallbacks: { [index: string]: ScriptInvocationListenerCallbacks | Function | string };
     protected oldOverloads: { [index: string]: Function | Array<Function> };
     protected sdk_version: number;
     protected initDone: boolean;
-    protected breakpointsToHook: Array<JavaHook>;
+    protected hooksToAttach: Array<JavaHook>;
 
     private constructor() {
         if (DwarfJavaHelper.instanceRef) {
@@ -39,12 +39,9 @@ export class DwarfJavaHelper {
         this.classCache = new Array<string>();
         this.sdk_version = 0;
         this.javaClassLoaderCallbacks = {};
-        this.libraryLoaderCallbacks = {};
         this.oldOverloads = {};
-        this.breakpointsToHook = new Array<JavaHook>();
+        this.hooksToAttach = new Array<JavaHook>();
         this.initDone = false;
-
-        this.initalize();
     }
 
     //Singleton
@@ -77,48 +74,45 @@ export class DwarfJavaHelper {
             //class loader
             const ClassLoader = Java.use("java.lang.ClassLoader");
 
-            ClassLoader.loadClass.overload("java.lang.String", "boolean").implementation = function(className: string, resolve: boolean) {
+            ClassLoader.loadClass.overload("java.lang.String", "boolean").implementation = function(
+                className: string,
+                resolve: boolean
+            ) {
                 try {
                     if (self.classCache.indexOf(className) === -1) {
                         self.classCache.push(className);
 
-                        if (self.breakpointsToHook.length > 0) {
-                            self.breakpointsToHook.forEach(JavaHook => {
-                                if ((JavaHook.getAddress() as string).indexOf(className) !== -1) {
-                                    JavaHook.setup();
+                        if (self.hooksToAttach.length > 0) {
+                            self.hooksToAttach.forEach(javaHook => {
+                                if ((javaHook.getAddress() as string).indexOf(className) !== -1) {
+                                    javaHook.setup();
                                     Dwarf.sync({ dwarfHooks: DwarfHooksManager.getInstance().getHooks() });
                                 }
                             });
-                            self.breakpointsToHook = self.breakpointsToHook.filter(breakpoint => {
-                                return breakpoint.isHooked() == false;
-                            });
+                            self.hooksToAttach = self.hooksToAttach.filter(dwarfHook => !dwarfHook.isHooked());
                         }
                         //sync ui
                         Dwarf.sync({ java_class_loaded: className });
                     }
 
-                    let userCallback: ScriptInvocationListenerCallbacks | Function | string = null;
-                    if (self.javaClassLoaderCallbacks.hasOwnProperty(className)) {
-                        userCallback = self.javaClassLoaderCallbacks[className];
-                    } else if (isFunction(userCallback)) {
-                        (userCallback as Function).apply(this, [className, resolve]);
-                    }
-
-                    if (isDefined(userCallback) && userCallback.hasOwnProperty("onEnter")) {
-                        const userOnEnter = (userCallback as ScriptInvocationListenerCallbacks).onEnter;
-                        if (isFunction(userOnEnter)) {
-                            userOnEnter.apply(this, [className, resolve]);
+                    //handle classLoadHooks enter
+                    for(const dwarfHook of DwarfHooksManager.getInstance().getHooks()) {
+                        if(dwarfHook.getType() === DwarfHookType.CLASS_LOAD) {
+                            if(dwarfHook.getAddress() === className) {
+                                dwarfHook.onEnterCallback(this, arguments);
+                            }
                         }
-                    } else if (isString(userCallback) && userCallback === "breakpoint") {
-                        Dwarf.onBreakpoint(DwarfHaltReason.BREAKPOINT, className, {}, this);
                     }
 
+                    //load class
                     let result = this.loadClass(className, resolve);
 
-                    if (isDefined(userCallback) && userCallback.hasOwnProperty("onLeave")) {
-                        const userOnLeave = (userCallback as ScriptInvocationListenerCallbacks).onLeave;
-                        if (isFunction(userOnLeave)) {
-                            userOnLeave.apply(this, result);
+                    //handle classLoadHooks leave
+                    for(const dwarfHook of DwarfHooksManager.getInstance().getHooks()) {
+                        if(dwarfHook.getType() === DwarfHookType.CLASS_LOAD) {
+                            if(dwarfHook.getAddress() === className) {
+                                dwarfHook.onLeaveCallback(this, result);
+                            }
                         }
                     }
                     return result;
@@ -204,7 +198,7 @@ export class DwarfJavaHelper {
                         },
                         onComplete: () => {
                             Dwarf.sync({ java_classes: this.classCache, cached: useCache });
-                        }
+                        },
                     });
                 } catch (e) {
                     logDebug("JavaHelper::enumerateLoadedClasses() => Error: " + e);
@@ -257,7 +251,9 @@ export class DwarfJavaHelper {
                         logDebug("DwarfJavaHelper::hookInJVM() => overload failed -> " + e);
                     }
                 } else {
-                    throw new Error("DwarfJavaHelper::hookInJVM() => " + (className + "." + methodName) + " not found!");
+                    throw new Error(
+                        "DwarfJavaHelper::hookInJVM() => " + (className + "." + methodName) + " not found!"
+                    );
                 }
             } catch (e) {
                 logDebug("DwarfJavaHelper::hookInJVM() => Error: " + e);
@@ -290,7 +286,9 @@ export class DwarfJavaHelper {
                             for (var i = 0; i < overloadCount; i++) {
                                 if (this.oldOverloads.hasOwnProperty(className + "." + methodName)) {
                                     if (i < this.oldOverloads[className + "." + methodName].length) {
-                                        const oldImplementation = (this.oldOverloads[className + "." + methodName] as Function[])[i];
+                                        const oldImplementation = (this.oldOverloads[
+                                            className + "." + methodName
+                                        ] as Function[])[i];
                                         javaWrapper[methodName].overloads[i].implementation = oldImplementation;
                                     } else {
                                         javaWrapper[methodName].overloads[i].implementation = null;
@@ -309,7 +307,9 @@ export class DwarfJavaHelper {
                         logDebug("DwarfJavaHelper::restoreInJVM() => overload failed -> " + e);
                     }
                 } else {
-                    throw new Error("DwarfJavaHelper::restoreInJVM() => " + (className + "." + methodName) + " not found!");
+                    throw new Error(
+                        "DwarfJavaHelper::restoreInJVM() => " + (className + "." + methodName) + " not found!"
+                    );
                 }
             } catch (e) {
                 logDebug("DwarfJavaHelper::restoreInJVM() => Error: " + e);
@@ -318,69 +318,11 @@ export class DwarfJavaHelper {
         });
     };
 
-    /**
-     * @param  {string} className
-     * @param  {Function} callback?
-     * @param  {boolean=false} permanent when set to true removeClassLoaderHook wont delete hook
-     * @returns boolean
-     */
-    public addClassLoaderHook = (className: string, callback: ScriptInvocationListenerCallbacks | Function | string, permanent: boolean = false): boolean => {
-        trace("JavaHelper::addClassLoaderHook()");
+    addHookToAttach = (javaHook: JavaHook) => {
+        trace("DwarfJavaHelper::addHookToAttach()");
 
-        this.checkRequirements();
-
-        if (!isString(className)) {
-            throw new Error("DwarfJavaHelper::addClassLoaderHook() => Invalid arguments!");
+        if (javaHook.getType() == DwarfHookType.JAVA) {
+            this.hooksToAttach.push(javaHook);
         }
-
-        if (this.javaClassLoaderCallbacks.hasOwnProperty(className)) {
-            throw new Error("DwarfJavaHelper::addClassLoaderHook() => Already hooked!");
-        }
-
-        if (isFunction(callback)) {
-            if (permanent) {
-                Object.defineProperty(this.javaClassLoaderCallbacks, className, { value: callback, configurable: false, writable: false });
-            } else {
-                this.javaClassLoaderCallbacks[className] = callback;
-            }
-        } else {
-            if (isString(callback)) {
-                if (permanent) {
-                    Object.defineProperty(this.javaClassLoaderCallbacks, className, { value: "breakpoint", configurable: false, writable: false });
-                } else {
-                    this.javaClassLoaderCallbacks[className] = "breakpoint";
-                }
-            } else {
-                if (isDefined(callback)) {
-                    if (
-                        (callback.hasOwnProperty("onEnter") && isFunction((callback as ScriptInvocationListenerCallbacks).onEnter)) ||
-                        (callback.hasOwnProperty("onLeave") && isFunction((callback as ScriptInvocationListenerCallbacks).onLeave))
-                    ) {
-                        this.javaClassLoaderCallbacks[className] = callback;
-                    }
-                }
-            }
-        }
-        return true;
-    };
-
-    public removeClassLoaderHook = (className: string): boolean => {
-        trace("JavaHelper::removeClassLoaderHook()");
-
-        this.checkRequirements();
-
-        if (!isString(className)) {
-            throw new Error("DwarfJavaHelper::removeClassLoaderHook() => Invalid arguments!");
-        }
-
-        if (!this.javaClassLoaderCallbacks.hasOwnProperty(className)) {
-            throw new Error("DwarfJavaHelper::removeClassLoaderHook() => Not hooked!");
-        }
-
-        return delete this.javaClassLoaderCallbacks[className];
-    };
-
-    addHookToHook = (JavaHook: JavaHook) => {
-        this.breakpointsToHook.push(JavaHook);
     };
 }

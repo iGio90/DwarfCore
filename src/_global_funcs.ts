@@ -129,7 +129,7 @@ global.logDebug = function(...data: Array<any>): void {
         return;
     }
 
-    let outputMsg = "[JS DEBUG] ";
+    let outputMsg = "";
 
     for (let what of data) {
         if (what instanceof ArrayBuffer) {
@@ -145,12 +145,12 @@ global.logDebug = function(...data: Array<any>): void {
     }
 
     if (outputMsg !== "") {
-        console.log(timeStamp(), outputMsg);
+        console.log(timeStamp() + "[JS DEBUG] " + outputMsg);
     }
 };
 
 global.logErr = function(tag: string, err: Error): void {
-    console.log("[ERROR-" + tag + "] " + err);
+    console.log(timeStamp() + "[JS ERROR] => " +  tag + " -> " + err);
 };
 
 global.trace = function(str: string): void {

@@ -56,7 +56,7 @@ export class JavaHook extends DwarfHook {
                 }
             } catch (e) {
                 //this is used in classloader wich setups the bp later when class is loaded
-                DwarfJavaHelper.getInstance().addHookToHook(this);
+                DwarfJavaHelper.getInstance().addHookToAttach(this);
             }
         });
     }

@@ -164,7 +164,11 @@ export class DwarfApi {
      * @param flags
      * @param callback
      */
-    public addMemoryHook = (memoryAddress: NativePointer | string | number, bpFlags: string | number, bpCallback?: Function | string | null): MemoryHook => {
+    public addMemoryHook = (
+        memoryAddress: NativePointer | string | number,
+        bpFlags: string | number,
+        bpCallback?: Function | string | null
+    ): MemoryHook => {
         trace("DwarfApi::addMemoryHook()");
 
         let bpAddress = makeNativePointer(memoryAddress);
@@ -232,7 +236,12 @@ export class DwarfApi {
             if (!checkNativePointer(bpAddress)) {
                 throw new Error("DwarfApi::addNativeHook() => Invalid Address!");
             }
-            const NativeHook = DwarfHooksManager.getInstance().addNativeHook(bpAddress, userCallback, isSingleShot, isEnabled);
+            const NativeHook = DwarfHooksManager.getInstance().addNativeHook(
+                bpAddress,
+                userCallback,
+                isSingleShot,
+                isEnabled
+            );
             return NativeHook;
         } catch (error) {
             logErr("DwarfApi::addNativeHook()", error);
@@ -258,7 +267,13 @@ export class DwarfApi {
         }
 
         try {
-            const JavaHook = DwarfHooksManager.getInstance().addJavaHook(className, methodName, userCallback, isSingleShot, isEnabled);
+            const JavaHook = DwarfHooksManager.getInstance().addJavaHook(
+                className,
+                methodName,
+                userCallback,
+                isSingleShot,
+                isEnabled
+            );
             return JavaHook;
         } catch (error) {
             logErr("DwarfApi::addNativeHook()", error);
@@ -346,7 +361,10 @@ export class DwarfApi {
         return DwarfObserver.getInstance().removeByName(observeName);
     };
 
-    public addModuleLoadHook = (libraryName: string, callback?: ScriptInvocationListenerCallbacks | Function | string) => {
+    public addModuleLoadHook = (
+        libraryName: string,
+        callback?: ScriptInvocationListenerCallbacks | Function | string
+    ) => {
         DwarfHooksManager.getInstance().addModuleLoadHook(libraryName, callback);
     };
 
@@ -488,7 +506,10 @@ export class DwarfApi {
      *
      * @param protection Minimum protection of ranges to include.
      */
-    public enumerateModuleRanges = (module: Module | NativePointer | number | string, protection: string = "r--"): Array<RangeDetails> => {
+    public enumerateModuleRanges = (
+        module: Module | NativePointer | number | string,
+        protection: string = "r--"
+    ): Array<RangeDetails> => {
         let fridaModule: Module | null = null;
 
         if (!isDefined(module) || !isString(protection)) {
@@ -855,32 +876,34 @@ export class DwarfApi {
      *
      * ```javascript
      * //custom callback
-     * addClassLoaderHook('com.target.classname', function() {
+     * addClassLoadHook('com.target.classname', function() {
      *     console.log('target is being loaded');
      * });
      *
      * //breakpoint
-     * addClassLoaderHook('com.target.classname');
-     * addClassLoaderHook('com.target.classname', 'breakpoint');
+     * addClassLoadHook('com.target.classname');
+     * addClassLoadHook('com.target.classname', 'breakpoint');
      * ```
-     * @param className
-     * @param callback
+     *
+     * @param  className
+     * @param  userCallback
+     * @param  isSingleShot
+     * @param  isEnabled
+     * @returns `ClassLoadHook`
      */
-    public addClassLoaderHook = (className: string, callback?: ScriptInvocationListenerCallbacks | Function | string) => {
+    public addClassLoadHook = (
+        className: string,
+        userCallback: DwarfCallback = "breakpoint",
+        isSingleShot: boolean = false,
+        isEnabled: boolean = true
+    ) => {
         trace("DwarfApi::addClassLoaderHook()");
 
-        if (!isDefined(callback) || callback === void 0) {
-            callback = "breakpoint";
+        if (!isString(className)) {
+            throw new Error("DwarfApi::addClassLoadHook() => Invalid arguments!");
         }
 
-        if (isString(callback) && callback !== "breakpoint") {
-            throw new Error("DwarfApi::addClassLoaderHook() => Invalid arguments!");
-        }
-
-        if (!isDefined(className)) {
-            throw new Error("DwarfApi::addClassLoaderHook() => Invalid arguments!");
-        }
-        return DwarfJavaHelper.getInstance().addClassLoaderHook(className, callback);
+        return DwarfHooksManager.getInstance().addClassLoadHook(className, userCallback, isSingleShot, isEnabled);
     };
 
     /**
@@ -1198,20 +1221,6 @@ export class DwarfApi {
         return DwarfHooksManager.getInstance().removeBreakpointAtAddress(bpAddress);
     };
 
-    /**
-     * Remove a java class initialization breakpoint on moduleName
-     * @return a boolean indicating if removal was successful
-     */
-    public removeClassLoaderHook = (className: string): boolean => {
-        trace("DwarfApi::removeClassLoaderHook()");
-
-        if (!isDefined(className)) {
-            throw new Error("DwarfApi::removeClassLoaderHook() => Invalid arguments!");
-        }
-
-        return DwarfJavaHelper.getInstance().removeClassLoaderHook(className);
-    };
-
     public removeNativeHook = (breakpointAddress: NativePointer | string | number): boolean => {
         trace("DwarfApi::removeNativeHook()");
 
@@ -1341,7 +1350,12 @@ export class DwarfApi {
 
     private updateRanges = () => {
         try {
-            Dwarf.loggedSend("update_ranges:::" + Process.getCurrentThreadId() + ":::" + JSON.stringify(Process.enumerateRanges("---")));
+            Dwarf.loggedSend(
+                "update_ranges:::" +
+                    Process.getCurrentThreadId() +
+                    ":::" +
+                    JSON.stringify(Process.enumerateRanges("---"))
+            );
         } catch (e) {
             logErr("updateRanges", e);
         }
@@ -1349,7 +1363,12 @@ export class DwarfApi {
 
     private updateSearchableRanges = () => {
         try {
-            Dwarf.loggedSend("update_searchable_ranges:::" + Process.getCurrentThreadId() + ":::" + JSON.stringify(Process.enumerateRanges("r--")));
+            Dwarf.loggedSend(
+                "update_searchable_ranges:::" +
+                    Process.getCurrentThreadId() +
+                    ":::" +
+                    JSON.stringify(Process.enumerateRanges("r--"))
+            );
         } catch (e) {
             logErr("updateSearchableRanges", e);
         }

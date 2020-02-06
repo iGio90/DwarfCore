@@ -17,6 +17,7 @@
 
 import { DwarfHookType, DwarfHaltReason } from "../consts";
 import { DwarfCore } from "../dwarf";
+import { DwarfHooksManager } from "../hooks_manager";
 
 /**
  * DwarfHook
@@ -260,5 +261,8 @@ export class DwarfHook {
         }
 
         this.bActive = false;
+        if(this.isSingleShot()) {
+            DwarfHooksManager.getInstance().update();
+        }
     }
 }
