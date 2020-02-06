@@ -554,19 +554,22 @@ export class DwarfHooksManager {
         for (let memHook of self.dwarfHooks) {
             if (memHook.getType() === DwarfHookType.MEMORY) {
                 if (memHook.isEnabled()) {
-                    memoryHooks.push({ base: memHook.getAddress() as NativePointer, size: 1 });
+                    memoryHooks.push({ base: memHook.getAddress() as NativePointer, size: Process.pointerSize });
                 }
             }
         }
 
         if (memoryHooks.length > 0) {
-            console.log("MemMonitor: enabled");
             MemoryAccessMonitor.enable(memoryHooks, { onAccess: self.handleMemoryHooks });
         }
     };
 
     public handleMemoryHooks(details: MemoryAccessDetails) {
         trace("DwarfHooksManager::handleMemoryHooks()");
+
+        console.log(JSON.stringify(details));
+
+        MemoryAccessMonitor.disable();
 
         const memoryAddress = details.address;
         const dwarfHook = DwarfHooksManager.getInstance().getHookByAddress(memoryAddress, true, DwarfHookType.MEMORY);
@@ -599,6 +602,7 @@ export class DwarfHooksManager {
                 memoryHook.onEnterCallback(this, arguments);
             }
         }
+        DwarfHooksManager.getInstance().updateMemoryHooks();
     };
 
     /**
@@ -653,17 +657,26 @@ export class DwarfHooksManager {
         trace("DwarfHooksManager::update()");
 
         const newHooks = [];
-        for (let dwarfHook of this.dwarfHooks) {
-            if (dwarfHook.isSingleShot() && dwarfHook.getHits()) {
-                if (dwarfHook.getType() == DwarfHookType.NATIVE) {
+        let wasMemHook = false;
+        for (const i in this.dwarfHooks) {
+            if (this.dwarfHooks[i].isSingleShot() && this.dwarfHooks[i].getHits()) {
+                if (this.dwarfHooks[i].getType() === DwarfHookType.NATIVE) {
                     //detaches the interceptor
-                    (dwarfHook as NativeHook).detach();
+                    (this.dwarfHooks[i] as NativeHook).detach();
                 }
+                if(this.dwarfHooks[i].getType() === DwarfHookType.MEMORY) {
+                    wasMemHook = true;
+                }
+                delete this.dwarfHooks[i];
             } else {
-                newHooks.push(dwarfHook);
+                newHooks.push(this.dwarfHooks[i]);
             }
         }
         this.dwarfHooks = newHooks;
+
+        if(wasMemHook) {
+            this.updateMemoryHooks();
+        }
 
         //sync ui
         DwarfCore.getInstance().sync({ dwarfHooks: this.dwarfHooks });

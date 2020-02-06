@@ -96,24 +96,18 @@ export class DwarfJavaHelper {
                     }
 
                     //handle classLoadHooks enter
-                    for(const dwarfHook of DwarfHooksManager.getInstance().getHooks()) {
-                        if(dwarfHook.getType() === DwarfHookType.CLASS_LOAD) {
-                            if(dwarfHook.getAddress() === className) {
-                                dwarfHook.onEnterCallback(this, arguments);
-                            }
-                        }
+                    const dwarfHook = DwarfHooksManager.getInstance().getHookByAddress(className, true, DwarfHookType.CLASS_LOAD);
+
+                    if(isDefined(dwarfHook)) {
+                        dwarfHook.onEnterCallback(this, arguments);
                     }
 
                     //load class
                     let result = this.loadClass(className, resolve);
 
                     //handle classLoadHooks leave
-                    for(const dwarfHook of DwarfHooksManager.getInstance().getHooks()) {
-                        if(dwarfHook.getType() === DwarfHookType.CLASS_LOAD) {
-                            if(dwarfHook.getAddress() === className) {
-                                dwarfHook.onLeaveCallback(this, result);
-                            }
-                        }
+                    if(isDefined(dwarfHook)) {
+                        dwarfHook.onLeaveCallback(this, result);
                     }
                     return result;
                 } catch (e) {

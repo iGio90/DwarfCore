@@ -231,7 +231,7 @@ export class DwarfHook {
                 logErr("DwarfHook::onEnterCallback() => userOnEnter() -> ", e);
                 breakExecution = true;
             }
-        } else {
+        } else if(isString(this.userCallback) && this.userCallback === 'breakpoint') {
             breakExecution = true;
         }
 
