@@ -56,7 +56,7 @@ export class DwarfJavaHelper {
         }
     }
 
-    initalize = () => {
+    public initalize = () => {
         if (this.initDone) {
             logDebug("DwarfJavaHelper => Init already done!");
         }

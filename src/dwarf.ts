@@ -172,7 +172,7 @@ export class DwarfCore {
         }
 
         //LogicInitialization.init();
-        DwarfHooksManager.getInstance().attachModuleLoadingHooks();
+        this.getHooksManager().initialize();
         DwarfInterceptor.init();
 
         // register global api functions

@@ -35,6 +35,7 @@ export class DwarfHooksManager {
     protected nextHookID: number;
     protected dwarfHooks: Array<DwarfHook>;
     protected moduleLoadHook: ModuleLoadHook | null;
+    protected initDone:boolean;
 
     private constructor() {
         if (DwarfHooksManager.instanceRef) {
@@ -46,6 +47,7 @@ export class DwarfHooksManager {
         this.dwarfHooks = new Array<DwarfHook>();
         this.nextHookID = 0;
         this.moduleLoadHook = null;
+        this.initDone = false;
     }
 
     static getInstance() {
@@ -55,7 +57,10 @@ export class DwarfHooksManager {
         return DwarfHooksManager.instanceRef;
     }
 
-    public attachModuleLoadingHooks() {
+    public initialize() {
+        if (this.initDone) {
+            logDebug("DwarfJavaHelper => Init already done!");
+        }
         const self = this;
         if (Process.platform === "windows") {
             // windows native onload code
@@ -167,6 +172,7 @@ export class DwarfHooksManager {
                 }
             }
         }
+        this.initDone = true;
     }
 
     public getNextHookID(): number {
