@@ -368,10 +368,6 @@ export class DwarfApi {
         DwarfHooksManager.getInstance().addModuleLoadHook(libraryName, callback);
     };
 
-    public removeModuleLoadHook = (libraryName: string) => {
-        DwarfHooksManager.getInstance().removeBreakpointAtAddress(libraryName);
-    };
-
     /**
      * Shortcut to retrieve native backtrace
      * @param context: the CpuContext object
@@ -1167,85 +1163,6 @@ export class DwarfApi {
      */
     public releaseFromJs = (tid): void => {
         Dwarf.loggedSend("release_js:::" + tid);
-    };
-
-    /**
-     * Removes Breakpoint with id
-     *
-     * @param  {number} breakpointID
-     * @return a boolean indicating if removal was successful
-     */
-    public removeBreakpoint = (breakpointID: number): boolean => {
-        trace("DwarfApi::removeBreakpoint()");
-
-        if (!isNumber(breakpointID) || breakpointID < 1) {
-            throw new Error("DwarfApi::removeBreakpoint() => Invalid argument!");
-        }
-        return DwarfHooksManager.getInstance().removeBreakpointByID(breakpointID);
-    };
-
-    /**
-     * Removes Breakpoint at given Address
-     *
-     * @param  {NativePointer|string|number} breakpointAddress
-     * @returns boolean indicating if removal was successful
-     */
-    public removeBreakpointAtAddress = (breakpointAddress: NativePointer | string | number): boolean => {
-        trace("DwarfApi::removeBreakpointAtAddress()");
-
-        if (!isDefined(breakpointAddress)) {
-            throw new Error("DwarfApi::removeBreakpointAtAddress() => Invalid argument!");
-        }
-
-        let bpAddress: NativePointer | string = null;
-
-        //convert address
-        if (isString(breakpointAddress) && (breakpointAddress as string).startsWith("0x")) {
-            breakpointAddress = parseInt(breakpointAddress as string, 16);
-        }
-
-        //check address
-        if (!isString(breakpointAddress)) {
-            bpAddress = makeNativePointer(breakpointAddress);
-            if (!checkNativePointer(bpAddress)) {
-                throw new Error("DwarfApi::removeBreakpointAtAddress() => Invalid address!");
-            }
-        } else {
-            if ((breakpointAddress as string).length > 0) {
-                bpAddress = breakpointAddress as string;
-            } else {
-                throw new Error("DwarfApi::removeBreakpointAtAddress() => Invalid address!");
-            }
-        }
-
-        return DwarfHooksManager.getInstance().removeBreakpointAtAddress(bpAddress);
-    };
-
-    public removeNativeHook = (breakpointAddress: NativePointer | string | number): boolean => {
-        trace("DwarfApi::removeNativeHook()");
-
-        return this.removeBreakpointAtAddress(breakpointAddress);
-    };
-
-    /**
-     * Remove a MemoryHook on the given address
-     * @return a boolean indicating if removal was successful
-     */
-    public removeMemoryHook = (memoryAddress: NativePointer | string): boolean => {
-        trace("DwarfApi::removeMemoryHook()");
-
-        return this.removeBreakpointAtAddress(memoryAddress);
-    };
-
-    public removeJavaHook = (breakpointAddress: string): boolean => {
-        trace("DwarfApi::removeJavaHook()");
-
-        return this.removeBreakpointAtAddress(breakpointAddress);
-    };
-
-    public removeObjcHook = (breakpointAddress: string): boolean => {
-        trace("DwarfApi::removeObjcHook()");
-        throw new Error("Not implemented");
     };
 
     /**

@@ -184,6 +184,10 @@ export class DwarfHook {
         }
     }
 
+    public remove() {
+        DwarfHooksManager.getInstance().removeHookAtAddress(this.hookAddress);
+    }
+
     public onEnterCallback(thisArg: any, funcArgs: InvocationArguments | IArguments) {
         if (!this.isEnabled()) {
             return;
@@ -207,7 +211,9 @@ export class DwarfHook {
         } else if (this.userCallback.hasOwnProperty("onEnter") && isFunction(this.userCallback["onEnter"])) {
             let userReturn = 0;
             try {
-                userReturn = (this.userCallback as ScriptInvocationListenerCallbacks).onEnter.apply(thisArg, [funcArgs]);
+                userReturn = (this.userCallback as ScriptInvocationListenerCallbacks).onEnter.apply(thisArg, [
+                    funcArgs
+                ]);
                 if (isDefined(userReturn) && userReturn == 1) {
                     breakExecution = true;
                 }
@@ -228,9 +234,22 @@ export class DwarfHook {
                         type: thisArg.types[i]
                     });
                 }
-                DwarfCore.getInstance().onBreakpoint(this.hookID, this.threadId, DwarfHaltReason.BREAKPOINT, this.hookAddress, breakpointInfo, this);
+                DwarfCore.getInstance().onBreakpoint(
+                    this.hookID,
+                    this.threadId,
+                    DwarfHaltReason.BREAKPOINT,
+                    this.hookAddress,
+                    breakpointInfo,
+                    this
+                );
             } else {
-                DwarfCore.getInstance().onBreakpoint(this.hookID, Process.getCurrentThreadId(), DwarfHaltReason.BREAKPOINT, this.hookAddress, thisArg.context);
+                DwarfCore.getInstance().onBreakpoint(
+                    this.hookID,
+                    Process.getCurrentThreadId(),
+                    DwarfHaltReason.BREAKPOINT,
+                    this.hookAddress,
+                    thisArg.context
+                );
             }
         }
     }
@@ -244,7 +263,9 @@ export class DwarfHook {
             let userReturn = 0;
             let breakExecution = false;
             try {
-                userReturn = (this.userCallback as ScriptInvocationListenerCallbacks).onLeave.apply(thisArg, [returnValue]);
+                userReturn = (this.userCallback as ScriptInvocationListenerCallbacks).onLeave.apply(thisArg, [
+                    returnValue
+                ]);
                 if (isDefined(userReturn) && userReturn == 1) {
                     breakExecution = true;
                 }
@@ -255,13 +276,19 @@ export class DwarfHook {
             if (breakExecution) {
                 if (this.hookType == DwarfHookType.JAVA) {
                 } else {
-                    DwarfCore.getInstance().onBreakpoint(this.hookID, Process.getCurrentThreadId(), DwarfHaltReason.BREAKPOINT, this.hookAddress, thisArg.context);
+                    DwarfCore.getInstance().onBreakpoint(
+                        this.hookID,
+                        Process.getCurrentThreadId(),
+                        DwarfHaltReason.BREAKPOINT,
+                        this.hookAddress,
+                        thisArg.context
+                    );
                 }
             }
         }
 
         this.bActive = false;
-        if(this.isSingleShot()) {
+        if (this.isSingleShot()) {
             DwarfHooksManager.getInstance().update();
         }
     }

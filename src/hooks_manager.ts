@@ -35,7 +35,7 @@ export class DwarfHooksManager {
     protected nextHookID: number;
     protected dwarfHooks: Array<DwarfHook>;
     protected moduleLoadHook: ModuleLoadHook | null;
-    protected initDone:boolean;
+    protected initDone: boolean;
 
     private constructor() {
         if (DwarfHooksManager.instanceRef) {
@@ -59,7 +59,7 @@ export class DwarfHooksManager {
 
     public initialize() {
         if (this.initDone) {
-            logDebug("DwarfJavaHelper => Init already done!");
+            logDebug("DwarfHooksManager => Init already done!");
         }
         const self = this;
         if (Process.platform === "windows") {
@@ -101,7 +101,7 @@ export class DwarfHooksManager {
                         },
                         onLeave: function(retVal) {
                             self.handleModuleLoadOnLeave.apply(null, [this, retVal]);
-                        },
+                        }
                     });
                     Interceptor.attach(loadlibexa_ptr, {
                         onEnter: function(args) {
@@ -110,7 +110,7 @@ export class DwarfHooksManager {
                         },
                         onLeave: function(retVal) {
                             self.handleModuleLoadOnLeave.apply(null, [this, retVal]);
-                        },
+                        }
                     });
                     Interceptor.attach(loadlibw_ptr, {
                         onEnter: function(args) {
@@ -119,7 +119,7 @@ export class DwarfHooksManager {
                         },
                         onLeave: function(retVal) {
                             self.handleModuleLoadOnLeave.apply(null, [this, retVal]);
-                        },
+                        }
                     });
                     Interceptor.attach(loadlibexw_ptr, {
                         onEnter: function(args) {
@@ -128,7 +128,7 @@ export class DwarfHooksManager {
                         },
                         onLeave: function(retVal) {
                             self.handleModuleLoadOnLeave.apply(null, [this, retVal]);
-                        },
+                        }
                     });
                 }
             }
@@ -149,7 +149,7 @@ export class DwarfHooksManager {
                             },
                             onLeave: function(retVal) {
                                 self.handleModuleLoadOnLeave.apply(null, [this, retVal]);
-                            },
+                            }
                         });
                     }
                 }
@@ -166,7 +166,7 @@ export class DwarfHooksManager {
                             },
                             onLeave: function(retVal) {
                                 self.handleModuleLoadOnLeave.apply(null, [this, retVal]);
-                            },
+                            }
                         });
                     }
                 }
@@ -192,7 +192,7 @@ export class DwarfHooksManager {
     private checkExists(hookAddress: any): void {
         for (let dwarfHook of this.dwarfHooks) {
             if (dwarfHook.getAddress().toString() == hookAddress.toString()) {
-                throw new Error("DwarfHooksManager::addHook() -> Existing Breakpoint at given Address!");
+                throw new Error("DwarfHooksManager::addHook() -> Existing Hook at given Address!");
             }
         }
     }
@@ -236,7 +236,7 @@ export class DwarfHooksManager {
             default:
                 break;
         }
-        throw new Error("DwarfHooksManager::addHook() -> Unknown BreakpointType!");
+        throw new Error("DwarfHooksManager::addHook() -> Unknown HookType!");
     };
 
     public addClassLoadHook = (
@@ -303,17 +303,17 @@ export class DwarfHooksManager {
         this.checkExists(hookAddress);
 
         try {
-            const memBreakpoint = new MemoryHook(
+            const memHook = new MemoryHook(
                 makeNativePointer(hookAddress),
                 bpFlags,
                 userCallback,
                 isSingleShot,
                 isEnabled
             );
-            this.dwarfHooks.push(memBreakpoint);
+            this.dwarfHooks.push(memHook);
             this.updateMemoryHooks();
             this.update();
-            return memBreakpoint;
+            return memHook;
         } catch (error) {
             logErr("DwarfHooksManager::addMemoryHook()", error);
             throw error;
@@ -412,24 +412,33 @@ export class DwarfHooksManager {
         if (!isString(moduleName)) {
             throw new Error("DwarfHooksManager::removeModuleLoadHook() -> Invalid Arguments!");
         }
-        return this.removeBreakpointAtAddress(moduleName);
+        return this.removeHookAtAddress(moduleName);
     };
 
     /**
      * @param  {NativePointer|string} hookAddress
      * @returns boolean
      */
-    public removeBreakpointAtAddress = (hookAddress: NativePointer | string): boolean => {
-        trace("DwarfHooksManager::removeBreakpointAtAddress()");
+    public removeHookAtAddress = (hookAddress: NativePointer | string): boolean => {
+        trace("DwarfHooksManager::removeHookAtAddress()");
         let dwarfHook = this.getHookByAddress(hookAddress);
 
         if (dwarfHook !== null) {
             if (dwarfHook.getType() == DwarfHookType.NATIVE) {
                 (dwarfHook as NativeHook).detach();
             }
-            this.dwarfHooks = this.dwarfHooks.filter(breakpoint => {
-                return breakpoint !== dwarfHook;
-            });
+
+            const newHooks = new Array<DwarfHook>();
+            for (const i in this.dwarfHooks) {
+                if (dwarfHook.getHookId() === this.dwarfHooks[i].getHookId()) {
+                    delete this.dwarfHooks[i];
+                } else {
+                    newHooks.push(this.dwarfHooks[i]);
+                }
+            }
+            if (newHooks.length > 0) {
+                this.dwarfHooks = newHooks;
+            }
             this.update();
             return true;
         }
@@ -440,12 +449,12 @@ export class DwarfHooksManager {
      * @param  {number} hookID
      * @returns boolean
      */
-    public removeBreakpointByID = (hookID: number): boolean => {
-        trace("DwarfHooksManager::removeBreakpointByID()");
+    public removeHookById = (hookID: number): boolean => {
+        trace("DwarfHooksManager::removeHookById()");
 
         for (let dwarfHook of this.dwarfHooks) {
             if (dwarfHook.getHookId() === hookID) {
-                return this.removeBreakpointAtAddress(dwarfHook.getAddress());
+                return this.removeHookAtAddress(dwarfHook.getAddress());
             }
         }
         return false;
@@ -460,7 +469,7 @@ export class DwarfHooksManager {
         checkEnabled: boolean = false,
         checkForType?: DwarfHookType
     ): DwarfHook | null => {
-        trace("DwarfHooksManager::getBreakpointByAddress()");
+        trace("DwarfHooksManager::getHookByAddress()");
         let bpFindAddress;
         if (typeof hookAddress === "string") {
             bpFindAddress = hookAddress;
@@ -468,7 +477,7 @@ export class DwarfHooksManager {
             bpFindAddress = ptr(hookAddress).toString();
         } else {
             if (hookAddress.constructor.name !== "NativePointer" || hookAddress.isNull()) {
-                throw new Error("DwarfHooksManager::getBreakpointByAddress() -> Invalid Address!");
+                throw new Error("DwarfHooksManager::getHookByAddress() -> Invalid Address!");
             }
             bpFindAddress = hookAddress.toString();
         }
@@ -493,8 +502,8 @@ export class DwarfHooksManager {
      * @param  {NativePointer|string} hookAddress
      * @returns boolean
      */
-    public enableBreakpointAtAddress = (hookAddress: NativePointer | string): boolean => {
-        trace("DwarfHooksManager::enableBreakpointAtAddress()");
+    public enableHookAtAddress = (hookAddress: NativePointer | string): boolean => {
+        trace("DwarfHooksManager::enableHookAtAddress()");
         let dwarfHook = this.getHookByAddress(hookAddress);
         if (dwarfHook !== null) {
             dwarfHook.enable();
@@ -506,8 +515,8 @@ export class DwarfHooksManager {
      * @param  {NativePointer|string} hookAddress
      * @returns boolean
      */
-    public disableBreakpointAtAddress = (hookAddress: NativePointer | string): boolean => {
-        trace("DwarfHooksManager::disableBreakpointAtAddress()");
+    public disableHookAtAddress = (hookAddress: NativePointer | string): boolean => {
+        trace("DwarfHooksManager::disableHookAtAddress()");
         let dwarfHook = this.getHookByAddress(hookAddress);
         if (dwarfHook !== null) {
             dwarfHook.disable();
@@ -530,10 +539,10 @@ export class DwarfHooksManager {
         let MemoryHooks: Array<MemoryAccessRange> = DwarfObserver.getInstance().getLocationsInternal();
 
         //append our membreakpoints
-        for (let memBreakpoint of self.dwarfHooks) {
-            if (memBreakpoint.getType() === DwarfHookType.MEMORY) {
-                if (memBreakpoint.isEnabled()) {
-                    MemoryHooks.push({ base: memBreakpoint.getAddress() as NativePointer, size: 1 });
+        for (let memHook of self.dwarfHooks) {
+            if (memHook.getType() === DwarfHookType.MEMORY) {
+                if (memHook.isEnabled()) {
+                    MemoryHooks.push({ base: memHook.getAddress() as NativePointer, size: 1 });
                 }
             }
         }
