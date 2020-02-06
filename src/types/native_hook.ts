@@ -15,39 +15,37 @@
     along with this program.  If not, see <https://www.gnu.org/licenses/>
 **/
 
-import { DwarfBreakpoint } from "./dwarf_breakpoint";
-import { DwarfBreakpointType } from "../consts";
+import { DwarfHook } from "./dwarf_hook";
+import { DwarfHookType } from "../consts";
 
-
-export class NativeBreakpoint extends DwarfBreakpoint {
+export class NativeHook extends DwarfHook {
     protected bpDebugSymbol: DebugSymbol;
     protected bpCondition: Function;
     protected invocationListener: InvocationListener;
 
     /**
-     * Creates an instance of DwarfBreakpoint.
+     * Creates an instance of DwarfHook.
      *
-     * @param  {DwarfBreakpointType} bpType
+     * @param  {DwarfHookType} bpType
      * @param  {NativePointer|string} bpAddress
      */
-    constructor(bpAddress: NativePointer | string, bpEnabled?: boolean, bpCallback: ScriptInvocationListenerCallbacks | Function | string = 'breakpoint') {
+    constructor(bpAddress: NativePointer | string, userCallback: DwarfCallback = "breakpoint", isSingleShot: boolean = false, isEnabled: boolean = true) {
         const nativePtr = makeNativePointer(bpAddress);
 
         if (nativePtr.isNull()) {
-            throw new Error('NativeBreakpoint() -> Invalid Address!');
+            throw new Error("NativeHook() -> Invalid Address!");
         }
 
         try {
             nativePtr.readU8();
         } catch (error) {
-            logErr('NativeBreakpoint()', error);
-            throw new Error('NativeBreakpoint() -> Invalid Address!');
+            logErr("NativeHook()", error);
+            throw new Error("NativeHook() -> Invalid Address!");
         }
 
-        super(DwarfBreakpointType.NATIVE, nativePtr, bpEnabled);
+        super(DwarfHookType.NATIVE, nativePtr, userCallback, isSingleShot, isEnabled);
 
         this.bpDebugSymbol = DebugSymbol.fromAddress(nativePtr);
-        this.bpCallbacks = bpCallback;
 
         const self = this;
         this.invocationListener = Interceptor.attach(nativePtr, {
@@ -60,22 +58,14 @@ export class NativeBreakpoint extends DwarfBreakpoint {
         });
     }
 
-    public setCallback(bpCallback: ScriptInvocationListenerCallbacks | Function | null): void {
-        this.bpCallbacks = bpCallback;
-    }
-
-    public removeCallback(): void {
-        this.bpCallbacks = null;
-    }
-
     public setCondition(bpCondition: string | Function): void {
-        if (typeof bpCondition === 'string') {
+        if (typeof bpCondition === "string") {
             this.bpCondition = new Function(bpCondition);
         } else {
-            if (typeof bpCondition === 'function') {
+            if (typeof bpCondition === "function") {
                 this.bpCondition = bpCondition;
             } else {
-                logDebug('NativeBreakpoint::setCondition() -> Unknown bpCondition!');
+                logDebug("NativeHook::setCondition() -> Unknown bpCondition!");
             }
         }
     }

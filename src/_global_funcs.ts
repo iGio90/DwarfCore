@@ -15,40 +15,49 @@
     along with this program.  If not, see <https://www.gnu.org/licenses/>
 **/
 
-global.isDefined = function (value: any): boolean {
-    return (value !== undefined) && (value !== null) && (typeof value !== 'undefined');
-}
+global.timeStamp = function(): string {
+    const date = new Date();
+    const time = new Date(date.valueOf() - 6e4 * date.getTimezoneOffset()).toISOString().replace("Z", "");
+    return "[" + time.substring(time.indexOf("T") + 1) + "] ";
+};
 
+global.isNull = function(value: any): boolean {
+    return value === null;
+};
 
-global.isNumber = function (value: any) {
+global.isDefined = function(value: any): boolean {
+    return value !== undefined && value !== null && typeof value !== "undefined";
+};
+
+global.isNumber = function(value: any): boolean {
     if (isDefined(value)) {
-        return (typeof value === "number" && !isNaN(value));
+        return typeof value === "number" && !isNaN(value);
     }
     return false;
-}
+};
 
-global.isString = function (value: any) {
+global.isString = function(value: any): boolean {
     if (isDefined(value)) {
-        return (typeof value === "string");
+        return typeof value === "string";
     }
     return false;
-}
+};
 
-global.isFunction = function (value: any) {
+global.isFunction = function(value: any): boolean {
     if (isDefined(value)) {
-        return (typeof value === 'function');
+        return typeof value === "function";
     }
     return false;
-}
+};
 
-global.isValidFridaListener = function (value: any) {
+global.isValidFridaListener = function(value: any): boolean {
     if (isDefined(value)) {
-        if (value.hasOwnProperty('onEnter') || value.hasOwnProperty('onLeave')) {
+        if (value.hasOwnProperty("onEnter") || value.hasOwnProperty("onLeave")) {
             return true;
         }
     }
     return false;
-}
+};
 
 /*function ba2hex(b: any) {
     const uint8arr = new Uint8Array(b);
@@ -64,122 +73,119 @@ global.isValidFridaListener = function (value: any) {
     return hexStr;
 }*/
 
-global.ba2hex = function (arrayBuffer: ArrayBuffer): string {
+global.ba2hex = function(arrayBuffer: ArrayBuffer): string {
     // 24,887 ops/s vs 427,496 ops/s
     //https://jsperf.com/convert-numeric-array-to-hex-string
     const byteArray = new Uint8Array(arrayBuffer);
     if (!isDefined(byteArray)) {
-        return '';
+        return "";
     }
     const chars = [byteArray.length * 2];
-    const alpha = 'a'.charCodeAt(0) - 10;
-    const digit = '0'.charCodeAt(0);
+    const alpha = "a".charCodeAt(0) - 10;
+    const digit = "0".charCodeAt(0);
 
     let p = 0;
     for (let i = 0; i < byteArray.length; i++) {
         let nibble = byteArray[i] >>> 4;
         chars[p++] = nibble > 9 ? nibble + alpha : nibble + digit;
-        nibble = byteArray[i] & 0xF;
+        nibble = byteArray[i] & 0xf;
         chars[p++] = nibble > 9 ? nibble + alpha : nibble + digit;
     }
 
     if (chars.length < MAX_STACK_SIZE) {
         return String.fromCharCode.apply(null, chars);
     } else {
-        return Array.from(chars, function (c) {
+        return Array.from(chars, function(c) {
             return String.fromCharCode(c);
-        }).join('');
+        }).join("");
     }
-}
+};
 
-global.hex2a = function (hex: string) {
+global.hex2a = function(hex: string): Array<number> {
     let bytes = [];
-    for (let c = 0; c < hex.length; c += 2)
-        bytes.push(parseInt(hex.substr(c, 2), 16));
+    for (let c = 0; c < hex.length; c += 2) bytes.push(parseInt(hex.substr(c, 2), 16));
     return bytes;
-}
+};
 
-global.dethumbify = function (pt: NativePointer) {
-    if (Process.arch.indexOf('arm') !== -1) {
+global.dethumbify = function(pt: NativePointer): NativePointer {
+    if (Process.arch.indexOf("arm") !== -1) {
         if ((parseInt(pt.toString(), 16) & 1) === 1) {
             pt = pt.sub(1);
         }
     }
     return pt;
-}
+};
 
-global.uniqueBy = function (array: any[]) {
+global.uniqueBy = function(array: Array<any>): Array<any> {
     const seen: any = {};
-    return array.filter(function (item) {
+    return array.filter(function(item) {
         const k = JSON.stringify(item);
         return seen.hasOwnProperty(k) ? false : (seen[k] = true);
     });
-}
+};
 
-global.logDebug = function (...data) {
-    if (!DEBUG) {
+global.logDebug = function(...data: Array<any>): void {
+    if (!DEBUG || !data.length) {
         return;
     }
 
-    const date = new Date();
-    const now = date['getHourMinuteSecond']();
-    let to_log = '[JS DEBUG] ';
-    Object.keys(data).forEach(argN => {
-        let what = data[argN];
+    let outputMsg = "[JS DEBUG] ";
 
+    for (let what of data) {
         if (what instanceof ArrayBuffer) {
-            console.log(hexdump(what))
+            console.log(hexdump(what));
         } else if (what instanceof Object) {
             what = JSON.stringify(what, null, 2);
         }
 
-        if (to_log !== '') {
-            to_log += '\t';
+        if (outputMsg.length) {
+            outputMsg += "\t";
         }
-        to_log += what;
-    });
-
-    if (to_log !== '') {
-        console.log(now, to_log);
+        outputMsg += what;
     }
-}
 
-global.logErr = function (tag, err) {
-    console.log('[ERROR-' + tag + '] ' + err);
-}
+    if (outputMsg !== "") {
+        console.log(timeStamp(), outputMsg);
+    }
+};
 
-global.trace = function (str: string) {
-    //TODO: dont use DEBUG
+global.logErr = function(tag: string, err: Error): void {
+    console.log("[ERROR-" + tag + "] " + err);
+};
+
+global.trace = function(str: string): void {
     if (DEBUG) {
-        const date = new Date();
-        const now = date['getHourMinuteSecond']();
-        console.log(now + ' [JS TRACE] -> ' + str);
+        console.log(timeStamp() + "[JS TRACE] -> " + str);
     }
-}
+};
 
-global.makeNativePointer = function (value: any): NativePointer {
-    if (value.constructor.name === 'NativePointer') {
+global.makeNativePointer = function(value: any): NativePointer {
+    if (!isDefined(value)) {
+        throw new Error("Invalid Arguments!");
+    }
+
+    if (value.constructor.name === "NativePointer") {
         return value as NativePointer;
     }
 
-    if ((typeof value === 'string' && value.startsWith('0x')) || typeof value === 'number') {
+    if ((isString(value) && value.startsWith("0x")) || isNumber(value)) {
         return ptr(value);
     }
 
-    return null;
-}
+    throw new Error("Invalid Arguments!");
+};
 /**
  * Checks if given ptrValue is NativePointer
  *
  * @param  {NativePointer} ptrValue
  * @returns boolean
  */
-global.checkNativePointer = function (ptrValue: NativePointer): boolean {
+global.checkNativePointer = function(ptrValue: NativePointer): boolean {
     if (!isDefined(ptrValue)) {
         return false;
     }
 
-    if (ptrValue.constructor.name !== 'NativePointer') {
+    if (ptrValue.constructor.name !== "NativePointer") {
         return false;
     }
 
@@ -187,30 +193,17 @@ global.checkNativePointer = function (ptrValue: NativePointer): boolean {
         return false;
     }
     return true;
-}
-
-Date.prototype['getTwoDigitHour'] = function () {
-    return (this.getHours() < 10) ? '0' + this.getHours() : this.getHours();
-};
-
-Date.prototype['getTwoDigitMinute'] = function () {
-    return (this.getMinutes() < 10) ? '0' + this.getMinutes() : this.getMinutes();
-};
-
-Date.prototype['getTwoDigitSecond'] = function () {
-    return (this.getSeconds() < 10) ? '0' + this.getSeconds() : this.getSeconds();
-};
-
-Date.prototype['getHourMinuteSecond'] = function () {
-    return this.getTwoDigitHour() + ':' + this.getTwoDigitMinute() + ':' + this.getTwoDigitSecond();
 };
 
 //https://codeshare.frida.re/@oleavr/read-std-string/
-global.readStdString = function (arg: NativePointer): string {
+global.readStdString = function(arg: NativePointer): string | null {
     const isTiny = (arg.readU8() & 1) === 0;
     if (isTiny) {
         return arg.add(1).readUtf8String();
     }
 
-    return arg.add(2 * Process.pointerSize).readPointer().readUtf8String();
-}
+    return arg
+        .add(2 * Process.pointerSize)
+        .readPointer()
+        .readUtf8String();
+};

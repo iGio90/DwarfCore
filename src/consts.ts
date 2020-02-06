@@ -53,7 +53,7 @@ export const enum DwarfSessionType {
     REMOTE = 4
 }
 
-export const enum DwarfBreakpointType {
+export const enum DwarfHookType {
     NATIVE = 1,
     JAVA = 2,
     OBJC = 3,

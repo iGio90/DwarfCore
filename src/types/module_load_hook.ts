@@ -15,22 +15,21 @@
     along with this program.  If not, see <https://www.gnu.org/licenses/>
 **/
 
-import { DwarfBreakpoint } from "./dwarf_breakpoint";
-import { DwarfBreakpointType } from "../consts";
+import { DwarfHook } from "./dwarf_hook";
+import { DwarfHookType } from "../consts";
 
-export class ModuleLoadBreakpoint extends DwarfBreakpoint {
+export class ModuleLoadHook extends DwarfHook {
     /**
-     * Creates an instance of DwarfBreakpoint.
+     * Creates an instance of DwarfHook.
      *
-     * @param  {DwarfBreakpointType} bpType
+     * @param  {DwarfHookType} bpType
      * @param  {NativePointer|string} bpAddress
      */
-    constructor(moduleName: string, bpEnabled?: boolean, bpCallback: ScriptInvocationListenerCallbacks | Function | string = 'breakpoint') {
+    constructor(moduleName: string, userCallback: DwarfCallback = "breakpoint", isSingleShot: boolean = false, isEnabled: boolean = true) {
         if (!isString(moduleName)) {
-            throw new Error('ModuleLoadBreakpoint() -> Invalid Arguments!');
+            throw new Error("ModuleLoadHook() -> Invalid Arguments!");
         }
 
-        super(DwarfBreakpointType.MODULE_LOAD, moduleName, bpEnabled);
-        this.bpCallbacks = bpCallback;
+        super(DwarfHookType.MODULE_LOAD, moduleName, userCallback, isSingleShot, isEnabled);
     }
 }

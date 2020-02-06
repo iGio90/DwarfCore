@@ -19,43 +19,43 @@ import { DwarfFS } from "../DwarfFS";
 
 export class DwarfFile {
     private filePointer: NativePointer;
-    private filePath:string;
+    private filePath: string;
 
-    constructor(filePath: string, openMode: string = 'rt') {
-        if (openMode.indexOf('r') != -1) {
+    constructor(filePath: string, openMode: string = "rt") {
+        if (openMode.indexOf("r") != -1) {
             if (DwarfFS.getInstance().access(filePath, 0) != -1) {
-                throw new Error('File: ' + filePath + ' doesnt exists!');
+                throw new Error("File: " + filePath + " doesnt exists!");
             }
         }
         this.filePointer = DwarfFS.getInstance().fopen(filePath, openMode) as NativePointer;
-        if(isDefined(this.filePointer) && !this.filePointer.isNull()) {
+        if (isDefined(this.filePointer) && !this.filePointer.isNull()) {
             this.filePath = filePath;
         }
     }
 
-    read = (readLen:number) => {
+    read = (readLen: number) => {
         //TODO: implement
-    }
+    };
 
-    readLine = ():string => {
+    readLine = (): string => {
         //TODO: implement
-        return '';
-    }
+        return "";
+    };
 
     write = () => {
         //TODO: implement
-    }
+    };
 
     close = () => {
         const retVal = DwarfFS.getInstance().fclose(this.filePointer) as number;
         return retVal;
-    }
+    };
 
     getFilePointer = () => {
         return this.filePointer;
-    }
+    };
 
     getFilePath = () => {
         return this.filePath;
-    }
+    };
 }

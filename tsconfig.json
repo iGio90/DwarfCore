@@ -7,7 +7,9 @@
         "allowJs": true,
         "removeComments": true,
         "pretty": true,
-        "strict": false
+        "strict": false,
+        "forceConsistentCasingInFileNames": true,
+        "noUnusedLocals": false
     },
     "include": [
         "src/_copyright.ts",

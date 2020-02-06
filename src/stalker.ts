@@ -25,7 +25,7 @@ export class DwarfStalker {
         if (DwarfStalker.instanceRef) {
             throw new Error("DwarfStalker already exists! Use DwarfStalker.getInstance()");
         }
-        trace('DwarfStalker()');
+        trace("DwarfStalker()");
     }
 
     //Singleton
@@ -36,7 +36,5 @@ export class DwarfStalker {
         return DwarfStalker.instanceRef;
     }
 
-    stalk = () => {
-
-    }
+    stalk = () => {};
 }

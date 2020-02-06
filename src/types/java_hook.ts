@@ -15,40 +15,33 @@
     along with this program.  If not, see <https://www.gnu.org/licenses/>
 **/
 
-import { DwarfBreakpoint } from "./dwarf_breakpoint";
-import { DwarfBreakpointType, DwarfHaltReason } from "../consts";
+import { DwarfHook } from "./dwarf_hook";
+import { DwarfHookType } from "../consts";
 import { DwarfJavaHelper } from "../java";
 
-
-export class JavaBreakpoint extends DwarfBreakpoint {
-    protected bpCallbacks: ScriptInvocationListenerCallbacks | Function | string;
+export class JavaHook extends DwarfHook {
     private isSetupDone: boolean;
 
-    constructor(className: string, methodName: string = '$init', bpEnabled: boolean = true, bpCallbacks: ScriptInvocationListenerCallbacks | Function | string = 'breakpoint') {
-        trace('JavaBreakpoint()');
+    constructor(className: string, methodName: string = "$init", userCallback: DwarfCallback = "breakpoint", isEnabled: boolean = true, isSingleShot: boolean = false) {
+        trace("JavaHook()");
 
         if (!Java.available) {
-            throw new Error('Java not available!');
+            throw new Error("Java not available!");
         }
 
         if (!isString(className)) {
-            throw new Error('Invalid className!');
+            throw new Error("Invalid className!");
         }
 
         if (!isString(methodName)) {
-            throw new Error('Invalid methodName!');
+            throw new Error("Invalid methodName!");
         }
 
-        super(DwarfBreakpointType.JAVA, className + '.' + methodName, bpEnabled);
-
-        if (isDefined) {
-            this.bpCallbacks = bpCallbacks;
-        } else {
-            throw Error('JavaBreakpoint() callback missing');
-        }
+        super(DwarfHookType.JAVA, className + "." + methodName, userCallback, isEnabled, isSingleShot);
 
         this.isSetupDone = false;
 
+        //try to attach or add to classLoaderHook wich calls setup when class is loaded
         Java.performNow(() => {
             try {
                 const testWrapper = Java.use(className);
@@ -57,18 +50,18 @@ export class JavaBreakpoint extends DwarfBreakpoint {
                 }
             } catch (e) {
                 //this is used in classloader wich setups the bp later when class is loaded
-                DwarfJavaHelper.getInstance().addBreakpointToHook(this);
+                DwarfJavaHelper.getInstance().addHookToHook(this);
             }
         });
     }
 
-    setup(): void {
+    public setup(): void {
         const self = this;
-        Java.performNow(function () {
-            const className = (self.bpAddress as string).substr(0, (self.bpAddress as string).lastIndexOf('.'));
-            const methodName = (self.bpAddress as string).substr((self.bpAddress as string).lastIndexOf('.') + 1);
+        Java.performNow(function() {
+            const className = (self.hookAddress as string).substr(0, (self.hookAddress as string).lastIndexOf("."));
+            const methodName = (self.hookAddress as string).substr((self.hookAddress as string).lastIndexOf(".") + 1);
             try {
-                Dwarf.getJavaHelper().hookInJVM(className, methodName, function () {
+                Dwarf.getJavaHelper().hookInJVM(className, methodName, function() {
                     try {
                         let result = null;
                         self.onEnterCallback(this, arguments);
@@ -88,14 +81,11 @@ export class JavaBreakpoint extends DwarfBreakpoint {
         this.isSetupDone = true;
     }
 
-    public setCallback(bpCallback: ScriptInvocationListenerCallbacks | Function | string): void {
-        this.bpCallbacks = bpCallback;
-    }
-
-    public removeCallback(): void {
-        this.bpCallbacks = null;
-    }
-
+    /**
+     * Returns true if hook is placed
+     *
+     * @returns boolean
+     */
     public isHooked(): boolean {
         return this.isSetupDone;
     }

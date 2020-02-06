@@ -17,7 +17,6 @@
 
 
 
-import { LogicBreakpoint } from "./logic_breakpoint";
 import { StalkerInfo } from "./stalker_info";
 import { DwarfHaltReason } from "./consts";
 import { DwarfCore } from "./dwarf";

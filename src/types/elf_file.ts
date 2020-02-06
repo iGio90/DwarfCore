@@ -66,7 +66,7 @@ import { DwarfFS } from "./../DwarfFS";
  */
 export class ELF_File {
     is64Bit: boolean = false;
-    endian: string = 'little';
+    endian: string = "little";
     fileHeader: ELF_File.ELF_Header | null = null;
     programHeaders: ELF_File.ELF_ProgamHeader[] = [];
     sectionHeaders: ELF_File.ELF_SectionHeader[] = [];
@@ -92,7 +92,7 @@ export class ELF_File {
             throw new Error("DwarfFs missing!");
         }
 
-        let _file:NativePointer = dwarfFS.fopen(filePath, 'r') as NativePointer;
+        let _file: NativePointer = dwarfFS.fopen(filePath, "r") as NativePointer;
         if (!isDefined(_file) || _file.isNull()) {
             throw new Error("Failed to open File: " + filePath);
         }
@@ -110,8 +110,7 @@ export class ELF_File {
 
         this.fileHeader = new ELF_File.ELF_Header(headerBuffer);
         // check for 'ELF'
-        if (this.fileHeader.e_ident[0] !== 0x7f || this.fileHeader.e_ident[1] !== 0x45 ||
-            this.fileHeader.e_ident[2] !== 0x4c || this.fileHeader.e_ident[3] !== 0x46) {
+        if (this.fileHeader.e_ident[0] !== 0x7f || this.fileHeader.e_ident[1] !== 0x45 || this.fileHeader.e_ident[2] !== 0x4c || this.fileHeader.e_ident[3] !== 0x46) {
             dwarfFS.fclose(_file);
             throw new Error("No valid ELF File!");
         }
@@ -143,9 +142,9 @@ export class ELF_File {
             dwarfFS.fclose(_file);
             throw new Error("No valid ELF File!");
         } else if (this.fileHeader.e_ident[5] === 1) {
-            this.endian = 'little';
+            this.endian = "little";
         } else if (this.fileHeader.e_ident[5] === 2) {
-            this.endian = 'big';
+            this.endian = "big";
         }
 
         //get progheaders
@@ -160,7 +159,7 @@ export class ELF_File {
             throw new Error("Failed to read from File!");
         }
 
-        if (dwarfFS.fread(progHeadersBuffer, 1, this.fileHeader.e_phentsize * this.fileHeader.e_phnum, _file) != (this.fileHeader.e_phentsize * this.fileHeader.e_phnum)) {
+        if (dwarfFS.fread(progHeadersBuffer, 1, this.fileHeader.e_phentsize * this.fileHeader.e_phnum, _file) != this.fileHeader.e_phentsize * this.fileHeader.e_phnum) {
             dwarfFS.fclose(_file);
             throw new Error("Failed to read from File!");
         }
@@ -205,7 +204,7 @@ export class ELF_File {
         let string_table: (string | null)[] = [];
         let pos = 0;
         while (pos < section.sh_size) {
-            let str: (string | null) = strSectionBuffer.add(pos).readCString() || "NULL";
+            let str: string | null = strSectionBuffer.add(pos).readCString() || "NULL";
             if (isDefined(str) && str !== null && str.length > 0) {
                 string_table[pos] = str;
                 pos += str.length + 1;
@@ -236,7 +235,7 @@ export class ELF_File {
             section = new ELF_File.ELF_SectionHeader(sectionsBuffer.add(this.fileHeader.e_shentsize * i), this.is64Bit);
             section.name = strSectionBuffer.add(section.sh_name).readCString() || "NULL";
 
-            if (section.name === '.init_array') {
+            if (section.name === ".init_array") {
                 let initArrayBuffer = dwarfFS.allocateRw(section.sh_size);
 
                 if (!isDefined(initArrayBuffer) || initArrayBuffer.isNull()) {
@@ -258,7 +257,12 @@ export class ELF_File {
                 }
                 for (let a = 0; a < section.sh_size; a += size) {
                     if (this.is64Bit) {
-                        section.data.push(initArrayBuffer.add(a).readU64().toNumber());
+                        section.data.push(
+                            initArrayBuffer
+                                .add(a)
+                                .readU64()
+                                .toNumber()
+                        );
                     } else {
                         section.data.push(initArrayBuffer.add(a).readU32());
                     }
@@ -305,15 +309,26 @@ export namespace ELF_File {
                 this.e_version = dataPtr.add(0x14).readU32();
 
                 let pos = 0;
-                if (this.e_ident[4] === 1) { // ELFCLASS32
+                if (this.e_ident[4] === 1) {
+                    // ELFCLASS32
                     this.e_entry = dataPtr.add(0x18).readU32();
                     this.e_phoff = dataPtr.add(0x1c).readU32();
                     this.e_shoff = dataPtr.add(0x20).readU32();
                     pos = 0x24;
-                } else if (this.e_ident[4] === 2) { //ELFCLASS64
-                    this.e_entry = dataPtr.add(0x18).readU64().toNumber();
-                    this.e_phoff = dataPtr.add(0x20).readU64().toNumber();
-                    this.e_shoff = dataPtr.add(0x28).readU64().toNumber();
+                } else if (this.e_ident[4] === 2) {
+                    //ELFCLASS64
+                    this.e_entry = dataPtr
+                        .add(0x18)
+                        .readU64()
+                        .toNumber();
+                    this.e_phoff = dataPtr
+                        .add(0x20)
+                        .readU64()
+                        .toNumber();
+                    this.e_shoff = dataPtr
+                        .add(0x28)
+                        .readU64()
+                        .toNumber();
                     pos = 0x30;
                 } else {
                     return {
@@ -360,14 +375,14 @@ export namespace ELF_File {
             str.push("e_shentsize: 0x" + this.e_shentsize.toString(16));
             str.push("e_shnum: 0x" + this.e_shnum.toString(16));
             str.push("e_shstrndx: 0x" + this.e_shstrndx.toString(16));
-            return str.join('\n');
-        }
+            return str.join("\n");
+        };
     }
 
     export namespace ELF_Header {
         /**
-        * sizeof E_IDENT Array
-        */
+         * sizeof E_IDENT Array
+         */
         export const EI_NIDENT: number = 16;
     }
 
@@ -403,12 +418,30 @@ export namespace ELF_File {
                     this.p_align = dataPtr.add(0x1c).readU32();
                 } else {
                     this.p_flags = dataPtr.add(0x4).readU32();
-                    this.p_offset = dataPtr.add(0x8).readU64().toNumber();
-                    this.p_vaddr = dataPtr.add(0x10).readU64().toNumber();
-                    this.p_paddr = dataPtr.add(0x18).readU64().toNumber();
-                    this.p_filesz = dataPtr.add(0x20).readU64().toNumber();
-                    this.p_memsz = dataPtr.add(0x28).readU64().toNumber();
-                    this.p_align = dataPtr.add(0x30).readU64().toNumber();
+                    this.p_offset = dataPtr
+                        .add(0x8)
+                        .readU64()
+                        .toNumber();
+                    this.p_vaddr = dataPtr
+                        .add(0x10)
+                        .readU64()
+                        .toNumber();
+                    this.p_paddr = dataPtr
+                        .add(0x18)
+                        .readU64()
+                        .toNumber();
+                    this.p_filesz = dataPtr
+                        .add(0x20)
+                        .readU64()
+                        .toNumber();
+                    this.p_memsz = dataPtr
+                        .add(0x28)
+                        .readU64()
+                        .toNumber();
+                    this.p_align = dataPtr
+                        .add(0x30)
+                        .readU64()
+                        .toNumber();
                 }
             }
         }
@@ -423,8 +456,8 @@ export namespace ELF_File {
             str.push("p_memsz: 0x" + this.p_memsz.toString(16));
             str.push("p_flags: 0x" + this.p_flags.toString(16));
             str.push("p_align: 0x" + this.p_align.toString(16));
-            return str.join('\n');
-        }
+            return str.join("\n");
+        };
     }
 
     export namespace ELF_ProgamHeader {
@@ -443,7 +476,7 @@ export namespace ELF_File {
             0x6fffffff: "HIOS",
             0x70000000: "LOPROC",
             0x7fffffff: "HIPROC"
-        }
+        };
     }
 
     /**
@@ -485,14 +518,32 @@ export namespace ELF_File {
                     this.sh_addralign = dataPtr.add(0x20).readU32();
                     this.sh_entsize = dataPtr.add(0x24).readU32();
                 } else {
-                    this.sh_flags = dataPtr.add(0x8).readU64().toNumber();
-                    this.sh_addr = dataPtr.add(0x10).readU64().toNumber();
-                    this.sh_offset = dataPtr.add(0x18).readU64().toNumber();
-                    this.sh_size = dataPtr.add(0x20).readU64().toNumber();
+                    this.sh_flags = dataPtr
+                        .add(0x8)
+                        .readU64()
+                        .toNumber();
+                    this.sh_addr = dataPtr
+                        .add(0x10)
+                        .readU64()
+                        .toNumber();
+                    this.sh_offset = dataPtr
+                        .add(0x18)
+                        .readU64()
+                        .toNumber();
+                    this.sh_size = dataPtr
+                        .add(0x20)
+                        .readU64()
+                        .toNumber();
                     this.sh_link = dataPtr.add(0x28).readU32();
                     this.sh_info = dataPtr.add(0x2c).readU32();
-                    this.sh_addralign = dataPtr.add(0x30).readU64().toNumber();
-                    this.sh_entsize = dataPtr.add(0x38).readU64().toNumber();
+                    this.sh_addralign = dataPtr
+                        .add(0x30)
+                        .readU64()
+                        .toNumber();
+                    this.sh_entsize = dataPtr
+                        .add(0x38)
+                        .readU64()
+                        .toNumber();
                 }
             }
         }
@@ -509,8 +560,8 @@ export namespace ELF_File {
             str.push("sh_info: 0x" + this.sh_info.toString(16));
             str.push("sh_addralign: 0x" + this.sh_addralign.toString(16));
             str.push("sh_entsize: 0x" + this.sh_entsize.toString(16));
-            return str.join('\n');
-        }
+            return str.join("\n");
+        };
     }
 
     export namespace ELF_SectionHeader {
@@ -551,6 +602,6 @@ export namespace ELF_File {
             0x7fffffff: "HIPROC",
             0x80000000: "LOUSER",
             0xffffffff: "HIUSER"
-        }
+        };
     }
 }

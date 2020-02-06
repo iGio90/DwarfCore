@@ -15,12 +15,9 @@
     along with this program.  If not, see <https://www.gnu.org/licenses/>
 **/
 
-
-
 import { ThreadContext } from "./thread_context";
 
 export class DwarfInterceptor {
-
     private static onAttach(context) {
         const tid = Process.getCurrentThreadId();
         const that = {};
@@ -28,21 +25,21 @@ export class DwarfInterceptor {
 
         if (context !== null) {
             proxiedContext = new Proxy(context, {
-                get: function (object, prop) {
+                get: function(object, prop) {
                     return object[prop];
                 },
-                set: function (object, prop, value) {
+                set: function(object, prop, value) {
                     if (DEBUG) {
-                        logDebug('[' + tid + '] setting context ' + prop.toString() + ': ' + value);
+                        logDebug("[" + tid + "] setting context " + prop.toString() + ": " + value);
                     }
-                    send('set_context_value:::' + prop.toString() + ':::' + value);
+                    send("set_context_value:::" + prop.toString() + ":::" + value);
                     object[prop] = value;
                     return true;
                 }
             });
         }
 
-        that['context'] = proxiedContext;
+        that["context"] = proxiedContext;
 
         const threadContext = new ThreadContext(tid);
         threadContext.context = context;
@@ -56,42 +53,44 @@ export class DwarfInterceptor {
 
     static init() {
         const clone = Object.assign({}, Interceptor);
-        clone.attach = function attach(target: NativePointerValue, callbacksOrProbe: InvocationListenerCallbacks | InstructionProbeCallback,
-            data?: NativePointerValue): InvocationListener {
-
-            if (target.hasOwnProperty('handle')) {
+        clone.attach = function attach(
+            target: NativePointerValue,
+            callbacksOrProbe: InvocationListenerCallbacks | InstructionProbeCallback,
+            data?: NativePointerValue
+        ): InvocationListener {
+            if (target.hasOwnProperty("handle")) {
                 (target as ObjectWrapper).handle.readU8();
             } else {
                 (target as NativePointer).readU8();
             }
             let replacement;
-            if (typeof callbacksOrProbe === 'function') {
-                replacement = function () {
+            if (typeof callbacksOrProbe === "function") {
+                replacement = function() {
                     DwarfInterceptor.onAttach(this.context);
                     const ret = callbacksOrProbe.apply(this, arguments);
                     DwarfInterceptor.onDetach();
                     return ret;
                 };
-            } else if (typeof callbacksOrProbe === 'object') {
-                if (isDefined(callbacksOrProbe['onEnter'])) {
+            } else if (typeof callbacksOrProbe === "object") {
+                if (isDefined(callbacksOrProbe["onEnter"])) {
                     replacement = {
-                        onEnter: function () {
+                        onEnter: function() {
                             DwarfInterceptor.onAttach(this.context);
-                            const ret = (callbacksOrProbe as ScriptInvocationListenerCallbacks)['onEnter'].apply(this, arguments);
+                            const ret = (callbacksOrProbe as ScriptInvocationListenerCallbacks)["onEnter"].apply(this, arguments);
                             DwarfInterceptor.onDetach();
                             return ret;
                         }
                     };
 
-                    if (isDefined(callbacksOrProbe['onLeave'])) {
-                        replacement['onLeave'] = callbacksOrProbe['onLeave'];
+                    if (isDefined(callbacksOrProbe["onLeave"])) {
+                        replacement["onLeave"] = callbacksOrProbe["onLeave"];
                     }
                 } else {
                     replacement = callbacksOrProbe;
                 }
             }
-            return Interceptor['_attach'](target, replacement, data);
+            return Interceptor["_attach"](target, replacement, data);
         };
-        global['Interceptor'] = clone;
+        global["Interceptor"] = clone;
     }
 }

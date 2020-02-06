@@ -15,45 +15,50 @@
     along with this program.  If not, see <https://www.gnu.org/licenses/>
 **/
 
-import { DwarfBreakpoint } from "./dwarf_breakpoint";
+import { DwarfHook } from "./dwarf_hook";
 import { DwarfCore } from "../dwarf";
-import { DwarfMemoryAccessType, DwarfBreakpointType, DwarfHaltReason } from "../consts";
+import { DwarfMemoryAccessType, DwarfHookType, DwarfHaltReason } from "../consts";
 
-export class MemoryBreakpoint extends DwarfBreakpoint {
+export class MemoryHook extends DwarfHook {
     protected bpFlags: number;
     protected memOrgPermissions: string;
     protected callBackFunc: Function | null;
 
     /**
-     * @param  {DwarfBreakpointType} bpType
+     * @param  {DwarfHookType} bpType
      * @param  {NativePointer|string} bpAddress
      * @param  {number} bpFlags
      */
-    public constructor(bpAddress: NativePointer | string, bpFlags: number = (DwarfMemoryAccessType.READ | DwarfMemoryAccessType.WRITE), bpEnabled?: boolean, bpCallback?: Function) {
-        trace('MemoryBreakpoint()');
+    public constructor(
+        bpAddress: NativePointer | string,
+        bpFlags: number = DwarfMemoryAccessType.READ | DwarfMemoryAccessType.WRITE,
+        userCallback: DwarfCallback = "breakpoint",
+        isSingleShot: boolean = false,
+        isEnabled: boolean = true
+    ) {
+        trace("MemoryHook()");
         let memPtr: NativePointer = makeNativePointer(bpAddress);
 
         if (memPtr === null || memPtr.isNull()) {
-            throw new Error('MemoryBreakpoint() -> Invalid Address!');
+            throw new Error("MemoryHook() -> Invalid Address!");
         }
 
         try {
             memPtr.readU8();
         } catch (error) {
-            logErr('MemoryBreakpoint()', error);
-            throw new Error('MemoryBreakpoint() -> Invalid Address!');
+            logErr("MemoryHook()", error);
+            throw new Error("MemoryHook() -> Invalid Address!");
         }
 
         const rangeDetails = Process.findRangeByAddress(memPtr);
         if (rangeDetails === null) {
-            throw new Error('MemoryBreakpoint() -> Unable to find MemoryRange!');
+            throw new Error("MemoryHook() -> Unable to find MemoryRange!");
         }
 
-        super(DwarfBreakpointType.MEMORY, memPtr, bpEnabled);
+        super(DwarfHookType.MEMORY, memPtr, userCallback, isSingleShot, isEnabled);
 
         this.bpFlags = bpFlags;
         this.memOrgPermissions = rangeDetails.protection;
-        this.callBackFunc = bpCallback || null;
 
         //Enable MemBP
         if (this.isEnabled()) {
@@ -62,12 +67,12 @@ export class MemoryBreakpoint extends DwarfBreakpoint {
     }
 
     /**
-     * Change MemoryBreakpoint flags
+     * Change MemoryHook flags
      *
      * @param  {number} bpFlags - DwarfMemoryAccessType
      */
     public setFlags(bpFlags: number): void {
-        trace('MemoryBreakpoint::setFlags()');
+        trace("MemoryHook::setFlags()");
         let wasEnabled = false;
         if (this.isEnabled()) {
             this.disable();
@@ -82,24 +87,24 @@ export class MemoryBreakpoint extends DwarfBreakpoint {
     }
 
     public getFlags() {
-        trace('MemoryBreakpoint::getFlags()');
+        trace("MemoryHook::getFlags()");
         return this.bpFlags;
     }
 
     public setCallback(callbackFunction: Function): void {
-        trace('MemoryBreakpoint::setCallback()');
-        if (typeof callbackFunction === 'function') {
+        trace("MemoryHook::setCallback()");
+        if (typeof callbackFunction === "function") {
             this.callBackFunc = callbackFunction;
         }
     }
 
     public getCallback(): Function | null {
-        trace('MemoryBreakpoint::getCallback()');
+        trace("MemoryHook::getCallback()");
         return this.callBackFunc;
     }
 
     public removeCallback(): void {
-        trace('MemoryBreakpoint::removeCallback()');
+        trace("MemoryHook::removeCallback()");
         this.callBackFunc = null;
     }
 
@@ -107,42 +112,46 @@ export class MemoryBreakpoint extends DwarfBreakpoint {
      * Enables dwarf breakpoint
      */
     public enable(): void {
-        trace('MemoryBreakpoint::enable()');
+        trace("MemoryHook::enable()");
 
         //MemoryAccessMonitor is available on all platforms with >12.7.10
         super.enable();
-        DwarfCore.getInstance().getBreakpointManager().updateMemoryBreakpoints();
+        DwarfCore.getInstance()
+            .getHooksManager()
+            .updateMemoryHooks();
         return;
-        if (Process.platform === 'windows') {
+        if (Process.platform === "windows") {
             super.enable();
-            DwarfCore.getInstance().getBreakpointManager().updateMemoryBreakpoints();
+            DwarfCore.getInstance()
+                .getHooksManager()
+                .updateMemoryHooks();
             return;
         }
 
-        let perm = '';
+        let perm = "";
         if (this.bpFlags & DwarfMemoryAccessType.READ) {
-            perm += '-';
+            perm += "-";
         } else {
             perm += this.memOrgPermissions[0];
         }
         if (this.bpFlags & DwarfMemoryAccessType.WRITE) {
-            perm += '-';
+            perm += "-";
         } else {
             perm += this.memOrgPermissions[1];
         }
         if (this.bpFlags & DwarfMemoryAccessType.EXECUTE) {
-            perm += '-';
+            perm += "-";
         } else {
-            if (this.memOrgPermissions[2] === 'x') {
-                perm += 'x';
+            if (this.memOrgPermissions[2] === "x") {
+                perm += "x";
             } else {
-                perm += '-';
+                perm += "-";
             }
         }
-        if (Memory.protect(this.bpAddress as NativePointer, 1, perm)) {
+        if (Memory.protect(this.hookAddress as NativePointer, 1, perm)) {
             super.enable();
         } else {
-            throw new Error('MemoryBreakpoint::enable() -> Memory::protect failed!');
+            throw new Error("MemoryHook::enable() -> Memory::protect failed!");
         }
     }
 
@@ -150,20 +159,24 @@ export class MemoryBreakpoint extends DwarfBreakpoint {
      * Disables dwarf breakpoint
      */
     public disable(): void {
-        trace('MemoryBreakpoint::disable()');
+        trace("MemoryHook::disable()");
         //MemoryAccessMonitor is available on all platforms with >12.7.10
         super.disable();
-        DwarfCore.getInstance().getBreakpointManager().updateMemoryBreakpoints();
+        DwarfCore.getInstance()
+            .getHooksManager()
+            .updateMemoryHooks();
         return;
-        if (Process.platform === 'windows') {
+        if (Process.platform === "windows") {
             super.disable();
-            DwarfCore.getInstance().getBreakpointManager().updateMemoryBreakpoints();
+            DwarfCore.getInstance()
+                .getHooksManager()
+                .updateMemoryHooks();
             return;
         }
-        if (Memory.protect(this.bpAddress as NativePointer, 1, this.memOrgPermissions)) {
+        if (Memory.protect(this.hookAddress as NativePointer, 1, this.memOrgPermissions)) {
             super.disable();
         } else {
-            throw new Error('MemoryBreakpoint::disable() -> Memory::protect failed!');
+            throw new Error("MemoryHook::disable() -> Memory::protect failed!");
         }
     }
 
@@ -172,7 +185,7 @@ export class MemoryBreakpoint extends DwarfBreakpoint {
      * @returns true if active
      */
     public toggleActive(): boolean {
-        trace('MemoryBreakpoint::toggleActive()');
+        trace("MemoryHook::toggleActive()");
         if (this.isEnabled()) {
             this.disable();
         } else {
@@ -182,14 +195,14 @@ export class MemoryBreakpoint extends DwarfBreakpoint {
     }
 
     public onHit(details: ExceptionDetails | MemoryAccessDetails): boolean {
-        trace('MemoryBreakpoint::onHit()');
+        trace("MemoryHook::onHit()");
         const _self = this;
         const tid = Process.getCurrentThreadId();
         let memOperation: MemoryOperation;
         let fromPtr: NativePointer;
         let memAddress: NativePointer;
 
-        if (Process.platform === 'windows') {
+        if (Process.platform === "windows") {
             memOperation = (details as MemoryAccessDetails).operation;
             fromPtr = (details as MemoryAccessDetails).from;
             memAddress = (details as MemoryAccessDetails).address;
@@ -202,23 +215,23 @@ export class MemoryBreakpoint extends DwarfBreakpoint {
         let handleBp = false;
 
         switch (memOperation) {
-            case 'read':
+            case "read":
                 if (this.bpFlags & DwarfMemoryAccessType.READ) {
                     handleBp = true;
                 }
                 break;
-            case 'write':
+            case "write":
                 if (this.bpFlags & DwarfMemoryAccessType.WRITE) {
                     handleBp = true;
                 }
                 break;
-            case 'execute':
+            case "execute":
                 if (this.bpFlags & DwarfMemoryAccessType.EXECUTE) {
                     handleBp = true;
                 }
                 break;
             default:
-                logDebug('MemoryBreakpoint::onHit() -> Unknown Operation or Invalid Flags! (OP: ' + memOperation + ', FLAGS: ' + this.bpFlags.toString() + ')');
+                logDebug("MemoryHook::onHit() -> Unknown Operation or Invalid Flags! (OP: " + memOperation + ", FLAGS: " + this.bpFlags.toString() + ")");
         }
 
         if (!handleBp) {
@@ -226,8 +239,8 @@ export class MemoryBreakpoint extends DwarfBreakpoint {
         }
 
         //send infos to ui
-        const returnval = { 'memory': { 'operation': memOperation, 'address': memAddress, 'from': fromPtr } };
-        DwarfCore.getInstance().loggedSend('membp:::' + JSON.stringify(returnval) + ':::' + tid);
+        const returnval = { memory: { operation: memOperation, address: memAddress, from: fromPtr } };
+        DwarfCore.getInstance().loggedSend("membp:::" + JSON.stringify(returnval) + ":::" + tid);
 
         //Disable to allow access to mem
         this.disable();
@@ -235,7 +248,7 @@ export class MemoryBreakpoint extends DwarfBreakpoint {
 
         const self = this;
 
-        const invocationListener = Interceptor.attach(fromPtr, function (args) {
+        const invocationListener = Interceptor.attach(fromPtr, function(args) {
             const invocationContext: InvocationContext = this;
             invocationListener.detach();
             Interceptor.flush();
@@ -245,11 +258,17 @@ export class MemoryBreakpoint extends DwarfBreakpoint {
                 try {
                     memoryCallback.call(invocationContext, args);
                 } catch (error) {
-                    logErr('MemoryBreakpoint::callback()', error);
+                    logErr("MemoryHook::callback()", error);
                 }
             } else {
                 //TODO: it halts only when no callback?
-                DwarfCore.getInstance().onBreakpoint(self.bpID, Process.getCurrentThreadId(), DwarfHaltReason.BREAKPOINT, invocationContext.context.pc, invocationContext.context);
+                DwarfCore.getInstance().onBreakpoint(
+                    self.hookID,
+                    Process.getCurrentThreadId(),
+                    DwarfHaltReason.BREAKPOINT,
+                    invocationContext.context.pc,
+                    invocationContext.context
+                );
             }
 
             //reattach if not singleshot

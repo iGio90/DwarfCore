@@ -15,9 +15,21 @@
     along with this program.  If not, see <https://www.gnu.org/licenses/>
 **/
 
-import { DwarfBreakpoint } from "./dwarf_breakpoint";
-import { DwarfBreakpointType } from "../consts";
+import { DwarfHook } from "./dwarf_hook";
+import { DwarfHookType } from "../consts";
 
+export class ClassLoadHook extends DwarfHook {
+    /**
+     * Creates an instance of DwarfHook.
+     *
+     * @param  {DwarfHookType} bpType
+     * @param  {NativePointer|string} bpAddress
+     */
+    constructor(className: string, userCallback: DwarfCallback = "breakpoint", isEnabled: boolean = true, isSingleShot: boolean = false) {
+        if (!isString(className)) {
+            throw new Error("ClassLoadHook() -> Invalid Arguments!");
+        }
 
-export class ObjcBreakpoint extends DwarfBreakpoint {
+        super(DwarfHookType.CLASS_LOAD, className, userCallback, isEnabled, isSingleShot);
+    }
 }

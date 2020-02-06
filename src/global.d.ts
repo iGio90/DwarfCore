@@ -17,48 +17,56 @@
 
 declare namespace NodeJS {
     interface Global {
-        DEBUG:boolean;
-        MAX_STACK_SIZE:number;
-        isDefined:any;
-        isNumber:any;
-        isString:any;
-        isFunction:any;
-        isValidFridaListener:any;
-        ba2hex:any;
-        hex2a:any;
-        dethumbify:any;
-        uniqueBy:any;
-        logDebug:any;
-        logErr:any;
-        makeNativePointer:any;
-        checkNativePointer:any;
-        trace:any;
-        Dwarf:any;
-        readStdString:any;
+        DEBUG: boolean;
+        MAX_STACK_SIZE: number;
+        timeStamp: Function;
+        isNull: Function;
+        isDefined: Function;
+        isNumber: Function;
+        isString: Function;
+        isFunction: Function;
+        isValidFridaListener: Function;
+        ba2hex: Function;
+        hex2a: Function;
+        dethumbify: Function;
+        uniqueBy: Function;
+        logDebug: Function;
+        logErr: Function;
+        makeNativePointer: Function;
+        checkNativePointer: Function;
+        trace: Function;
+        Dwarf: any;
+        DwarfFile: any;
+        readStdString: Function;
     }
 }
 
-declare function isDefined(value:any): boolean;
-declare function isNumber(value:any):boolean;
-declare function isString(value:any):boolean;
-declare function isFunction(value:any):boolean;
-declare function isValidFridaListener(value:any):boolean;
+declare function timeStamp(): string;
+declare function isNull(value: any): boolean;
+declare function isDefined(value: any): boolean;
+declare function isNumber(value: any): boolean;
+declare function isString(value: any): boolean;
+declare function isFunction(value: any): boolean;
+declare function isValidFridaListener(value: any): boolean;
 declare function ba2hex(arrayBuffer: ArrayBuffer): string;
-declare function hex2a(hex: string):[];
-declare function dethumbify(ptrValue:NativePointer):NativePointer;
-declare function uniqueBy(array: any[]);
-declare function logDebug(...data):void;
-declare function trace(...data):void;
-declare function logErr(tag, err):void;
-declare function makeNativePointer(value:any):NativePointer;
-declare function readStdString(str:any):string;
+declare function hex2a(hex: string): [];
+declare function dethumbify(ptrValue: NativePointer): NativePointer;
+declare function uniqueBy(array: Array<any>): Array<any>;
+declare function logDebug(...data: Array<any>): void;
+declare function trace(...data: Array<any>): void;
+declare function logErr(tag: string, err: Error): void;
+declare function makeNativePointer(value: any): NativePointer;
+declare function readStdString(str: any): string;
 /**
  * Checks if given ptrValue is NativePointer
  *
  * @param  {NativePointer} ptrValue
  * @returns boolean
  */
-declare function checkNativePointer(ptrValue:NativePointer):boolean;
-declare var MAX_STACK_SIZE:number;
-declare var DEBUG:boolean;
-declare const Dwarf:any;
+declare function checkNativePointer(ptrValue: NativePointer): boolean;
+declare var MAX_STACK_SIZE: number;
+declare var DEBUG: boolean;
+declare const Dwarf: any;
+
+type DwarfHookAddress = NativePointer | string | null;
+type DwarfCallback = ScriptInvocationListenerCallbacks | Function | string;

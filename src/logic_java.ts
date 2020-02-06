@@ -15,9 +15,6 @@
  along with this program.  If not, see <https://www.gnu.org/licenses/>
  **/
 
-
-import { Breakpoint } from "./breakpoints";
-import { LogicBreakpoint } from "./logic_breakpoint";
 import { DwarfHaltReason } from "./consts";
 import { DwarfCore } from "./dwarf";
 
@@ -34,7 +31,7 @@ export class LogicJava {
 
     private static applyTracerImplementation(attach, callback?) {
         Java.performNow(() => {
-            LogicJava.tracedClasses.forEach((className) => {
+            LogicJava.tracedClasses.forEach(className => {
                 try {
                     const clazz = Java.use(className);
 
@@ -42,8 +39,7 @@ export class LogicJava {
                     if (overloadCount > 0) {
                         for (let i = 0; i < overloadCount; i++) {
                             if (attach) {
-                                clazz["$init"].overloads[i].implementation =
-                                    LogicJava.traceImplementation(callback, className, '$init');
+                                clazz["$init"].overloads[i].implementation = LogicJava.traceImplementation(callback, className, "$init");
                             } else {
                                 clazz["$init"].overloads[i].implementation = null;
                             }
@@ -52,18 +48,21 @@ export class LogicJava {
 
                     let methods = clazz.class.getDeclaredMethods();
                     const parsedMethods = [];
-                    methods.forEach(function (method) {
-                        parsedMethods.push(method.toString().replace(className + ".",
-                            "TOKEN").match(/\sTOKEN(.*)\(/)[1]);
+                    methods.forEach(function(method) {
+                        parsedMethods.push(
+                            method
+                                .toString()
+                                .replace(className + ".", "TOKEN")
+                                .match(/\sTOKEN(.*)\(/)[1]
+                        );
                     });
                     methods = uniqueBy(parsedMethods);
-                    methods.forEach((method) => {
+                    methods.forEach(method => {
                         const overloadCount = clazz[method].overloads.length;
                         if (overloadCount > 0) {
                             for (let i = 0; i < overloadCount; i++) {
                                 if (attach) {
-                                    clazz[method].overloads[i].implementation =
-                                        LogicJava.traceImplementation(callback, className, method);
+                                    clazz[method].overloads[i].implementation = LogicJava.traceImplementation(callback, className, method);
                                 } else {
                                     clazz[method].overloads[i].implementation = null;
                                 }
@@ -73,15 +72,14 @@ export class LogicJava {
 
                     clazz.$dispose();
                 } catch (e) {
-                    logErr('LogicJava.startTrace', e);
+                    logErr("LogicJava.startTrace", e);
                 }
             });
         });
-    };
+    }
 
     static backtrace() {
-        return Java.use("android.util.Log")
-            .getStackTraceString(Java.use("java.lang.Exception").$new());
+        return Java.use("android.util.Log").getStackTraceString(Java.use("java.lang.Exception").$new());
     }
 
     static getApplicationContext() {
@@ -89,8 +87,8 @@ export class LogicJava {
             return;
         }
 
-        const ActivityThread = Java.use('android.app.ActivityThread');
-        const Context = Java.use('android.content.Context');
+        const ActivityThread = Java.use("android.app.ActivityThread");
+        const Context = Java.use("android.content.Context");
 
         const context = Java.cast(ActivityThread.currentApplication().getApplicationContext(), Context);
 
@@ -98,19 +96,19 @@ export class LogicJava {
         Context.$dispose();
 
         return context;
-    };
+    }
 
     static hook(className, method, implementation): boolean {
         if (!LogicJava.available) {
             return false;
         }
 
-        Java.performNow(function () {
+        Java.performNow(function() {
             LogicJava.hookInJVM(className, method, implementation);
         });
 
         return true;
-    };
+    }
 
     static hookAllJavaMethods(className, implementation): boolean {
         if (!Java.available) {
@@ -123,14 +121,18 @@ export class LogicJava {
 
         const that = this;
 
-        Java.performNow(function () {
+        Java.performNow(function() {
             const clazz = Java.use(className);
             const methods = clazz.class.getDeclaredMethods();
 
             const parsedMethods = [];
-            methods.forEach(function (method) {
-                parsedMethods.push(method.toString().replace(className + ".",
-                    "TOKEN").match(/\sTOKEN(.*)\(/)[1]);
+            methods.forEach(function(method) {
+                parsedMethods.push(
+                    method
+                        .toString()
+                        .replace(className + ".", "TOKEN")
+                        .match(/\sTOKEN(.*)\(/)[1]
+                );
             });
             const result = uniqueBy(parsedMethods);
             result.forEach(method => {
@@ -157,24 +159,24 @@ export class LogicJava {
             handler = Java.use(className);
         } catch (err) {
             try {
-                className = className + '.' + method;
-                method = '$init';
+                className = className + "." + method;
+                method = "$init";
                 handler = Java.use(className);
-            } catch (err) { }
+            } catch (err) {}
 
-            logErr('LogicJava.hook', err);
+            logErr("LogicJava.hook", err);
             if (handler === null) {
                 return;
             }
         }
 
         try {
-            if (handler == null || typeof handler[method] === 'undefined') {
+            if (handler == null || typeof handler[method] === "undefined") {
                 return;
             }
         } catch (e) {
             // catching here not supported overload error from frida
-            logErr('LogicJava.hook', e);
+            logErr("LogicJava.hook", e);
             return;
         }
 
@@ -183,13 +185,13 @@ export class LogicJava {
             for (let i = 0; i < overloadCount; i++) {
                 const overload = handler[method].overloads[i];
                 if (isDefined(implementation)) {
-                    overload.implementation = function () {
+                    overload.implementation = function() {
                         LogicJava.javaContexts[Process.getCurrentThreadId()] = this;
                         this.className = className;
                         this.method = method;
                         this.overload = overload;
                         const ret = implementation.apply(this, arguments);
-                        if (typeof ret !== 'undefined') {
+                        if (typeof ret !== "undefined") {
                             return ret;
                         }
                         delete LogicJava.javaContexts[Process.getCurrentThreadId()];
@@ -202,7 +204,7 @@ export class LogicJava {
         }
 
         handler.$dispose();
-    };
+    }
 
     static hookJavaMethod(targetClassMethod, implementation): boolean {
         if (isDefined(targetClassMethod)) {
@@ -219,28 +221,27 @@ export class LogicJava {
         return false;
     }
 
-    static init(breakAtStart:boolean=false) {
+    static init(breakAtStart: boolean = false) {
         LogicJava.sdk = Dwarf.getAndroidApiLevel();
-        Java.performNow(function () {
+        Java.performNow(function() {
             if (DEBUG) {
-                logDebug('[' + Process.getCurrentThreadId() + '] ' +
-                    'initializing logicJava with sdk: ' + LogicJava.sdk);
+                logDebug("[" + Process.getCurrentThreadId() + "] " + "initializing logicJava with sdk: " + LogicJava.sdk);
             }
         });
-    };
+    }
 
     static jvmBreakpoint(className, method, args, types, condition?) {
-        const classMethod = className + '.' + method;
+        const classMethod = className + "." + method;
         const newArgs = {};
         for (let i = 0; i < args.length; i++) {
-            let value = '';
-            if (args[i] === null || typeof args[i] === 'undefined') {
-                value = 'null';
+            let value = "";
+            if (args[i] === null || typeof args[i] === "undefined") {
+                value = "null";
             } else {
-                if (typeof args[i] === 'object') {
+                if (typeof args[i] === "object") {
                     value = JSON.stringify(args[i]);
-                    if (types[i]['className'] === '[B') {
-                        value += ' (' + Java.use('java.lang.String').$new(args[i]) + ")";
+                    if (types[i]["className"] === "[B") {
+                        value += " (" + Java.use("java.lang.String").$new(args[i]) + ")";
                     }
                 } else {
                     value = args[i].toString();
@@ -248,47 +249,47 @@ export class LogicJava {
             }
             newArgs[i] = {
                 arg: value,
-                name: types[i]['name'],
+                name: types[i]["name"],
                 handle: args[i],
-                className: types[i]['className'],
-            }
+                className: types[i]["className"]
+            };
         }
 
         DwarfCore.getInstance().onBreakpoint(0, Process.getCurrentThreadId(), DwarfHaltReason.BREAKPOINT, classMethod, newArgs, this, condition);
-    };
+    }
 
     static jvmExplorer(what?: any) {
         let handle;
-        if (typeof what === 'undefined') {
+        if (typeof what === "undefined") {
             // flush handles
             LogicJava.javaHandles = {};
 
             handle = LogicJava.javaContexts[Process.getCurrentThreadId()];
             if (!isDefined(handle)) {
-                console.log('jvm explorer outside context scope');
+                console.log("jvm explorer outside context scope");
                 return null;
             }
-        } else if (typeof what === 'object') {
-            if (typeof what['handle_class'] !== 'undefined') {
-                const cl = Java.use(what['handle_class']);
-                handle = what['handle'];
-                if (typeof handle === 'string') {
+        } else if (typeof what === "object") {
+            if (typeof what["handle_class"] !== "undefined") {
+                const cl = Java.use(what["handle_class"]);
+                handle = what["handle"];
+                if (typeof handle === "string") {
                     handle = LogicJava.javaHandles[handle];
-                    if (typeof handle === 'undefined') {
+                    if (typeof handle === "undefined") {
                         return null;
                     }
-                } else if (typeof handle === 'object') {
+                } else if (typeof handle === "object") {
                     try {
-                        handle = Java.cast(ptr(handle['$handle']), cl);
+                        handle = Java.cast(ptr(handle["$handle"]), cl);
                     } catch (e) {
-                        logErr('jvmExplorer', e + ' | ' + handle['$handle']);
+                        logErr("jvmExplorer" + " | " + handle["$handle"], e);
                         return null;
                     }
                 } else {
                     try {
                         handle = Java.cast(ptr(handle), cl);
                     } catch (e) {
-                        logErr('jvmExplorer', e + ' | ' + handle);
+                        logErr("jvmExplorer" + " | " + handle, e);
                         return null;
                     }
                 }
@@ -297,168 +298,109 @@ export class LogicJava {
                 handle = what;
             }
         } else {
-            console.log('Explorer handle not found');
+            console.log("Explorer handle not found");
             return {};
         }
-        if (handle === null || typeof handle === 'undefined') {
-            console.log('Explorer handle null');
+        if (handle === null || typeof handle === "undefined") {
+            console.log("Explorer handle null");
             return {};
         }
         let ol;
         try {
             ol = Object.getOwnPropertyNames(handle.__proto__);
         } catch (e) {
-            logErr('jvmExplorer-1', e);
+            logErr("jvmExplorer-1", e);
             return null;
         }
-        let clazz = '';
-        if (typeof handle['$className'] !== 'undefined') {
-            clazz = handle['$className'];
+        let clazz = "";
+        if (typeof handle["$className"] !== "undefined") {
+            clazz = handle["$className"];
         }
         const ret = {
-            'class': clazz,
-            'data': {}
+            class: clazz,
+            data: {}
         };
         for (const o in ol) {
             const name = ol[o];
             try {
                 const overloads = [];
                 let t = typeof handle[name];
-                let value = '';
+                let value = "";
                 let sub_handle = null;
-                let sub_handle_class = '';
+                let sub_handle_class = "";
 
-                if (t === 'function') {
-                    if (typeof handle[name].overloads !== 'undefined') {
+                if (t === "function") {
+                    if (typeof handle[name].overloads !== "undefined") {
                         const overloadCount = handle[name].overloads.length;
                         if (overloadCount > 0) {
                             for (const i in handle[name].overloads) {
                                 overloads.push({
-                                    'args': handle[name].overloads[i].argumentTypes,
-                                    'return': handle[name].overloads[i].returnType
+                                    args: handle[name].overloads[i].argumentTypes,
+                                    return: handle[name].overloads[i].returnType
                                 });
                             }
                         }
                     }
-                } else if (t === 'object') {
+                } else if (t === "object") {
                     if (handle[name] !== null) {
-                        sub_handle_class = handle[name]['$className'];
+                        sub_handle_class = handle[name]["$className"];
                     }
 
-                    if (typeof handle[name]['$handle'] !== 'undefined' && handle[name]['$handle'] !== null) {
-                        value = handle[name]['$handle'];
-                        sub_handle = handle[name]['$handle'];
+                    if (typeof handle[name]["$handle"] !== "undefined" && handle[name]["$handle"] !== null) {
+                        value = handle[name]["$handle"];
+                        sub_handle = handle[name]["$handle"];
                     } else {
-                        if (handle[name] !== null && handle[name]['value'] !== null) {
-                            sub_handle_class = handle[name]['value']['$className'];
+                        if (handle[name] !== null && handle[name]["value"] !== null) {
+                            sub_handle_class = handle[name]["value"]["$className"];
                         }
 
-                        if (handle[name] !== null && handle[name]['value'] !== null &&
-                            typeof handle[name]['value'] === 'object') {
-                            if (typeof handle[name]['fieldReturnType'] !== 'undefined') {
-                                sub_handle = handle[name]['value'];
-                                if (typeof sub_handle['$handle'] !== 'undefined') {
-                                    const pt = sub_handle['$handle'];
+                        if (handle[name] !== null && handle[name]["value"] !== null && typeof handle[name]["value"] === "object") {
+                            if (typeof handle[name]["fieldReturnType"] !== "undefined") {
+                                sub_handle = handle[name]["value"];
+                                if (typeof sub_handle["$handle"] !== "undefined") {
+                                    const pt = sub_handle["$handle"];
                                     LogicJava.javaHandles[pt] = sub_handle;
                                     sub_handle = pt;
-                                    value = handle[name]['fieldReturnType']['className'];
+                                    value = handle[name]["fieldReturnType"]["className"];
                                     sub_handle_class = value;
                                 } else {
-                                    t = handle[name]['fieldReturnType']['type'];
-                                    sub_handle_class = handle[name]['fieldReturnType']['className'];
+                                    t = handle[name]["fieldReturnType"]["type"];
+                                    sub_handle_class = handle[name]["fieldReturnType"]["className"];
 
-                                    if (handle[name]['fieldReturnType']['type'] !== 'pointer') {
+                                    if (handle[name]["fieldReturnType"]["type"] !== "pointer") {
                                         value = sub_handle_class;
                                     } else {
-                                        if (handle[name]['value'] !== null) {
-                                            value = handle[name]['value'].toString();
-                                            t = typeof (value);
+                                        if (handle[name]["value"] !== null) {
+                                            value = handle[name]["value"].toString();
+                                            t = typeof value;
                                         }
                                     }
                                 }
-                            } else if (handle[name]['value'] !== null) {
-                                value = handle[name]['value'].toString();
-                                t = typeof (value);
+                            } else if (handle[name]["value"] !== null) {
+                                value = handle[name]["value"].toString();
+                                t = typeof value;
                             }
-                        } else if (handle[name]['value'] !== null) {
-                            t = typeof (handle[name]['value']);
-                            value = handle[name]['value'].toString();
+                        } else if (handle[name]["value"] !== null) {
+                            t = typeof handle[name]["value"];
+                            value = handle[name]["value"].toString();
                         }
                     }
                 } else {
                     value = handle[name];
                 }
 
-                ret['data'][name] = {
-                    'value': value,
-                    'handle': sub_handle,
-                    'handle_class': sub_handle_class,
-                    'type': t,
-                    'overloads': overloads
+                ret["data"][name] = {
+                    value: value,
+                    handle: sub_handle,
+                    handle_class: sub_handle_class,
+                    type: t,
+                    overloads: overloads
                 };
             } catch (e) {
-                logErr('jvmExplorer-2', e);
+                logErr("jvmExplorer-2", e);
             }
         }
         return ret;
-    }
-
-    static putBreakpoint(target: string, condition?: string | Function): boolean {
-        if (!isString(target) || isDefined(LogicJava.breakpoints[target])) {
-            return false;
-        }
-
-        const breakpoint = new Breakpoint(target);
-
-        if (!isDefined(condition)) {
-            condition = null;
-        }
-        breakpoint.condition = condition;
-
-        LogicJava.breakpoints[target] = breakpoint;
-        if (target.endsWith('.$init')) {
-            LogicJava.hook(target, '$init', function () {
-                LogicJava.jvmBreakpoint(this.className, this.method, arguments, this.overload.argumentTypes, condition);
-            });
-        } else {
-            LogicJava.hookJavaMethod(target, function () {
-                LogicJava.jvmBreakpoint(this.className, this.method, arguments, this.overload.argumentTypes, condition);
-            });
-        }
-
-        return true;
-    }
-
-    static putJavaClassInitializationBreakpoint(className: string): boolean {
-        const applied = LogicJava.hookClassLoaderClassInitialization(className, null);
-        if (applied) {
-            Dwarf.loggedSend('java_class_initialization_callback:::' + className);
-        }
-        return applied;
-    }
-
-    static removeBreakpoint(target: string): boolean {
-        if (!isString(target)) {
-            return false;
-        }
-
-        let breakpoint: Breakpoint = LogicJava.breakpoints[target];
-        if (isDefined(breakpoint)) {
-            delete LogicBreakpoint.breakpoints[target.toString()];
-            LogicJava.hookJavaMethod(breakpoint.target, null);
-            return true;
-        }
-
-        return false;
-    }
-
-    static removeModuleInitializationBreakpoint(clazz: string) {
-        if (typeof LogicJava.javaClassLoaderCallbacks[clazz] !== 'undefined') {
-            delete LogicJava.javaClassLoaderCallbacks[clazz];
-            return true;
-        }
-
-        return false;
     }
 
     static restartApplication(): boolean {
@@ -466,13 +408,13 @@ export class LogicJava {
             return false;
         }
 
-        Java.performNow(function () {
-            const Intent = Java.use('android.content.Intent');
+        Java.performNow(function() {
+            const Intent = Java.use("android.content.Intent");
             const ctx = LogicJava.getApplicationContext();
             const intent = ctx.getPackageManager().getLaunchIntentForPackage(ctx.getPackageName());
-            intent.addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP['value']);
-            intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK['value']);
-            intent.addFlags(Intent.FLAG_ACTIVITY_CLEAR_TASK['value']);
+            intent.addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP["value"]);
+            intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK["value"]);
+            intent.addFlags(Intent.FLAG_ACTIVITY_CLEAR_TASK["value"]);
             ctx.startActivity(intent);
         });
         return true;
@@ -488,7 +430,7 @@ export class LogicJava {
         LogicJava.applyTracerImplementation(true, callback);
 
         return true;
-    };
+    }
 
     static stopTrace(): boolean {
         if (!LogicJava.available || !LogicJava.tracing) {
@@ -499,18 +441,18 @@ export class LogicJava {
         LogicJava.applyTracerImplementation(true);
 
         return true;
-    };
+    }
 
     static traceImplementation(callback, className, method) {
-        return function () {
+        return function() {
             const uiCallback = !isDefined(callback);
-            const classMethod = className + '.' + method;
+            const classMethod = className + "." + method;
 
             if (uiCallback) {
-                Dwarf.loggedSend('java_trace:::enter:::' + classMethod + ':::' + JSON.stringify(arguments));
+                Dwarf.loggedSend("java_trace:::enter:::" + classMethod + ":::" + JSON.stringify(arguments));
             } else {
-                if (isDefined(callback['onEnter'])) {
-                    callback['onEnter'](arguments);
+                if (isDefined(callback["onEnter"])) {
+                    callback["onEnter"](arguments);
                 }
             }
 
@@ -518,21 +460,21 @@ export class LogicJava {
 
             if (uiCallback) {
                 let traceRet = ret;
-                if (typeof traceRet === 'object') {
+                if (typeof traceRet === "object") {
                     traceRet = JSON.stringify(ret);
-                } else if (typeof traceRet === 'undefined') {
+                } else if (typeof traceRet === "undefined") {
                     traceRet = "";
                 }
-                Dwarf.loggedSend('java_trace:::leave:::' + classMethod + ':::' + traceRet);
+                Dwarf.loggedSend("java_trace:::leave:::" + classMethod + ":::" + traceRet);
             } else {
-                if (isDefined(callback['onLeave'])) {
-                    let tempRet = callback['onLeave'](ret);
-                    if (typeof tempRet !== 'undefined') {
+                if (isDefined(callback["onLeave"])) {
+                    let tempRet = callback["onLeave"](ret);
+                    if (typeof tempRet !== "undefined") {
                         ret = tempRet;
                     }
                 }
             }
             return ret;
-        }
+        };
     }
 }

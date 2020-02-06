@@ -1,5 +1,5 @@
 /**
-    Dwarf - Copyright (C) 2019 Giovanni Rocca (iGio90)
+    Dwarf - Copyright (C) 2018-2020 Giovanni Rocca (iGio90)
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -15,12 +15,7 @@
     along with this program.  If not, see <https://www.gnu.org/licenses/>
 **/
 
-export class Breakpoint {
-    target: NativePointer | string;
-    interceptor?: InvocationListener;
-    condition?: string | Function;
+import { DwarfHook } from "./dwarf_hook";
+import { DwarfHookType } from "../consts";
 
-    constructor(target: NativePointer | string) {
-        this.target = target;
-    }
-}
+export class ObjcHook extends DwarfHook {}
