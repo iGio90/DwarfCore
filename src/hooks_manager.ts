@@ -438,7 +438,7 @@ export class DwarfHooksManager {
 
             const newHooks = new Array<DwarfHook>();
             for (const i in this.dwarfHooks) {
-                if (dwarfHook.getHookId() === this.dwarfHooks[i].getHookId()) {
+                if (dwarfHook.getHookId() === this.dwarfHooks[i].getHookId() && !this.dwarfHooks[i].isActive()) {
                     delete this.dwarfHooks[i];
                 } else {
                     newHooks.push(this.dwarfHooks[i]);
@@ -659,7 +659,7 @@ export class DwarfHooksManager {
         const newHooks = [];
         let wasMemHook = false;
         for (const i in this.dwarfHooks) {
-            if (this.dwarfHooks[i].isSingleShot() && this.dwarfHooks[i].getHits()) {
+            if (this.dwarfHooks[i].isSingleShot() && this.dwarfHooks[i].getHits() && !this.dwarfHooks[i].isActive()) {
                 if (this.dwarfHooks[i].getType() === DwarfHookType.NATIVE) {
                     //detaches the interceptor
                     (this.dwarfHooks[i] as NativeHook).detach();
