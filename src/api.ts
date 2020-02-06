@@ -266,7 +266,12 @@ export class DwarfApi {
         }
     };
 
-    public addObjcHook = (bpAddress: string, userCallback: DwarfCallback = "breakpoint", isSingleShot: boolean = false, isEnabled: boolean = true): ObjcHook => {
+    public addObjcHook = (
+        bpAddress: string,
+        userCallback: DwarfCallback = "breakpoint",
+        isSingleShot: boolean = false,
+        isEnabled: boolean = true
+    ): ObjcHook => {
         trace("DwarfApi::addObjcHook()");
 
         throw new Error("Not implemented!");
@@ -303,7 +308,14 @@ export class DwarfApi {
      * @param  {string} watchMode
      * @param  {string|Function} handler ('breakpoint' or function)
      */
-    public addObserveLocation = (name: string, npAddress: NativePointer | string, watchType: string, watchMode: string, handler: string | Function, bytesLength: number = 0) => {
+    public addObserveLocation = (
+        name: string,
+        npAddress: NativePointer | string,
+        watchType: string,
+        watchMode: string,
+        handler: string | Function,
+        bytesLength: number = 0
+    ) => {
         trace("DwarfApi::addObserveLocation()");
 
         if (isString(handler) && handler !== "breakpoint") {
@@ -782,7 +794,7 @@ export class DwarfApi {
         try {
             const instruction = Instruction.parse(ptr(address));
             return JSON.stringify({
-                string: instruction.toString()
+                string: instruction.toString(),
             });
         } catch (e) {
             logErr("getInstruction", e);
@@ -1009,7 +1021,6 @@ export class DwarfApi {
             Dwarf.loggedSend("log:::" + what);
         }
     };
-
 
     /**
      * A shortcut and secure way to read a string from a pointer with frida on any os
@@ -1250,7 +1261,6 @@ export class DwarfApi {
             console.log("Error: Process already resumed");
         }
     };
-
 
     /**
      * Send whatever to the data panel
