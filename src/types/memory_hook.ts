@@ -32,7 +32,7 @@ export class MemoryHook extends DwarfHook {
     public constructor(
         bpAddress: NativePointer | string,
         bpFlags: number = DwarfMemoryAccessType.READ | DwarfMemoryAccessType.WRITE,
-        userCallback: DwarfCallback = "breakpoint",
+        userCallback: Function | string = "breakpoint",
         isSingleShot: boolean = false,
         isEnabled: boolean = true
     ) {
@@ -53,6 +53,11 @@ export class MemoryHook extends DwarfHook {
         const rangeDetails = Process.findRangeByAddress(memPtr);
         if (rangeDetails === null) {
             throw new Error("MemoryHook() -> Unable to find MemoryRange!");
+        }
+
+        //no onEnter/onLeave
+        if(!isString(userCallback) && !isFunction(userCallback)) {
+            throw new Error('MemoryHook() -> Invalid Callback!');
         }
 
         super(DwarfHookType.MEMORY, memPtr, userCallback, isSingleShot, isEnabled);
@@ -89,23 +94,6 @@ export class MemoryHook extends DwarfHook {
     public getFlags() {
         trace("MemoryHook::getFlags()");
         return this.bpFlags;
-    }
-
-    public setCallback(callbackFunction: Function): void {
-        trace("MemoryHook::setCallback()");
-        if (typeof callbackFunction === "function") {
-            this.callBackFunc = callbackFunction;
-        }
-    }
-
-    public getCallback(): Function | null {
-        trace("MemoryHook::getCallback()");
-        return this.callBackFunc;
-    }
-
-    public removeCallback(): void {
-        trace("MemoryHook::removeCallback()");
-        this.callBackFunc = null;
     }
 
     /**
@@ -178,104 +166,5 @@ export class MemoryHook extends DwarfHook {
         } else {
             throw new Error("MemoryHook::disable() -> Memory::protect failed!");
         }
-    }
-
-    /**
-     * Toggles active
-     * @returns true if active
-     */
-    public toggleActive(): boolean {
-        trace("MemoryHook::toggleActive()");
-        if (this.isEnabled()) {
-            this.disable();
-        } else {
-            this.enable();
-        }
-        return this.isEnabled();
-    }
-
-    public onHit(details: ExceptionDetails | MemoryAccessDetails): boolean {
-        trace("MemoryHook::onHit()");
-        const _self = this;
-        const tid = Process.getCurrentThreadId();
-        let memOperation: MemoryOperation;
-        let fromPtr: NativePointer;
-        let memAddress: NativePointer;
-
-        if (Process.platform === "windows") {
-            memOperation = (details as MemoryAccessDetails).operation;
-            fromPtr = (details as MemoryAccessDetails).from;
-            memAddress = (details as MemoryAccessDetails).address;
-        } else {
-            memOperation = (details as ExceptionDetails).memory.operation;
-            fromPtr = (details as ExceptionDetails).address;
-            memAddress = (details as ExceptionDetails).memory.address;
-        }
-
-        let handleBp = false;
-
-        switch (memOperation) {
-            case "read":
-                if (this.bpFlags & DwarfMemoryAccessType.READ) {
-                    handleBp = true;
-                }
-                break;
-            case "write":
-                if (this.bpFlags & DwarfMemoryAccessType.WRITE) {
-                    handleBp = true;
-                }
-                break;
-            case "execute":
-                if (this.bpFlags & DwarfMemoryAccessType.EXECUTE) {
-                    handleBp = true;
-                }
-                break;
-            default:
-                logDebug("MemoryHook::onHit() -> Unknown Operation or Invalid Flags! (OP: " + memOperation + ", FLAGS: " + this.bpFlags.toString() + ")");
-        }
-
-        if (!handleBp) {
-            return false;
-        }
-
-        //send infos to ui
-        const returnval = { memory: { operation: memOperation, address: memAddress, from: fromPtr } };
-        DwarfCore.getInstance().loggedSend("membp:::" + JSON.stringify(returnval) + ":::" + tid);
-
-        //Disable to allow access to mem
-        this.disable();
-        this.bpHits++;
-
-        const self = this;
-
-        const invocationListener = Interceptor.attach(fromPtr, function(args) {
-            const invocationContext: InvocationContext = this;
-            invocationListener.detach();
-            Interceptor.flush();
-
-            const memoryCallback = _self.callBackFunc;
-            if (memoryCallback !== null) {
-                try {
-                    memoryCallback.call(invocationContext, args);
-                } catch (error) {
-                    logErr("MemoryHook::callback()", error);
-                }
-            } else {
-                //TODO: it halts only when no callback?
-                DwarfCore.getInstance().onBreakpoint(
-                    self.hookID,
-                    Process.getCurrentThreadId(),
-                    DwarfHaltReason.BREAKPOINT,
-                    invocationContext.context.pc,
-                    invocationContext.context
-                );
-            }
-
-            //reattach if not singleshot
-            if (!_self.isSingleShot()) {
-                _self.enable();
-            }
-        });
-        return true;
     }
 }

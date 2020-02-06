@@ -30,6 +30,10 @@ export class ModuleLoadHook extends DwarfHook {
             throw new Error("ModuleLoadHook() -> Invalid Arguments!");
         }
 
+        if(!isFunction(userCallback) && !isString(userCallback) && !isValidFridaListener(userCallback)) {
+            throw new Error('ModuleLoadHook() -> Invalid Callback!');
+        }
+
         super(DwarfHookType.MODULE_LOAD, moduleName, userCallback, isSingleShot, isEnabled);
     }
 }

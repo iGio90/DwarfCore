@@ -223,14 +223,18 @@ export class DwarfHooksManager {
                 return this.addClassLoadHook(hookAddress, userCallback, isSingleShot, isEnabled);
             case DwarfHookType.OBJC:
                 return this.addObjcHook(hookAddress as string, userCallback, isSingleShot, isEnabled);
-            case DwarfHookType.MEMORY:
+            case DwarfHookType.MEMORY: {
+                if(!isString(userCallback) && !isFunction(userCallback)) {
+                    throw new Error('DwarfHooksManager::addHook() -> Invalid Callback!');
+                }
                 return this.addMemoryHook(
                     hookAddress,
                     DwarfMemoryAccessType.READ | DwarfMemoryAccessType.WRITE,
-                    userCallback,
+                    (userCallback as Function | string),
                     isSingleShot,
                     isEnabled
                 );
+            }
             case DwarfHookType.MODULE_LOAD:
                 return this.addModuleLoadHook(hookAddress as string, userCallback, isSingleShot, isEnabled);
             default:
@@ -294,7 +298,7 @@ export class DwarfHooksManager {
     public addMemoryHook = (
         hookAddress: NativePointer | string,
         bpFlags: number = DwarfMemoryAccessType.READ | DwarfMemoryAccessType.WRITE,
-        userCallback: DwarfCallback = "breakpoint",
+        userCallback: Function | string = "breakpoint",
         isSingleShot: boolean = false,
         isEnabled: boolean = true
     ) => {
@@ -422,10 +426,14 @@ export class DwarfHooksManager {
     public removeHookAtAddress = (hookAddress: NativePointer | string): boolean => {
         trace("DwarfHooksManager::removeHookAtAddress()");
         let dwarfHook = this.getHookByAddress(hookAddress);
+        let wasMemHook = false;
 
         if (dwarfHook !== null) {
             if (dwarfHook.getType() == DwarfHookType.NATIVE) {
                 (dwarfHook as NativeHook).detach();
+            }
+            if(dwarfHook.getType() == DwarfHookType.MEMORY) {
+                wasMemHook = true;
             }
 
             const newHooks = new Array<DwarfHook>();
@@ -436,8 +444,12 @@ export class DwarfHooksManager {
                     newHooks.push(this.dwarfHooks[i]);
                 }
             }
+
             if (newHooks.length > 0) {
                 this.dwarfHooks = newHooks;
+            }
+            if(wasMemHook) {
+                this.updateMemoryHooks();
             }
             this.update();
             return true;
@@ -536,36 +548,56 @@ export class DwarfHooksManager {
         const self = this;
 
         //Get Watchlocations
-        let MemoryHooks: Array<MemoryAccessRange> = DwarfObserver.getInstance().getLocationsInternal();
+        let memoryHooks: Array<MemoryAccessRange> = DwarfObserver.getInstance().getLocationsInternal();
 
         //append our membreakpoints
         for (let memHook of self.dwarfHooks) {
             if (memHook.getType() === DwarfHookType.MEMORY) {
                 if (memHook.isEnabled()) {
-                    MemoryHooks.push({ base: memHook.getAddress() as NativePointer, size: 1 });
+                    memoryHooks.push({ base: memHook.getAddress() as NativePointer, size: 1 });
                 }
             }
         }
-        console.log(JSON.stringify(MemoryHooks));
-        if (MemoryHooks.length > 0) {
+
+        if (memoryHooks.length > 0) {
             console.log("MemMonitor: enabled");
-            MemoryAccessMonitor.enable(MemoryHooks, { onAccess: this.handleMemoryHooks });
+            MemoryAccessMonitor.enable(memoryHooks, { onAccess: self.handleMemoryHooks });
         }
     };
 
-    public handleMemoryHooks = (details: MemoryAccessDetails) => {
+    public handleMemoryHooks(details: MemoryAccessDetails) {
         trace("DwarfHooksManager::handleMemoryHooks()");
 
         const memoryAddress = details.address;
-        const dwarfHook = this.getHookByAddress(memoryAddress, true, DwarfHookType.MEMORY);
+        const dwarfHook = DwarfHooksManager.getInstance().getHookByAddress(memoryAddress, true, DwarfHookType.MEMORY);
 
         //not in hooks
         if (dwarfHook === null) {
             //let dwarfobserver handle
             DwarfObserver.getInstance().handleMemoryAccess(details);
         } else {
-            const MemoryHook = dwarfHook as MemoryHook;
-            MemoryHook.onHit(details);
+            const memoryHook = dwarfHook as MemoryHook;
+            let handleBp = false;
+            switch (details.operation) {
+                case "read":
+                    if (memoryHook.getFlags() & DwarfMemoryAccessType.READ) {
+                        handleBp = true;
+                    }
+                    break;
+                case "write":
+                    if (memoryHook.getFlags() & DwarfMemoryAccessType.WRITE) {
+                        handleBp = true;
+                    }
+                    break;
+                case "execute":
+                    if (memoryHook.getFlags() & DwarfMemoryAccessType.EXECUTE) {
+                        handleBp = true;
+                    }
+                    break;
+            }
+            if(handleBp) {
+                memoryHook.onEnterCallback(this, arguments);
+            }
         }
     };
 

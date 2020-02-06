@@ -43,6 +43,10 @@ export class JavaHook extends DwarfHook {
             throw new Error("Invalid methodName!");
         }
 
+        if(!isFunction(userCallback) && !isString(userCallback) && !isValidFridaListener(userCallback)) {
+            throw new Error('JavaHook() -> Invalid Callback!');
+        }
+
         super(DwarfHookType.JAVA, className + "." + methodName, userCallback, isSingleShot, isEnabled);
 
         this.isSetupDone = false;

@@ -167,7 +167,9 @@ export class DwarfApi {
     public addMemoryHook = (
         memoryAddress: NativePointer | string | number,
         bpFlags: string | number,
-        bpCallback?: Function | string | null
+        userCallback: Function | string = "breakpoint",
+        isSingleShot: boolean = false,
+        isEnabled: boolean = true
     ): MemoryHook => {
         trace("DwarfApi::addMemoryHook()");
 
@@ -204,18 +206,13 @@ export class DwarfApi {
         }
 
         try {
-            const memoryHook = DwarfHooksManager.getInstance().addMemoryHook(bpAddress, intFlags);
-            if (isDefined(memoryHook)) {
-                if (isFunction(bpCallback)) {
-                    memoryHook.setCallback(bpCallback as Function);
-                } else {
-                    if (isString(bpCallback)) {
-                        //TODO: add func wich converts string to function
-                    } else {
-                        throw new Error("DwarfApi::addMemoryHook() => Unable to set callback!");
-                    }
-                }
-            }
+            const memoryHook = DwarfHooksManager.getInstance().addMemoryHook(
+                bpAddress,
+                intFlags,
+                userCallback,
+                isSingleShot,
+                isEnabled
+            );
             return memoryHook;
         } catch (error) {
             logErr("DwarfApi::addMemoryHook()", error);
@@ -811,7 +808,7 @@ export class DwarfApi {
         try {
             const instruction = Instruction.parse(ptr(address));
             return JSON.stringify({
-                string: instruction.toString(),
+                string: instruction.toString()
             });
         } catch (e) {
             logErr("getInstruction", e);

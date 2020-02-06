@@ -55,6 +55,16 @@ export class DwarfHook {
             throw new Error("Invalid HookType");
         }
 
+        if(!isFunction(userCallback) && !isString(userCallback) && !isValidFridaListener(userCallback)) {
+            throw new Error('DwarfHook() -> Invalid Callback!');
+        }
+
+        if(dwarfHookType === DwarfHookType.MEMORY) {
+            if(isValidFridaListener(userCallback)) {
+                throw new Error('DwarfHook() -> Invalid Callback!');
+            }
+        }
+
         this.hookType = dwarfHookType;
         this.hookAddress = hookAddress;
         this.userCallback = userCallback;
@@ -256,6 +266,10 @@ export class DwarfHook {
 
     public onLeaveCallback(thisArg: any, returnValue: InvocationReturnValue) {
         if (!this.isEnabled()) {
+            return;
+        }
+
+        if(this.hookType === DwarfHookType.MEMORY) {
             return;
         }
 

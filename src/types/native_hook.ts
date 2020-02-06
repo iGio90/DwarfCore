@@ -43,6 +43,10 @@ export class NativeHook extends DwarfHook {
             throw new Error("NativeHook() -> Invalid Address!");
         }
 
+        if(!isFunction(userCallback) && !isString(userCallback) && !isValidFridaListener(userCallback)) {
+            throw new Error('NativeHook() -> Invalid Callback!');
+        }
+
         super(DwarfHookType.NATIVE, nativePtr, userCallback, isSingleShot, isEnabled);
 
         this.bpDebugSymbol = DebugSymbol.fromAddress(nativePtr);

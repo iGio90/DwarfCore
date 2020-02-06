@@ -51,7 +51,7 @@ global.isFunction = function(value: any): boolean {
 };
 
 global.isValidFridaListener = function(value: any): boolean {
-    if (isDefined(value)) {
+    if (isDefined(value) && typeof value === "object") {
         if (value.hasOwnProperty("onEnter") || value.hasOwnProperty("onLeave")) {
             return true;
         }
@@ -150,7 +150,7 @@ global.logDebug = function(...data: Array<any>): void {
 };
 
 global.logErr = function(tag: string, err: Error): void {
-    console.log(timeStamp() + "[JS ERROR] => " +  tag + " -> " + err);
+    console.log(timeStamp() + "[JS ERROR] => " + tag + " -> " + err);
 };
 
 global.trace = function(str: string): void {
