@@ -22,7 +22,13 @@ import { DwarfJavaHelper } from "../java";
 export class JavaHook extends DwarfHook {
     private isSetupDone: boolean;
 
-    constructor(className: string, methodName: string = "$init", userCallback: DwarfCallback = "breakpoint", isEnabled: boolean = true, isSingleShot: boolean = false) {
+    constructor(
+        className: string,
+        methodName: string = "$init",
+        userCallback: DwarfCallback = "breakpoint",
+        isEnabled: boolean = true,
+        isSingleShot: boolean = false
+    ) {
         trace("JavaHook()");
 
         if (!Java.available) {
@@ -37,7 +43,7 @@ export class JavaHook extends DwarfHook {
             throw new Error("Invalid methodName!");
         }
 
-        super(DwarfHookType.JAVA, className + "." + methodName, userCallback, isEnabled, isSingleShot);
+        super(DwarfHookType.JAVA, className + "." + methodName, userCallback, isSingleShot, isEnabled);
 
         this.isSetupDone = false;
 
