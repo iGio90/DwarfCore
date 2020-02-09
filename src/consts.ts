@@ -74,3 +74,11 @@ export const enum DwarfHaltReason {
     BREAKPOINT = 3,
     STEP = 4
 }
+
+export const enum DwarfDataDisplayType {
+    TEXT = 1,
+    JSON = 2,
+    HEX = 3,
+    DISASM = 4,
+    SQLITE3 = 5
+}

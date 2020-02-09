@@ -19,7 +19,7 @@ import { DwarfFS } from "./DwarfFS";
 import { LogicJava } from "./logic_java";
 import { LogicStalker } from "./logic_stalker";
 import { ThreadWrapper } from "./thread_wrapper";
-import { DwarfMemoryAccessType, DwarfHookType } from "./consts";
+import { DwarfMemoryAccessType, DwarfHookType, DwarfDataDisplayType } from "./consts";
 import { DwarfCore } from "./dwarf";
 import { MemoryHook } from "./types/memory_hook";
 import { DwarfHooksManager } from "./hooks_manager";
@@ -1185,29 +1185,80 @@ export class DwarfApi {
         }
     };
 
+
     /**
-     * Send whatever to the data panel
+     * ### Shows CustomData in UI
+     *
+     * dataTypes allowed `DwarfDataDisplayType` or ['text', 'json', 'hex', 'disasm', 'sqlite3']
+     *
+     * for `DwarfDataDisplayType.DISASM` you can pass an optional Base (as hex) and Mode 'thumb'
+     *
+     *
+     * #### Examples:
+     * ```javascript
+     * showData('text', 'Test', 'Hello World');
+     * ```
      *
      * ```javascript
-     * var sendCount = 0;
-     * Interceptor.attach(findExport('send'), function() {
-     *     setData(sendCount + '', this.context.x1.readByteArray(parseInt(this.context.x2)))
-     *     sendCount++;
-     * });
+     * showData('hex', 'Bytes at eax', this.context['eax'].readByteArray(100));
      * ```
+     *
+     * ```javascript
+     * var baseAddr = ptr(this.context['eax']).toString();
+     * showData('diasm', 'Disasm from ' + baseAddr, this.context['eax'].readByteArray(100), baseAddr);
+     * showData('diasm', 'Disasm from ' + baseAddr, this.context['eax'].readByteArray(100), baseAddr, 'thumb');
+     * ```
+     *
+     * ```javascript
+     * showData(2, 'Sample JSON', { name: 'Test', otherItem: 1 });
+     * ```
+     *
+     * ```javascript
+     * showData('sqlite3', 'Sample Database', '/full/path/to/file.db'); //on Android it pulls db from Device
+     * ```
+     *
+     *
+     * @param  {DwarfDataDisplayType} dataType - default `DwarfDataDisplayType.TEXT`
+     * @param  {string} dataIdentifier - some identifier string
+     * @param  {any} data - your data to display for ['hex', 'disasm'] use ArrayBuffer
+     * @param  {number} base? optional as hex
+     * @param  {string} mode? allowed: 'thumb' switches Disassembler from ARM to  THUMB on arm targets
      */
-    public setData = (key, data) => {
-        if (typeof key !== "string" && key.length < 1) {
-            return;
+    public showData = (
+        dataType: DwarfDataDisplayType = DwarfDataDisplayType.TEXT,
+        dataIdentifier: string,
+        data: any,
+        base?:number,
+        mode?:string
+    ) => {
+        trace("DwarfApi::showData()");
+
+        if (!isDefined(dataType) || !isString(dataIdentifier) || !isDefined(data)) {
+            throw new Error("DwarfApi::showData() -> Invalid Arguments!");
         }
 
         if (data.constructor.name === "ArrayBuffer") {
-            Dwarf.loggedSend("set_data:::" + key, data);
-        } else {
-            if (typeof data === "object") {
-                data = JSON.stringify(data, null, 4);
+            if (dataType !== DwarfDataDisplayType.HEX && dataType !== DwarfDataDisplayType.DISASM) {
+                dataType = DwarfDataDisplayType.HEX;
             }
-            Dwarf.loggedSend("set_data:::" + key + ":::" + data);
+        }
+
+        if (dataType === DwarfDataDisplayType.TEXT && isString(data)) {
+            if (data.length) {
+                DwarfCore.getInstance().sync({ showData: { type: dataType, ident: dataIdentifier, data: data } });
+            }
+        } else if (dataType === DwarfDataDisplayType.JSON && (typeof data === "object" || isString(data))) {
+            const data_json = JSON.stringify(data);
+            if (data_json.length) {
+                DwarfCore.getInstance().sync({ showData: { type: dataType, ident: dataIdentifier, data: data_json } });
+            }
+        } else if (
+            (dataType === DwarfDataDisplayType.HEX || dataType === DwarfDataDisplayType.DISASM) &&
+            data.constructor.name === "ArrayBuffer"
+        ) {
+            if((data as ArrayBuffer).byteLength) {
+                DwarfCore.getInstance().sync({ showData: { type: dataType, ident: dataIdentifier, data: ba2hex(data), base: base, mode: mode } });
+            }
         }
     };
 
