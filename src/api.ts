@@ -1225,7 +1225,7 @@ export class DwarfApi {
      * @param  {string} mode? allowed: 'thumb' switches Disassembler from ARM to  THUMB on arm targets
      */
     public showData = (
-        dataType: DwarfDataDisplayType = DwarfDataDisplayType.TEXT,
+        dataType: DwarfDataDisplayType | string = DwarfDataDisplayType.TEXT,
         dataIdentifier: string,
         data: any,
         base?:number,
@@ -1235,6 +1235,26 @@ export class DwarfApi {
 
         if (!isDefined(dataType) || !isString(dataIdentifier) || !isDefined(data)) {
             throw new Error("DwarfApi::showData() -> Invalid Arguments!");
+        }
+
+        if(isString(dataType)) {
+            switch(dataType as string) {
+                case 'text':
+                    dataType = DwarfDataDisplayType.TEXT;
+                    break;
+                case 'hex':
+                    dataType = DwarfDataDisplayType.HEX;
+                    break;
+                case 'disasm':
+                    dataType = DwarfDataDisplayType.DISASM;
+                    break;
+                case 'sqlite3':
+                    dataType = DwarfDataDisplayType.SQLITE3;
+                    break;
+                default:
+                    dataType = DwarfDataDisplayType.TEXT;
+                    break;
+            }
         }
 
         if (data.constructor.name === "ArrayBuffer") {
