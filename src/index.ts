@@ -36,7 +36,7 @@ rpc.exports = {
         ) {
             throw new Error("Unknown ApiFunction!");
         }
-        //logDebug("[" + tid + "] RPC-API: " + apiFunction + " | " + "args: " + apiArguments + " (" + Process.getCurrentThreadId() + ")");
+        logDebug("[" + tid + "] RPC-API: " + apiFunction + " | " + "args: " + apiArguments + " (" + Process.getCurrentThreadId() + ")");
 
         if (typeof apiArguments === "undefined" || apiArguments === null) {
             apiArguments = [];

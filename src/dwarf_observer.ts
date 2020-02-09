@@ -218,18 +218,20 @@ export class DwarfObserver {
         return true;
     };
 
-    handleMemoryAccess = (details: MemoryAccessDetails) => {
+    public handleMemoryAccess (details: MemoryAccessDetails) {
         trace("DwarfObserver::handleMemoryAccess()");
+
+        const self = DwarfObserver.getInstance();
         const memAddress = details.address;
-        for (let location of this.observeLocations) {
+        for (let location of self.observeLocations) {
             if (location.address === memAddress) {
                 let storedValue = location.storedValue;
 
-                if (!this.isAddressReadable(location.address)) {
+                if (!self.isAddressReadable(location.address)) {
                     return;
                 }
 
-                const newValue = this.getValue(location.address, location.type, location.size);
+                const newValue = self.getValue(location.address, location.type, location.size);
 
                 if (location.mode === "changed") {
                     let hasChanged: boolean = false;

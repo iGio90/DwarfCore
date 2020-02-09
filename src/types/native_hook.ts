@@ -17,11 +17,13 @@
 
 import { DwarfHook } from "./dwarf_hook";
 import { DwarfHookType } from "../consts";
+import { DwarfHooksManager } from "../hooks_manager";
 
 export class NativeHook extends DwarfHook {
     protected bpDebugSymbol: DebugSymbol;
     protected bpCondition: Function;
     protected invocationListener: InvocationListener;
+    protected isAttached: boolean;
 
     /**
      * Creates an instance of DwarfHook.
@@ -29,7 +31,12 @@ export class NativeHook extends DwarfHook {
      * @param  {DwarfHookType} bpType
      * @param  {NativePointer|string} bpAddress
      */
-    constructor(bpAddress: NativePointer | string, userCallback: DwarfCallback = "breakpoint", isSingleShot: boolean = false, isEnabled: boolean = true) {
+    constructor(
+        bpAddress: NativePointer | string,
+        userCallback: DwarfCallback = "breakpoint",
+        isSingleShot: boolean = false,
+        isEnabled: boolean = true
+    ) {
         const nativePtr = makeNativePointer(bpAddress);
 
         if (nativePtr.isNull()) {
@@ -43,23 +50,29 @@ export class NativeHook extends DwarfHook {
             throw new Error("NativeHook() -> Invalid Address!");
         }
 
-        if(!isFunction(userCallback) && !isString(userCallback) && !isValidFridaListener(userCallback)) {
-            throw new Error('NativeHook() -> Invalid Callback!');
+        if (!isFunction(userCallback) && !isString(userCallback) && !isValidFridaListener(userCallback)) {
+            throw new Error("NativeHook() -> Invalid Callback!");
         }
 
         super(DwarfHookType.NATIVE, nativePtr, userCallback, isSingleShot, isEnabled);
 
+        this.isAttached = false;
         this.bpDebugSymbol = DebugSymbol.fromAddress(nativePtr);
 
         const self = this;
-        this.invocationListener = Interceptor.attach(nativePtr, {
-            onEnter: function(args) {
-                self.onEnterCallback(this, args);
-            },
-            onLeave: function(returnVal) {
-                self.onLeaveCallback(this, returnVal);
-            }
-        });
+        try {
+            self.invocationListener = Interceptor.attach(nativePtr, {
+                onEnter: function(args) {
+                    self.onEnterCallback(self, this, args);
+                },
+                onLeave: function(returnVal) {
+                    self.onLeaveCallback(self, this, returnVal);
+                }
+            });
+            self.isAttached = true;
+        } catch (e) {
+            logErr("NativeHook()", e);
+        }
     }
 
     public setCondition(bpCondition: string | Function): void {
@@ -86,5 +99,28 @@ export class NativeHook extends DwarfHook {
         if (isDefined(this.invocationListener)) {
             this.invocationListener.detach();
         }
+    }
+
+    public remove(syncUi:boolean = true): void {
+        trace("NativeHook::remove()");
+
+        if (this.isAttached && isDefined(this.invocationListener)) {
+            this.detach();
+        }
+        return super.remove(syncUi);
+    }
+
+    public toJSON() {
+        let jsonRet: { [index: string]: any } = {};
+        for (const item in this) {
+            if (item !== "invocationListener") {
+                if(item === 'userCallback') {
+                    jsonRet[item] = JSON.stringify(this[item]);
+                } else {
+                    jsonRet[item] = this[item];
+                }
+            }
+        }
+        return jsonRet;
     }
 }

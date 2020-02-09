@@ -24,6 +24,7 @@ import { DwarfHookType, DwarfMemoryAccessType } from "./consts";
 import { DwarfObserver } from "./dwarf_observer";
 import { ModuleLoadHook } from "./types/module_load_hook";
 import { ClassLoadHook } from "./types/class_load_hook";
+import { DwarfJavaHelper } from "./java";
 
 /**
  * DwarfHooksManager Singleton
@@ -224,13 +225,13 @@ export class DwarfHooksManager {
             case DwarfHookType.OBJC:
                 return this.addObjcHook(hookAddress as string, userCallback, isSingleShot, isEnabled);
             case DwarfHookType.MEMORY: {
-                if(!isString(userCallback) && !isFunction(userCallback)) {
-                    throw new Error('DwarfHooksManager::addHook() -> Invalid Callback!');
+                if (!isString(userCallback) && !isFunction(userCallback)) {
+                    throw new Error("DwarfHooksManager::addHook() -> Invalid Callback!");
                 }
                 return this.addMemoryHook(
                     hookAddress,
                     DwarfMemoryAccessType.READ | DwarfMemoryAccessType.WRITE,
-                    (userCallback as Function | string),
+                    userCallback as Function | string,
                     isSingleShot,
                     isEnabled
                 );
@@ -260,7 +261,7 @@ export class DwarfHooksManager {
         try {
             const classLoadHook = new ClassLoadHook(hookAddress as string, userCallback, isSingleShot, isEnabled);
             this.dwarfHooks.push(classLoadHook);
-            this.update();
+            this.update(true);
             return classLoadHook;
         } catch (e) {
             logErr("DwarfHooksManager::addClassLoadHook()", e);
@@ -287,7 +288,7 @@ export class DwarfHooksManager {
         try {
             const nativeHook = new NativeHook(hookAddress, userCallback, isSingleShot, isEnabled);
             this.dwarfHooks.push(nativeHook);
-            this.update();
+            this.update(true);
             return nativeHook;
         } catch (error) {
             logErr("DwarfHooksManager::addNativeHook()", error);
@@ -316,7 +317,7 @@ export class DwarfHooksManager {
             );
             this.dwarfHooks.push(memHook);
             this.updateMemoryHooks();
-            this.update();
+            this.update(true);
             return memHook;
         } catch (error) {
             logErr("DwarfHooksManager::addMemoryHook()", error);
@@ -353,7 +354,7 @@ export class DwarfHooksManager {
             const javaHook = new JavaHook(className, methodName, userCallback, isEnabled, isSingleShot);
             if (isDefined(javaHook)) {
                 this.dwarfHooks.push(javaHook);
-                this.update();
+                this.update(true);
                 return javaHook;
             }
             throw new Error("failed");
@@ -402,7 +403,7 @@ export class DwarfHooksManager {
             const moduleLoadHook = new ModuleLoadHook(moduleName, userCallback, isSingleShot, isEnabled);
             if (moduleLoadHook) {
                 this.dwarfHooks.push(moduleLoadHook);
-                this.update();
+                this.update(true);
                 return moduleLoadHook;
             }
         } catch (e) {
@@ -416,42 +417,20 @@ export class DwarfHooksManager {
         if (!isString(moduleName)) {
             throw new Error("DwarfHooksManager::removeModuleLoadHook() -> Invalid Arguments!");
         }
-        return this.removeHookAtAddress(moduleName);
+        return this.removeHookAtAddress(moduleName, true);
     };
 
     /**
      * @param  {NativePointer|string} hookAddress
      * @returns boolean
      */
-    public removeHookAtAddress = (hookAddress: NativePointer | string): boolean => {
+    public removeHookAtAddress = (hookAddress: NativePointer | string, syncUi:boolean): boolean => {
         trace("DwarfHooksManager::removeHookAtAddress()");
+
         let dwarfHook = this.getHookByAddress(hookAddress);
-        let wasMemHook = false;
 
         if (dwarfHook !== null) {
-            if (dwarfHook.getType() == DwarfHookType.NATIVE) {
-                (dwarfHook as NativeHook).detach();
-            }
-            if(dwarfHook.getType() == DwarfHookType.MEMORY) {
-                wasMemHook = true;
-            }
-
-            const newHooks = new Array<DwarfHook>();
-            for (const i in this.dwarfHooks) {
-                if (dwarfHook.getHookId() === this.dwarfHooks[i].getHookId() && !this.dwarfHooks[i].isActive()) {
-                    delete this.dwarfHooks[i];
-                } else {
-                    newHooks.push(this.dwarfHooks[i]);
-                }
-            }
-
-            if (newHooks.length > 0) {
-                this.dwarfHooks = newHooks;
-            }
-            if(wasMemHook) {
-                this.updateMemoryHooks();
-            }
-            this.update();
+            dwarfHook.remove(syncUi);
             return true;
         }
         return false;
@@ -466,7 +445,7 @@ export class DwarfHooksManager {
 
         for (let dwarfHook of this.dwarfHooks) {
             if (dwarfHook.getHookId() === hookID) {
-                return this.removeHookAtAddress(dwarfHook.getAddress());
+                return this.removeHookAtAddress(dwarfHook.getAddress(), true);
             }
         }
         return false;
@@ -554,7 +533,8 @@ export class DwarfHooksManager {
         for (let memHook of self.dwarfHooks) {
             if (memHook.getType() === DwarfHookType.MEMORY) {
                 if (memHook.isEnabled()) {
-                    memoryHooks.push({ base: memHook.getAddress() as NativePointer, size: Process.pointerSize });
+                    let memAddr = memHook.getAddress() as NativePointer;
+                    memoryHooks.push({ base: memAddr, size: 1 });
                 }
             }
         }
@@ -566,8 +546,6 @@ export class DwarfHooksManager {
 
     public handleMemoryHooks(details: MemoryAccessDetails) {
         trace("DwarfHooksManager::handleMemoryHooks()");
-
-        console.log(JSON.stringify(details));
 
         MemoryAccessMonitor.disable();
 
@@ -598,12 +576,12 @@ export class DwarfHooksManager {
                     }
                     break;
             }
-            if(handleBp) {
-                memoryHook.onEnterCallback(this, arguments);
+            if (handleBp) {
+                memoryHook.onEnterCallback(memoryHook, this, arguments);
             }
         }
         DwarfHooksManager.getInstance().updateMemoryHooks();
-    };
+    }
 
     /**
      * Internal Helper to find the ModuleLoadHook and calling the hookCallback
@@ -626,7 +604,7 @@ export class DwarfHooksManager {
                     //store the hook so we can call onLeave then
                     this.moduleLoadHook = dwarfHook as ModuleLoadHook;
                     //handle userCallback
-                    this.moduleLoadHook.onEnterCallback(thisArg, funcArgs);
+                    this.moduleLoadHook.onEnterCallback(dwarfHook, thisArg, funcArgs);
                 }
             }
         }
@@ -644,7 +622,7 @@ export class DwarfHooksManager {
 
         //our stored hook
         if (isDefined(this.moduleLoadHook)) {
-            this.moduleLoadHook.onLeaveCallback(thisArg, retVal);
+            this.moduleLoadHook.onLeaveCallback(this.moduleLoadHook, thisArg, retVal);
         }
         //reset
         this.moduleLoadHook = null;
@@ -653,32 +631,27 @@ export class DwarfHooksManager {
     /**
      * Removes SingleShots and syncs ui
      */
-    public update = () => {
+    public update = (syncUi:boolean) => {
         trace("DwarfHooksManager::update()");
 
         const newHooks = [];
-        let wasMemHook = false;
-        for (const i in this.dwarfHooks) {
-            if (this.dwarfHooks[i].isSingleShot() && this.dwarfHooks[i].getHits() && !this.dwarfHooks[i].isActive()) {
-                if (this.dwarfHooks[i].getType() === DwarfHookType.NATIVE) {
-                    //detaches the interceptor
-                    (this.dwarfHooks[i] as NativeHook).detach();
-                }
-                if(this.dwarfHooks[i].getType() === DwarfHookType.MEMORY) {
-                    wasMemHook = true;
-                }
-                delete this.dwarfHooks[i];
+
+        for (const i in DwarfHooksManager.getInstance().dwarfHooks) {
+            if (
+                DwarfHooksManager.getInstance().dwarfHooks[i].isSingleShot() &&
+                DwarfHooksManager.getInstance().dwarfHooks[i].getHits() &&
+                !DwarfHooksManager.getInstance().dwarfHooks[i].isActive()
+            ) {
+                delete DwarfHooksManager.getInstance().dwarfHooks[i];
             } else {
-                newHooks.push(this.dwarfHooks[i]);
+                newHooks.push(DwarfHooksManager.getInstance().dwarfHooks[i]);
             }
         }
-        this.dwarfHooks = newHooks;
-
-        if(wasMemHook) {
-            this.updateMemoryHooks();
-        }
+        DwarfHooksManager.getInstance().dwarfHooks = newHooks;
 
         //sync ui
-        DwarfCore.getInstance().sync({ dwarfHooks: this.dwarfHooks });
+        if(syncUi) {
+            DwarfCore.getInstance().sync({ dwarfHooks: DwarfHooksManager.getInstance().dwarfHooks });
+        }
     };
 }

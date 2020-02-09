@@ -43,8 +43,8 @@ export class JavaHook extends DwarfHook {
             throw new Error("Invalid methodName!");
         }
 
-        if(!isFunction(userCallback) && !isString(userCallback) && !isValidFridaListener(userCallback)) {
-            throw new Error('JavaHook() -> Invalid Callback!');
+        if (!isFunction(userCallback) && !isString(userCallback) && !isValidFridaListener(userCallback)) {
+            throw new Error("JavaHook() -> Invalid Callback!");
         }
 
         super(DwarfHookType.JAVA, className + "." + methodName, userCallback, isSingleShot, isEnabled);
@@ -74,11 +74,11 @@ export class JavaHook extends DwarfHook {
                 Dwarf.getJavaHelper().hookInJVM(className, methodName, function() {
                     try {
                         let result = null;
-                        self.onEnterCallback(this, arguments);
+                        self.onEnterCallback(self, this, arguments);
 
                         result = this[methodName].apply(this, arguments);
 
-                        self.onLeaveCallback(this, result);
+                        self.onLeaveCallback(self, this, result);
                         return result;
                     } catch (e) {
                         console.log(e);
@@ -98,5 +98,17 @@ export class JavaHook extends DwarfHook {
      */
     public isHooked(): boolean {
         return this.isSetupDone;
+    }
+
+    public remove(syncUi:boolean = true): void {
+        trace("JavaHook::remove()");
+
+        if (this.isSetupDone) {
+            const hookAddress = this.hookAddress as string;
+            const className = hookAddress.substring(0, hookAddress.lastIndexOf(".") + 1);
+            const methodName = hookAddress.substring(hookAddress.lastIndexOf(".") + 1);
+            DwarfJavaHelper.getInstance().restoreInJVM(className, methodName);
+        }
+        return super.remove(syncUi);
     }
 }

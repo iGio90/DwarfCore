@@ -222,7 +222,7 @@ export class DwarfCore {
             // break proc at main
             if (this.processInfo.wasSpawned && this.breakAtStart) {
                 //Inital breakpoint
-                const invocationListener = Interceptor.attach(this.getApi().findExport("RtlUserThreadStart"), function() {
+                const invocationListener = Interceptor.attach(this.dwarfApi.findExport("RtlUserThreadStart"), function() {
                     trace("Creating startbreakpoint");
                     const invocationContext: InvocationContext = this;
                     let address = null;
@@ -384,7 +384,6 @@ export class DwarfCore {
 
             logDebug("[" + threadId + "] ThreadContext has been released");
             Dwarf.sync({ threads: [], breakpoint: {} });
-            DwarfHooksManager.getInstance().update();
         }
     };
 

@@ -46,14 +46,10 @@ export class DwarfJavaHelper {
 
     //Singleton
     static getInstance() {
-        if (Java.available) {
-            if (!DwarfJavaHelper.instanceRef) {
-                DwarfJavaHelper.instanceRef = new DwarfJavaHelper();
-            }
-            return DwarfJavaHelper.instanceRef;
-        } else {
-            throw new Error("JavaHelper not available!");
+        if (!DwarfJavaHelper.instanceRef) {
+            DwarfJavaHelper.instanceRef = new DwarfJavaHelper();
         }
+        return DwarfJavaHelper.instanceRef;
     }
 
     public initalize = () => {
@@ -85,8 +81,10 @@ export class DwarfJavaHelper {
                         if (self.hooksToAttach.length > 0) {
                             self.hooksToAttach.forEach(javaHook => {
                                 if ((javaHook.getAddress() as string).indexOf(className) !== -1) {
-                                    javaHook.setup();
-                                    Dwarf.sync({ dwarfHooks: DwarfHooksManager.getInstance().getHooks() });
+                                    if (!javaHook.isHooked()) {
+                                        javaHook.setup();
+                                        Dwarf.sync({ dwarfHooks: DwarfHooksManager.getInstance().getHooks() });
+                                    }
                                 }
                             });
                             self.hooksToAttach = self.hooksToAttach.filter(dwarfHook => !dwarfHook.isHooked());
@@ -96,18 +94,22 @@ export class DwarfJavaHelper {
                     }
 
                     //handle classLoadHooks enter
-                    const dwarfHook = DwarfHooksManager.getInstance().getHookByAddress(className, true, DwarfHookType.CLASS_LOAD);
+                    const dwarfHook = DwarfHooksManager.getInstance().getHookByAddress(
+                        className,
+                        true,
+                        DwarfHookType.CLASS_LOAD
+                    );
 
-                    if(isDefined(dwarfHook)) {
-                        dwarfHook.onEnterCallback(this, arguments);
+                    if (isDefined(dwarfHook)) {
+                        dwarfHook.onEnterCallback(dwarfHook, this, arguments);
                     }
 
                     //load class
                     let result = this.loadClass(className, resolve);
 
                     //handle classLoadHooks leave
-                    if(isDefined(dwarfHook)) {
-                        dwarfHook.onLeaveCallback(this, result);
+                    if (isDefined(dwarfHook)) {
+                        dwarfHook.onLeaveCallback(dwarfHook, this, result);
                     }
                     return result;
                 } catch (e) {
@@ -192,7 +194,7 @@ export class DwarfJavaHelper {
                         },
                         onComplete: () => {
                             Dwarf.sync({ java_classes: this.classCache, cached: useCache });
-                        },
+                        }
                     });
                 } catch (e) {
                     logDebug("JavaHelper::enumerateLoadedClasses() => Error: " + e);
@@ -317,6 +319,11 @@ export class DwarfJavaHelper {
 
         if (javaHook.getType() == DwarfHookType.JAVA) {
             this.hooksToAttach.push(javaHook);
+        }
+    };
+
+    public jvmExplore = (what?: any) => {
+        if (!isDefined(what)) {
         }
     };
 }
