@@ -1257,13 +1257,21 @@ export class DwarfApi {
             }
         }
 
+        if(isNumber(dataType)) {
+            if(dataType < DwarfDataDisplayType.TEXT || dataType > DwarfDataDisplayType.SQLITE3) {
+                throw new Error("DwarfApi::showData() -> Invalid Arguments!");
+            }
+        } else {
+            throw new Error("DwarfApi::showData() -> Invalid Arguments!");
+        }
+
         if (data.constructor.name === "ArrayBuffer") {
             if (dataType !== DwarfDataDisplayType.HEX && dataType !== DwarfDataDisplayType.DISASM) {
                 dataType = DwarfDataDisplayType.HEX;
             }
         }
 
-        if (dataType === DwarfDataDisplayType.TEXT && isString(data)) {
+        if ((dataType === DwarfDataDisplayType.TEXT || dataType === DwarfDataDisplayType.SQLITE3) && isString(data)) {
             if (data.length) {
                 DwarfCore.getInstance().sync({ showData: { type: dataType, ident: dataIdentifier, data: data } });
             }
