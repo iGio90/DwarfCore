@@ -75,24 +75,6 @@ export class DwarfJavaHelper {
                 resolve: boolean
             ) {
                 try {
-                    if (self.classCache.indexOf(className) === -1) {
-                        self.classCache.push(className);
-
-                        if (self.hooksToAttach.length > 0) {
-                            self.hooksToAttach.forEach(javaHook => {
-                                if ((javaHook.getAddress() as string).indexOf(className) !== -1) {
-                                    if (!javaHook.isHooked()) {
-                                        javaHook.setup();
-                                        Dwarf.sync({ dwarfHooks: DwarfHooksManager.getInstance().getHooks() });
-                                    }
-                                }
-                            });
-                            self.hooksToAttach = self.hooksToAttach.filter(dwarfHook => !dwarfHook.isHooked());
-                        }
-                        //sync ui
-                        Dwarf.sync({ java_class_loaded: className });
-                    }
-
                     //handle classLoadHooks enter
                     const dwarfHook = DwarfHooksManager.getInstance().getHookByAddress(
                         className,
@@ -110,6 +92,23 @@ export class DwarfJavaHelper {
                     //handle classLoadHooks leave
                     if (isDefined(dwarfHook)) {
                         dwarfHook.onLeaveCallback(dwarfHook, this, result);
+                    }
+                    if (self.classCache.indexOf(className) === -1) {
+                        self.classCache.push(className);
+
+                        if (self.hooksToAttach.length > 0) {
+                            self.hooksToAttach.forEach(javaHook => {
+                                if ((javaHook.getAddress() as string).indexOf(className) !== -1) {
+                                    if (!javaHook.isHooked()) {
+                                        javaHook.setup();
+                                        Dwarf.sync({ dwarfHooks: DwarfHooksManager.getInstance().getHooks() });
+                                    }
+                                }
+                            });
+                            self.hooksToAttach = self.hooksToAttach.filter(dwarfHook => !dwarfHook.isHooked());
+                        }
+                        //sync ui
+                        Dwarf.sync({ java_class_loaded: className });
                     }
                     return result;
                 } catch (e) {
@@ -180,20 +179,41 @@ export class DwarfJavaHelper {
 
         this.checkRequirements();
 
+        let attachedHook = false;
+
+        const self = this;
+
         if (useCache && this.classCache.length) {
             //return this.classCache;
             Dwarf.sync({ java_classes: this.classCache, cached: useCache });
         } else {
             this.invalidateClassCache();
 
-            Java.performNow(() => {
+            Java.performNow(function() {
                 try {
                     Java.enumerateLoadedClasses({
                         onMatch: className => {
-                            this.classCache.push(className);
+                            self.classCache.push(className);
+                            if (self.hooksToAttach.length > 0) {
+                                self.hooksToAttach.forEach(javaHook => {
+                                    if ((javaHook.getAddress() as string).indexOf(className) !== -1) {
+                                        if (!javaHook.isHooked()) {
+                                            javaHook.setup();
+                                            attachedHook = true;
+                                        }
+                                    }
+                                });
+                                self.hooksToAttach = self.hooksToAttach.filter(dwarfHook => !dwarfHook.isHooked());
+                            }
                         },
                         onComplete: () => {
-                            Dwarf.sync({ java_classes: this.classCache, cached: useCache });
+                            let syncMsg = { java_classes: self.classCache, cached: useCache };
+                            if (attachedHook) {
+                                syncMsg = Object.assign(syncMsg, {
+                                    dwarfHooks: DwarfHooksManager.getInstance().getHooks()
+                                });
+                            }
+                            Dwarf.sync(syncMsg);
                         }
                     });
                 } catch (e) {
@@ -285,9 +305,7 @@ export class DwarfJavaHelper {
                                 javaWrapper[methodName].overloads[i].implementation = null;
                                 if (self.oldOverloads.hasOwnProperty(className + "." + methodName)) {
                                     if (i < self.oldOverloads[className + "." + methodName].length) {
-                                        const oldImplementation = (self.oldOverloads[
-                                            className + "." + methodName
-                                        ])[i];
+                                        const oldImplementation = self.oldOverloads[className + "." + methodName][i];
                                         javaWrapper[methodName].overloads[i].implementation = oldImplementation;
                                     } else {
                                         javaWrapper[methodName].overloads[i].implementation = null;

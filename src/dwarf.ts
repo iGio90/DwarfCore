@@ -216,6 +216,7 @@ export class DwarfCore {
                     logDebug('Failed to attach initHook!');
                 }
             }
+            this.dwarfJavaHelper.enumerateLoadedClasses(false);
         }
 
         if (Process.platform === "windows") {
