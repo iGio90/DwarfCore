@@ -105,7 +105,7 @@ export class JavaHook extends DwarfHook {
 
         if (this.isSetupDone) {
             const hookAddress = this.hookAddress as string;
-            const className = hookAddress.substring(0, hookAddress.lastIndexOf(".") + 1);
+            const className = hookAddress.substring(0, hookAddress.lastIndexOf("."));
             const methodName = hookAddress.substring(hookAddress.lastIndexOf(".") + 1);
             DwarfJavaHelper.getInstance().restoreInJVM(className, methodName);
         }

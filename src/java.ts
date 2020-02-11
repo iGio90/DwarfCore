@@ -271,7 +271,9 @@ export class DwarfJavaHelper {
             throw new Error("DwarfJavaHelper::restoreInJVM() => Invalid arguments! -> methodName");
         }
 
-        Java.performNow(() => {
+        const self = this;
+
+        Java.performNow(function() {
             try {
                 const javaWrapper = Java.use(className);
 
@@ -280,11 +282,12 @@ export class DwarfJavaHelper {
                         const overloadCount = javaWrapper[methodName].overloads.length;
                         if (overloadCount > 0) {
                             for (var i = 0; i < overloadCount; i++) {
-                                if (this.oldOverloads.hasOwnProperty(className + "." + methodName)) {
-                                    if (i < this.oldOverloads[className + "." + methodName].length) {
-                                        const oldImplementation = (this.oldOverloads[
+                                javaWrapper[methodName].overloads[i].implementation = null;
+                                if (self.oldOverloads.hasOwnProperty(className + "." + methodName)) {
+                                    if (i < self.oldOverloads[className + "." + methodName].length) {
+                                        const oldImplementation = (self.oldOverloads[
                                             className + "." + methodName
-                                        ] as Function[])[i];
+                                        ])[i];
                                         javaWrapper[methodName].overloads[i].implementation = oldImplementation;
                                     } else {
                                         javaWrapper[methodName].overloads[i].implementation = null;
@@ -293,8 +296,8 @@ export class DwarfJavaHelper {
                                     javaWrapper[methodName].overloads[i].implementation = null;
                                 }
                             }
-                            if (this.oldOverloads.hasOwnProperty(className + "." + methodName)) {
-                                delete this.oldOverloads[className + "." + methodName];
+                            if (self.oldOverloads.hasOwnProperty(className + "." + methodName)) {
+                                delete self.oldOverloads[className + "." + methodName];
                             }
                         } else {
                             javaWrapper[methodName].overload.implementation = null;

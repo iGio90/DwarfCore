@@ -255,17 +255,8 @@ export class ELF_File {
                 if (this.is64Bit) {
                     size += 4;
                 }
-                for (let a = 0; a < section.sh_size; a += size) {
-                    if (this.is64Bit) {
-                        section.data.push(
-                            initArrayBuffer
-                                .add(a)
-                                .readU64()
-                                .toNumber()
-                        );
-                    } else {
-                        section.data.push(initArrayBuffer.add(a).readU32());
-                    }
+                for (let a = 0; a < section.sh_size; a += Process.pointerSize) {
+                    section.data.push(initArrayBuffer.add(a).readPointer());
                 }
             }
             this.sectionHeaders.push(section);
@@ -484,7 +475,7 @@ export namespace ELF_File {
      */
     export class ELF_SectionHeader {
         name: string | null = "";
-        data: number[] = [];
+        data: NativePointer[] = [];
         sh_name: number = 0;
         sh_type: number = 0;
         sh_flags: number = 0;

@@ -289,6 +289,15 @@ export class DwarfApi {
         throw new Error("Not implemented!");
     };
 
+    public addModuleLoadHook = (
+        moduleName: string,
+        userCallback: DwarfCallback,
+        isSingleShot: boolean = false,
+        isEnabled: boolean = true
+    ): ModuleLoadHook => {
+        return DwarfHooksManager.getInstance().addModuleLoadHook(moduleName, userCallback, isSingleShot, isEnabled);
+    };
+
     /**
      * Adds Bookmark in UI
      *
@@ -356,13 +365,6 @@ export class DwarfApi {
         trace("DwarfApi::removeObserveLocationByName()");
 
         return DwarfObserver.getInstance().removeByName(observeName);
-    };
-
-    public addModuleLoadHook = (
-        libraryName: string,
-        callback?: ScriptInvocationListenerCallbacks | Function | string
-    ) => {
-        DwarfHooksManager.getInstance().addModuleLoadHook(libraryName, callback);
     };
 
     /**
@@ -1185,7 +1187,6 @@ export class DwarfApi {
         }
     };
 
-
     /**
      * ### Shows CustomData in UI
      *
@@ -1228,8 +1229,8 @@ export class DwarfApi {
         dataType: DwarfDataDisplayType | string = DwarfDataDisplayType.TEXT,
         dataIdentifier: string,
         data: any,
-        base?:number,
-        mode?:string
+        base?: number,
+        mode?: string
     ) => {
         trace("DwarfApi::showData()");
 
@@ -1237,18 +1238,21 @@ export class DwarfApi {
             throw new Error("DwarfApi::showData() -> Invalid Arguments!");
         }
 
-        if(isString(dataType)) {
-            switch(dataType as string) {
-                case 'text':
+        if (isString(dataType)) {
+            switch (dataType as string) {
+                case "text":
                     dataType = DwarfDataDisplayType.TEXT;
                     break;
-                case 'hex':
+                case "json":
+                    dataType = DwarfDataDisplayType.JSON;
+                    break;
+                case "hex":
                     dataType = DwarfDataDisplayType.HEX;
                     break;
-                case 'disasm':
+                case "disasm":
                     dataType = DwarfDataDisplayType.DISASM;
                     break;
-                case 'sqlite3':
+                case "sqlite3":
                     dataType = DwarfDataDisplayType.SQLITE3;
                     break;
                 default:
@@ -1257,8 +1261,8 @@ export class DwarfApi {
             }
         }
 
-        if(isNumber(dataType)) {
-            if(dataType < DwarfDataDisplayType.TEXT || dataType > DwarfDataDisplayType.SQLITE3) {
+        if (isNumber(dataType)) {
+            if (dataType < DwarfDataDisplayType.TEXT || dataType > DwarfDataDisplayType.SQLITE3) {
                 throw new Error("DwarfApi::showData() -> Invalid Arguments!");
             }
         } else {
@@ -1284,8 +1288,10 @@ export class DwarfApi {
             (dataType === DwarfDataDisplayType.HEX || dataType === DwarfDataDisplayType.DISASM) &&
             data.constructor.name === "ArrayBuffer"
         ) {
-            if((data as ArrayBuffer).byteLength) {
-                DwarfCore.getInstance().sync({ showData: { type: dataType, ident: dataIdentifier, data: ba2hex(data), base: base, mode: mode } });
+            if ((data as ArrayBuffer).byteLength) {
+                DwarfCore.getInstance().sync({
+                    showData: { type: dataType, ident: dataIdentifier, data: ba2hex(data), base: base, mode: mode }
+                });
             }
         }
     };

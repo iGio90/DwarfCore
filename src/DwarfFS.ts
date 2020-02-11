@@ -134,7 +134,7 @@ export class DwarfFS {
         }
     };
 
-    fseek = (filePointer: NativePointer, offset: number, origin: number) => {
+    fseek = (filePointer: NativePointer, offset: number | NativePointer, origin: number) => {
         if (this._fseek === null || this._fseek.isNull()) {
             throw new Error("DwarfFS::fread not available!");
         }
