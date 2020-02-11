@@ -20,6 +20,7 @@ import "./_global_funcs";
 import { DwarfCore } from "./dwarf";
 import { ThreadApi } from "./thread_api";
 import { ELF_File } from "./types/elf_file";
+import { DwarfHooksManager } from "./hooks_manager";
 
 global.Dwarf = DwarfCore.getInstance();
 global["ELF_File"] = ELF_File;
@@ -85,6 +86,12 @@ rpc.exports = {
 
     start: function() {
         DwarfCore.getInstance().start();
+    },
+    stop: function() {
+        DwarfHooksManager.getInstance().getHooks().forEach(dwarfHook => {
+            dwarfHook.remove(true);
+        });
+        MemoryAccessMonitor.disable();
     },
     keywords: function() {
         const map = [];

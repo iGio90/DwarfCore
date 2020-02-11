@@ -296,6 +296,10 @@ export class DwarfCore {
             reason: haltReason
         };
 
+        if(!isDefined(context) && isDefined(this['context'])) {
+            context = this['context'];
+        }
+
         if (isDefined(context)) {
             logDebug("[" + threadId + "] sendInfos - preparing infos for valid context");
 
