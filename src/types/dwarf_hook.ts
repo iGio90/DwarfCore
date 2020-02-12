@@ -297,7 +297,7 @@ export class DwarfHook {
                     breakExecution = true;
                 }
             } catch (e) {
-                logErr("DwarfHook::onLeaveCallback() => userOnEnter() -> ", e);
+                logErr("DwarfHook::onLeaveCallback() => userOnLeave() -> ", e);
                 breakExecution = true;
             }
             if (breakExecution) {
@@ -322,10 +322,8 @@ export class DwarfHook {
             }
         }
         for (const hook of DwarfHooksManager.getInstance().getHooks()) {
-            console.log('Setting active to false id: ' + hook.hookID);
             hook.setActive(false);
             if(hook.isSingleShot() && hook.getHits() > 0 && !hook.isActive()) {
-                console.log('calling remove id: ' + hook.hookID);
                 hook.remove(false);
             }
         }

@@ -63,7 +63,7 @@ export class DwarfCore {
         } catch (e) {
             global.MAX_STACK_SIZE = i;
         }
-        global.DEBUG = true;
+        global.DEBUG = false;
         trace("DwarfCoreJS start");
         this.processInfo = null;
         this._systemPropertyGet = null;
@@ -137,6 +137,8 @@ export class DwarfCore {
         wasSpawned: boolean,
         breakStart: boolean,
         debug: boolean,
+        redirectConsole: boolean = false,
+        enableTrace: boolean = false,
         globalApiFuncs?: Array<string>
     ): void => {
         trace("DwarfCore::init()");
@@ -147,6 +149,12 @@ export class DwarfCore {
 
         if (breakStart) {
             this.breakAtStart = true;
+        }
+
+        if (redirectConsole) {
+            console.log = function(message?: any, ...optionalParams: any[]) {
+                send("log:::" + message);
+            };
         }
 
         if (Java.available) {
@@ -427,7 +435,7 @@ export class DwarfCore {
     loopApi = (threadId: number, that) => {
         trace("DwarfCore::loopApi()");
 
-        console.log("[" + threadId + "] looping api");
+        logDebug("[" + threadId + "] looping api");
 
         const op = recv("" + threadId, function() {});
         op.wait();

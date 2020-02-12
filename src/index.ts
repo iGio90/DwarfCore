@@ -79,9 +79,9 @@ rpc.exports = {
             logErr("Api()", e);
         }
     },
-    init: function(proc_name, breakStart, debug, spawned, globalApiFuncs?: Array<string>) {
+    init: function(proc_name, spawned, breakStart, debug, redirectConsole, enableTrace, globalApiFuncs?: Array<string>) {
         //init dwarf
-        DwarfCore.getInstance().init(proc_name, spawned, breakStart, debug, globalApiFuncs);
+        DwarfCore.getInstance().init(proc_name, spawned, breakStart, debug, redirectConsole, enableTrace, globalApiFuncs);
     },
 
     start: function() {

@@ -69,7 +69,7 @@ export class DwarfJavaHelper {
         Java.performNow(() => {
             logDebug("initializing logicJava with sdk: " + this.sdk_version);
 
-            const Class = Java.use("java.lang.Class");
+            /*const Class = Java.use("java.lang.Class");
 
             //https://android.googlesource.com/platform/libcore/+/a7752f4d22097346dd7849b92b9f36d0a0a7a8f3/libdvm/src/main/java/java/lang/Class.java#216
             Class.classForName.overload(
@@ -87,7 +87,7 @@ export class DwarfJavaHelper {
                     console.log("Class: " + className);
                 }
                 return this.classForName(className, shouldInitialize, classLoader);
-            };
+            };*/
 
             //class loader
             const ClassLoader = Java.use("java.lang.ClassLoader");
@@ -209,7 +209,7 @@ export class DwarfJavaHelper {
 
         if (useCache && this.classCache.length) {
             //return this.classCache;
-            Dwarf.sync({ java_classes: this.classCache, cached: useCache });
+            Dwarf.sync({ java_classes: self.classCache, cached: useCache });
         } else {
             this.invalidateClassCache();
 
