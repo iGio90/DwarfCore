@@ -132,7 +132,13 @@ export class DwarfCore {
         DEBUG = !DEBUG;
     };
 
-    init = (procName: string, wasSpawned: boolean, breakStart: boolean, debug: boolean, globalApiFuncs?: Array<string>): void => {
+    init = (
+        procName: string,
+        wasSpawned: boolean,
+        breakStart: boolean,
+        debug: boolean,
+        globalApiFuncs?: Array<string>
+    ): void => {
         trace("DwarfCore::init()");
 
         if (debug) {
@@ -141,6 +147,15 @@ export class DwarfCore {
 
         if (breakStart) {
             this.breakAtStart = true;
+        }
+
+        if (Java.available) {
+            setImmediate(function() {
+                Dwarf.dwarfJavaHelper.initalize();
+            });
+            this.androidApiLevel = this.getAndroidApiLevel();
+
+            LogicJava.init();
         }
 
         this.processInfo = new DwarfProcessInfo(
@@ -164,12 +179,6 @@ export class DwarfCore {
             threads: Process.enumerateThreads()
         };
         send("coresync:::" + JSON.stringify(initData));
-
-        if (Java.available) {
-            this.dwarfJavaHelper.initalize();
-            this.androidApiLevel = this.getAndroidApiLevel();
-            LogicJava.init();
-        }
 
         //LogicInitialization.init();
         this.getHooksManager().initialize();
@@ -206,14 +215,26 @@ export class DwarfCore {
         if (Java.available && this.processInfo.wasSpawned && this.breakAtStart) {
             //android init breakpoint
             if (this.getAndroidApiLevel() >= 23) {
-                const initBreakpoint = this.getHooksManager().addJavaHook("com.android.internal.os.RuntimeInit", "commonInit", 'breakpoint', true, true);
-                if(!isDefined(initBreakpoint)) {
-                    logDebug('Failed to attach initHook!');
+                const initBreakpoint = this.getHooksManager().addJavaHook(
+                    "com.android.internal.os.RuntimeInit",
+                    "commonInit",
+                    "breakpoint",
+                    true,
+                    true
+                );
+                if (!isDefined(initBreakpoint)) {
+                    logDebug("Failed to attach initHook!");
                 }
             } else {
-                const initBreakpoint = this.getHooksManager().addJavaHook("android.app.Application", "onCreate", 'breakpoint', true, true);
-                if(!isDefined(initBreakpoint)) {
-                    logDebug('Failed to attach initHook!');
+                const initBreakpoint = this.getHooksManager().addJavaHook(
+                    "android.app.Application",
+                    "onCreate",
+                    "breakpoint",
+                    true,
+                    true
+                );
+                if (!isDefined(initBreakpoint)) {
+                    logDebug("Failed to attach initHook!");
                 }
             }
             this.dwarfJavaHelper.enumerateLoadedClasses(false);
@@ -223,25 +244,28 @@ export class DwarfCore {
             // break proc at main
             if (this.processInfo.wasSpawned && this.breakAtStart) {
                 //Inital breakpoint
-                const invocationListener = Interceptor.attach(this.dwarfApi.findExport("RtlUserThreadStart"), function() {
-                    trace("Creating startbreakpoint");
-                    const invocationContext: InvocationContext = this;
-                    let address = null;
-                    if (Process.arch === "ia32") {
-                        const context = invocationContext.context as Ia32CpuContext;
-                        address = context.eax;
-                    } else if (Process.arch === "x64") {
-                        const context = invocationContext.context as X64CpuContext;
-                        address = context.rax;
-                    }
+                const invocationListener = Interceptor.attach(
+                    this.dwarfApi.findExport("RtlUserThreadStart"),
+                    function() {
+                        trace("Creating startbreakpoint");
+                        const invocationContext: InvocationContext = this;
+                        let address = null;
+                        if (Process.arch === "ia32") {
+                            const context = invocationContext.context as Ia32CpuContext;
+                            address = context.eax;
+                        } else if (Process.arch === "x64") {
+                            const context = invocationContext.context as X64CpuContext;
+                            address = context.rax;
+                        }
 
-                    if (isDefined(address)) {
-                        const initBreakpoint = DwarfCore.getInstance()
-                            .getHooksManager()
-                            .addNativeHook(address, "breakpoint", true, true);
-                        invocationListener.detach();
+                        if (isDefined(address)) {
+                            const initBreakpoint = DwarfCore.getInstance()
+                                .getHooksManager()
+                                .addNativeHook(address, "breakpoint", true, true);
+                            invocationListener.detach();
+                        }
                     }
-                });
+                );
             }
         }
     };
@@ -283,7 +307,15 @@ export class DwarfCore {
         return send(message, data);
     };
 
-    onBreakpoint = (breakpointId: number, threadId: number, haltReason: DwarfHaltReason, address_or_class, context, java_handle?, condition?: Function) => {
+    onBreakpoint = (
+        breakpointId: number,
+        threadId: number,
+        haltReason: DwarfHaltReason,
+        address_or_class,
+        context,
+        java_handle?,
+        condition?: Function
+    ) => {
         trace("DwarfCore::onBreakpoint()");
         //const tid = Process.getCurrentThreadId();
 
@@ -297,8 +329,8 @@ export class DwarfCore {
             reason: haltReason
         };
 
-        if(!isDefined(context) && isDefined(this['context'])) {
-            context = this['context'];
+        if (!isDefined(context) && isDefined(this["context"])) {
+            context = this["context"];
         }
 
         if (isDefined(context)) {
@@ -468,15 +500,20 @@ export class DwarfCore {
 
     //from https://github.com/frida/frida-java-bridge/blob/master/lib/android.js
     getAndroidSystemProperty = (name: string) => {
-        if (!this.processInfo.isJavaAvailable()) {
+        if (!Java.available) {
             return;
         }
 
         trace("DwarfCore::getAndroidSystemProperty()");
         if (this._systemPropertyGet === null) {
-            this._systemPropertyGet = new NativeFunction(Module.findExportByName("libc.so", "__system_property_get"), "int", ["pointer", "pointer"], {
-                exceptions: "propagate"
-            });
+            this._systemPropertyGet = new NativeFunction(
+                Module.findExportByName("libc.so", "__system_property_get"),
+                "int",
+                ["pointer", "pointer"],
+                {
+                    exceptions: "propagate"
+                }
+            );
         }
         const buf = Memory.alloc(92);
         this._systemPropertyGet(Memory.allocUtf8String(name), buf);

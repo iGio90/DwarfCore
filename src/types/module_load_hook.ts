@@ -35,5 +35,6 @@ export class ModuleLoadHook extends DwarfHook {
         }
 
         super(DwarfHookType.MODULE_LOAD, moduleName, userCallback, isSingleShot, isEnabled);
+        this.bAttached = true;
     }
 }

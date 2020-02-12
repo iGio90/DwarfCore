@@ -20,7 +20,6 @@ import { DwarfHookType } from "../consts";
 import { DwarfJavaHelper } from "../java";
 
 export class JavaHook extends DwarfHook {
-    private isSetupDone: boolean;
 
     constructor(
         className: string,
@@ -49,7 +48,7 @@ export class JavaHook extends DwarfHook {
 
         super(DwarfHookType.JAVA, className + "." + methodName, userCallback, isSingleShot, isEnabled);
 
-        this.isSetupDone = false;
+        this.bAttached = false;
 
         //try to attach or add to classLoaderHook wich calls setup when class is loaded
         Java.performNow(() => {
@@ -67,9 +66,16 @@ export class JavaHook extends DwarfHook {
 
     public setup(): void {
         const self = this;
+        if (self.bAttached) {
+            return;
+        }
         Java.performNow(function() {
             const className = (self.hookAddress as string).substr(0, (self.hookAddress as string).lastIndexOf("."));
             const methodName = (self.hookAddress as string).substr((self.hookAddress as string).lastIndexOf(".") + 1);
+            const testWrapper = Java.use(className);
+            if (!isDefined(testWrapper) || !isDefined(testWrapper[methodName])) {
+                return;
+            }
             try {
                 Dwarf.getJavaHelper().hookInJVM(className, methodName, function() {
                     try {
@@ -85,25 +91,16 @@ export class JavaHook extends DwarfHook {
                     }
                 });
             } catch (e) {
-                this.isSetupDone = false;
+                self.bAttached = false;
             }
         });
-        this.isSetupDone = true;
+        self.bAttached = true;
     }
 
-    /**
-     * Returns true if hook is placed
-     *
-     * @returns boolean
-     */
-    public isHooked(): boolean {
-        return this.isSetupDone;
-    }
-
-    public remove(syncUi:boolean = true): void {
+    public remove(syncUi: boolean = true): void {
         trace("JavaHook::remove()");
 
-        if (this.isSetupDone) {
+        if (this.bAttached) {
             const hookAddress = this.hookAddress as string;
             const className = hookAddress.substring(0, hookAddress.lastIndexOf("."));
             const methodName = hookAddress.substring(hookAddress.lastIndexOf(".") + 1);

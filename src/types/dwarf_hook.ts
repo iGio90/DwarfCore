@@ -31,6 +31,7 @@ export class DwarfHook {
     protected hookAddress: NativePointer | string;
     protected bSingleShot: boolean;
     protected bActive: boolean;
+    protected bAttached:boolean;
     protected userCallback: ScriptInvocationListenerCallbacks | Function | string;
 
     /**
@@ -70,6 +71,7 @@ export class DwarfHook {
         this.userCallback = userCallback;
         this.bEnabled = isEnabled;
         this.bSingleShot = isSingleShot;
+        this.bAttached = false;
 
         this.bpHits = 0;
         this.threadId = Process.getCurrentThreadId();
@@ -159,6 +161,10 @@ export class DwarfHook {
         return this.bActive == true;
     }
 
+    public isAttached() {
+        return this.bAttached;
+    }
+
     /**
      * @returns boolean
      */
@@ -205,7 +211,7 @@ export class DwarfHook {
 
     public onEnterCallback(dwarfHook:DwarfHook, thisArg: any, funcArgs: InvocationArguments | IArguments) {
         const self = dwarfHook;
-        if (!self.isEnabled()) {
+        if (!self.isEnabled() || !self.isAttached()) {
             return;
         }
 

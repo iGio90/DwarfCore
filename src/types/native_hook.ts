@@ -23,7 +23,6 @@ export class NativeHook extends DwarfHook {
     protected bpDebugSymbol: DebugSymbol;
     protected bpCondition: Function;
     protected invocationListener: InvocationListener;
-    protected isAttached: boolean;
 
     /**
      * Creates an instance of DwarfHook.
@@ -56,7 +55,7 @@ export class NativeHook extends DwarfHook {
 
         super(DwarfHookType.NATIVE, nativePtr, userCallback, isSingleShot, isEnabled);
 
-        this.isAttached = false;
+        this.bAttached = false;
         this.bpDebugSymbol = DebugSymbol.fromAddress(nativePtr);
 
         const self = this;
@@ -69,7 +68,7 @@ export class NativeHook extends DwarfHook {
                     self.onLeaveCallback(self, this, returnVal);
                 }
             });
-            self.isAttached = true;
+            self.bAttached = true;
         } catch (e) {
             logErr("NativeHook()", e);
         }
@@ -104,7 +103,7 @@ export class NativeHook extends DwarfHook {
     public remove(syncUi:boolean = true): void {
         trace("NativeHook::remove()");
 
-        if (this.isAttached && isDefined(this.invocationListener)) {
+        if (this.bAttached && isDefined(this.invocationListener)) {
             this.detach();
         }
         return super.remove(syncUi);

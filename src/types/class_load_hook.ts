@@ -43,5 +43,6 @@ export class ClassLoadHook extends DwarfHook {
         }
 
         super(DwarfHookType.CLASS_LOAD, className, userCallback, isEnabled, isSingleShot);
+        this.bAttached = true;
     }
 }

@@ -29,6 +29,7 @@ export class DwarfJavaHelper {
     protected sdk_version: number;
     protected initDone: boolean;
     protected hooksToAttach: Array<JavaHook>;
+    protected excludedClasses: Array<string>;
 
     private constructor() {
         if (DwarfJavaHelper.instanceRef) {
@@ -42,6 +43,7 @@ export class DwarfJavaHelper {
         this.oldOverloads = {};
         this.hooksToAttach = new Array<JavaHook>();
         this.initDone = false;
+        this.excludedClasses = ["android.", "com.android", "java.lang", "java.io"];
     }
 
     //Singleton
@@ -67,6 +69,26 @@ export class DwarfJavaHelper {
         Java.performNow(() => {
             logDebug("initializing logicJava with sdk: " + this.sdk_version);
 
+            const Class = Java.use("java.lang.Class");
+
+            //https://android.googlesource.com/platform/libcore/+/a7752f4d22097346dd7849b92b9f36d0a0a7a8f3/libdvm/src/main/java/java/lang/Class.java#216
+            Class.classForName.overload(
+                "java.lang.String",
+                "boolean",
+                "java.lang.ClassLoader"
+            ).implementation = function(className, shouldInitialize, classLoader) {
+                let isExcluded = false;
+                self.excludedClasses.forEach(excludedClass => {
+                    if (className.startsWith(excludedClass)) {
+                        isExcluded = true;
+                    }
+                });
+                if (!isExcluded) {
+                    console.log("Class: " + className);
+                }
+                return this.classForName(className, shouldInitialize, classLoader);
+            };
+
             //class loader
             const ClassLoader = Java.use("java.lang.ClassLoader");
 
@@ -75,6 +97,9 @@ export class DwarfJavaHelper {
                 resolve: boolean
             ) {
                 try {
+                    if (self.classCache.indexOf(className) === -1) {
+                        self.classCache.push(className);
+                    }
                     //handle classLoadHooks enter
                     const dwarfHook = DwarfHooksManager.getInstance().getHookByAddress(
                         className,
@@ -93,23 +118,24 @@ export class DwarfJavaHelper {
                     if (isDefined(dwarfHook)) {
                         dwarfHook.onLeaveCallback(dwarfHook, this, result);
                     }
-                    if (self.classCache.indexOf(className) === -1) {
-                        self.classCache.push(className);
 
+                    const syncMsg = { java_class_loaded: className };
+
+                    try {
                         if (self.hooksToAttach.length > 0) {
                             self.hooksToAttach.forEach(javaHook => {
-                                if ((javaHook.getAddress() as string).indexOf(className) !== -1) {
-                                    if (!javaHook.isHooked()) {
-                                        javaHook.setup();
-                                        Dwarf.sync({ dwarfHooks: DwarfHooksManager.getInstance().getHooks() });
-                                    }
+                                if (!javaHook.isAttached()) {
+                                    javaHook.setup();
+                                    syncMsg["dwarfHooks"] = DwarfHooksManager.getInstance().getHooks();
                                 }
                             });
-                            self.hooksToAttach = self.hooksToAttach.filter(dwarfHook => !dwarfHook.isHooked());
+                            self.hooksToAttach = self.hooksToAttach.filter(dwarfHook => !dwarfHook.isAttached());
                         }
-                        //sync ui
-                        Dwarf.sync({ java_class_loaded: className });
+                    } catch (e) {
                     }
+                    //sync ui
+                    Dwarf.sync(syncMsg);
+
                     return result;
                 } catch (e) {
                     if (e.message.indexOf("java.lang.ClassNotFoundException") !== -1) {
@@ -179,8 +205,6 @@ export class DwarfJavaHelper {
 
         this.checkRequirements();
 
-        let attachedHook = false;
-
         const self = this;
 
         if (useCache && this.classCache.length) {
@@ -194,25 +218,9 @@ export class DwarfJavaHelper {
                     Java.enumerateLoadedClasses({
                         onMatch: className => {
                             self.classCache.push(className);
-                            if (self.hooksToAttach.length > 0) {
-                                self.hooksToAttach.forEach(javaHook => {
-                                    if ((javaHook.getAddress() as string).indexOf(className) !== -1) {
-                                        if (!javaHook.isHooked()) {
-                                            javaHook.setup();
-                                            attachedHook = true;
-                                        }
-                                    }
-                                });
-                                self.hooksToAttach = self.hooksToAttach.filter(dwarfHook => !dwarfHook.isHooked());
-                            }
                         },
                         onComplete: () => {
                             let syncMsg = { java_classes: self.classCache, cached: useCache };
-                            if (attachedHook) {
-                                syncMsg = Object.assign(syncMsg, {
-                                    dwarfHooks: DwarfHooksManager.getInstance().getHooks()
-                                });
-                            }
                             Dwarf.sync(syncMsg);
                         }
                     });
