@@ -327,14 +327,17 @@ export class DwarfCore {
         trace("DwarfCore::onBreakpoint()");
         //const tid = Process.getCurrentThreadId();
 
-        threadId = Process.getCurrentThreadId();
+        if(!isDefined(threadId)) {
+            threadId = Process.getCurrentThreadId();
+        }
 
         logDebug("[" + threadId + "] breakpoint " + address_or_class + " - reason: " + haltReason);
 
         const breakpointData = {
             hookid: breakpointId,
             tid: threadId,
-            reason: haltReason
+            reason: haltReason,
+            address: address_or_class
         };
 
         if (!isDefined(context) && isDefined(this["context"])) {
@@ -347,7 +350,6 @@ export class DwarfCore {
             breakpointData["context"] = context;
             if (isDefined(context["pc"])) {
                 let symbol = null;
-                breakpointData["address"] = address_or_class;
 
                 try {
                     symbol = DebugSymbol.fromAddress(context.pc);
@@ -397,7 +399,6 @@ export class DwarfCore {
                 breakpointData["context"] = newCtx;
             } else {
                 breakpointData["java"] = true;
-                breakpointData["address"] = address_or_class;
 
                 logDebug("[" + threadId + "] sendInfos - preparing java backtrace");
 
