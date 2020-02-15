@@ -70,3 +70,9 @@ declare const Dwarf: any;
 
 type DwarfHookAddress = NativePointer | string | null;
 type DwarfCallback = ScriptInvocationListenerCallbacks | Function | string;
+
+declare interface StringSearchResult {
+    address:NativePointer;
+    length:number;
+    string:string;
+}

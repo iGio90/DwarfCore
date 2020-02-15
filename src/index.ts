@@ -37,7 +37,18 @@ rpc.exports = {
         ) {
             throw new Error("Unknown ApiFunction!");
         }
-        logDebug("[" + tid + "] RPC-API: " + apiFunction + " | " + "args: " + apiArguments + " (" + Process.getCurrentThreadId() + ")");
+        logDebug(
+            "[" +
+                tid +
+                "] RPC-API: " +
+                apiFunction +
+                " | " +
+                "args: " +
+                apiArguments +
+                " (" +
+                Process.getCurrentThreadId() +
+                ")"
+        );
 
         if (typeof apiArguments === "undefined" || apiArguments === null) {
             apiArguments = [];
@@ -79,18 +90,36 @@ rpc.exports = {
             logErr("Api()", e);
         }
     },
-    init: function(proc_name, spawned, breakStart, debug, redirectConsole, enableTrace, globalApiFuncs?: Array<string>) {
+    init: function(
+        proc_name,
+        spawned,
+        breakStart,
+        debug,
+        redirectConsole,
+        enableTrace,
+        globalApiFuncs?: Array<string>
+    ) {
         //init dwarf
-        DwarfCore.getInstance().init(proc_name, spawned, breakStart, debug, redirectConsole, enableTrace, globalApiFuncs);
+        DwarfCore.getInstance().init(
+            proc_name,
+            spawned,
+            breakStart,
+            debug,
+            redirectConsole,
+            enableTrace,
+            globalApiFuncs
+        );
     },
 
     start: function() {
         DwarfCore.getInstance().start();
     },
     stop: function() {
-        DwarfHooksManager.getInstance().getHooks().forEach(dwarfHook => {
-            dwarfHook.remove(true);
-        });
+        DwarfHooksManager.getInstance()
+            .getHooks()
+            .forEach(dwarfHook => {
+                dwarfHook.remove(true);
+            });
         MemoryAccessMonitor.disable();
     },
     keywords: function() {
@@ -126,23 +155,23 @@ rpc.exports = {
         });
     },
     fetchmem: function(address, length = 0) {
-        var nativePointer = ptr(address);
-        return new Promise(function(resolve) {
-            var memoryRange = Process.findRangeByAddress(nativePointer);
-            if (isDefined(memoryRange)) {
-                if (memoryRange && memoryRange.hasOwnProperty("protection") && memoryRange.protection.indexOf("r") === 0) {
-                    if (!length) {
-                        memoryRange["data"] = ba2hex(memoryRange.base.readByteArray(memoryRange.size) || new ArrayBuffer(0));
-                    } else {
-                        memoryRange["data"] = ba2hex(memoryRange.base.readByteArray(length) || new ArrayBuffer(0));
-                    }
-                    resolve(memoryRange);
+        length = parseInt(length);
+        var nativePointer = makeNativePointer(address);
+        var memoryRange = Process.findRangeByAddress(nativePointer);
+        if (isDefined(memoryRange)) {
+            if (memoryRange && memoryRange.hasOwnProperty("protection") && memoryRange.protection.indexOf("r") === 0) {
+                Memory.protect(memoryRange.base, length, 'rwx');
+                if (!length) {
+                    memoryRange["data"] = ba2hex(memoryRange.base.readByteArray(memoryRange.size));
                 } else {
-                    resolve("Memory not readable!");
+                    memoryRange["data"] = ba2hex(nativePointer.readByteArray(length));
                 }
+                return memoryRange;
             } else {
-                resolve("Failed to get Memory!");
+                return "Memory not readable!";
             }
-        });
+        } else {
+            return "Unable to find Memory!";
+        }
     }
 };

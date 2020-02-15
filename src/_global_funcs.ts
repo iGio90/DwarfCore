@@ -37,8 +37,8 @@ global.isNumber = function(value: any): boolean {
 };
 
 global.isString = function(value: any): boolean {
-    if (isDefined(value)) {
-        return typeof value === "string";
+    if (isDefined(value) && typeof value === 'string') {
+        return (value.length > 0);
     }
     return false;
 };

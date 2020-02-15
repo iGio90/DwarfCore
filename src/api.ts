@@ -32,12 +32,17 @@ import { ModuleLoadHook } from "./types/module_load_hook";
 
 export class DwarfApi {
     private static instanceRef: DwarfApi;
+    private isPrintFunc: NativeFunction;
 
     private constructor() {
         if (DwarfApi.instanceRef) {
             throw new Error("DwarfApi already exists! Use DwarfApi.getInstance()/Dwarf.getApi()");
         }
         logDebug("DwarfApi()");
+        let isPrintPtr = this.findExport("isprint");
+        if (checkNativePointer(isPrintPtr)) {
+            this.isPrintFunc = new NativeFunction(isPrintPtr, "int", ["int"]);
+        }
     }
 
     static getInstance() {
@@ -783,6 +788,93 @@ export class DwarfApi {
         return [-1, p];
     };
 
+    public showStrings = (
+        startAddress: NativePointer | number | string,
+        scanLength: number,
+        minLen: number = 3,
+        filter?: string
+    ) => {
+        console.log('Searching for Strings, Please wait...');
+        this.enumerateStrings(startAddress, scanLength, minLen, filter, true);
+        console.log('***** Done *****');
+    };
+
+    public enumerateStrings = (
+        startAddress: NativePointer | number | string,
+        scanLength: number,
+        minLen: number = 3,
+        filter?: string,
+        fromUi?: boolean
+    ) => {
+        startAddress = makeNativePointer(startAddress);
+
+        let searchResults = new Array<StringSearchResult>();
+
+        const rangeDetails = Process.findRangeByAddress(startAddress);
+        let oldProtection = "";
+
+        //TODO: we need something here when scanlen is > range.size
+        if (isDefined(rangeDetails)) {
+            oldProtection = rangeDetails.protection;
+        }
+
+        Memory.protect(startAddress, scanLength, "rwx");
+
+        //@ts-ignore
+        let arrayBuffer = new Uint8Array(ArrayBuffer.wrap(startAddress, scanLength));
+
+        if(isString(filter)) {
+            minLen = filter.length;
+        }
+
+        for (var i = 0; i < scanLength; i++) {
+            if (this.isPrintable(arrayBuffer[i])) {
+                let string = "" + String.fromCharCode(arrayBuffer[i]);
+                while (i < scanLength) {
+                    let u8 = arrayBuffer[++i];
+                    if (this.isPrintable(u8)) {
+                        string += String.fromCharCode(u8);
+                    } else {
+                        if (string.length >= minLen) {
+                            if (isString(filter) && string.indexOf(filter) != -1) {
+                                const result = {
+                                    string: string,
+                                    length: string.length,
+                                    address: startAddress.add(i)
+                                };
+                                if (isDefined(fromUi) && fromUi === true) {
+                                    Dwarf.sync({
+                                        stringResult: result
+                                    });
+                                } else {
+                                    searchResults.push(result);
+                                }
+                            } else if (!isDefined(filter)) {
+                                const result = {
+                                    string: string,
+                                    length: string.length,
+                                    address: startAddress.add(i)
+                                };
+                                if (isDefined(fromUi) && fromUi === true) {
+                                    Dwarf.sync({
+                                        stringResult: result
+                                    });
+                                } else {
+                                    searchResults.push(result);
+                                }
+                            }
+                        }
+                        break;
+                    }
+                }
+            }
+        }
+        if (isDefined(fromUi) && fromUi === true) {
+            return;
+        }
+        return searchResults;
+    };
+
     /**
      * Return an array of DebugSymbol for the requested pointers
      * @param ptrs: an array of NativePointer
@@ -997,14 +1089,10 @@ export class DwarfApi {
         return false;
     };
 
-    private isPrintable = char => {
+    private isPrintable = (char: number): boolean => {
         try {
-            const isprint_ptr = this.findExport("isprint");
-            if (isDefined(isprint_ptr)) {
-                const isprint_fn = new NativeFunction(isprint_ptr, "int", ["int"]);
-                if (isDefined(isprint_fn)) {
-                    return isprint_fn(char);
-                }
+            if (isDefined(this.isPrintFunc)) {
+                return this.isPrintFunc(char) as boolean;
             } else {
                 if (char > 31 && char < 127) {
                     return true;
@@ -1289,8 +1377,10 @@ export class DwarfApi {
             data.constructor.name === "ArrayBuffer"
         ) {
             if ((data as ArrayBuffer).byteLength) {
+                const ptr_size = Dwarf.processInfo.getPointerSize();
+                const arch = Dwarf.processInfo.getArchitecture()
                 DwarfCore.getInstance().sync({
-                    showData: { type: dataType, ident: dataIdentifier, data: ba2hex(data), base: base, mode: mode }
+                    showData: { type: dataType, ident: dataIdentifier, data: ba2hex(data), ptr_size: ptr_size, arch: arch, base: base, mode: mode }
                 });
             }
         }
