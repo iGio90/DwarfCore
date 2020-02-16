@@ -151,7 +151,6 @@ export class DwarfCore {
             this.breakAtStart = true;
         }
 
-
         if (Java.available) {
             setImmediate(function() {
                 Dwarf.dwarfJavaHelper.initalize();
@@ -322,7 +321,7 @@ export class DwarfCore {
         trace("DwarfCore::onBreakpoint()");
         //const tid = Process.getCurrentThreadId();
 
-        if(!isDefined(threadId)) {
+        if (!isDefined(threadId)) {
             threadId = Process.getCurrentThreadId();
         }
 
@@ -499,7 +498,16 @@ export class DwarfCore {
         let coreSyncMsg = {};
         coreSyncMsg = Object.assign(coreSyncMsg, extraData);
 
-        send("coresync:::" + JSON.stringify(coreSyncMsg));
+        send(
+            "coresync:::" +
+                JSON.stringify(coreSyncMsg, function(key, val) {
+                    if (isFunction(val)) {
+                        return val.toString();
+                    } else {
+                        return val;
+                    }
+                })
+        );
     };
 
     //from https://github.com/frida/frida-java-bridge/blob/master/lib/android.js

@@ -349,7 +349,7 @@ export class DwarfHook {
         DwarfHooksManager.getInstance().update(true);
     }
 
-    public toJSON() {
+    /*public toJSON() {
         let jsonRet: { [index: string]: any } = {};
         for (const item in this) {
             if (item === "invocationListener") {
@@ -374,5 +374,5 @@ export class DwarfHook {
             }
         }
         return jsonRet;
-    }
+    }*/
 }

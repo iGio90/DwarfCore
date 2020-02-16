@@ -657,10 +657,10 @@ export class DwarfApi {
      * Evaluate javascript. Used from the UI to inject javascript code into the process
      * @param w
      */
-    public evaluate = (w): any => {
+    public evaluate = (js_code:string): any => {
         const Thread = ThreadWrapper;
         try {
-            return eval(w);
+            return eval(js_code);
         } catch (e) {
             logErr('evaluate', e);
             return null;
