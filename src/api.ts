@@ -624,7 +624,7 @@ export class DwarfApi {
         }
 
         if (Dwarf.modulesBlacklist.indexOf(_module.name) >= 0) {
-            this.log("Error: Module " + _module.name + " is blacklisted");
+            console.error("Module " + _module.name + " is blacklisted");
             return _module;
         }
 
@@ -662,7 +662,7 @@ export class DwarfApi {
         try {
             return eval(w);
         } catch (e) {
-            this.log(e.toString());
+            logErr('evaluate', e);
             return null;
         }
     };
@@ -676,7 +676,7 @@ export class DwarfApi {
             const fn = new Function("Thread", w);
             return fn.apply(this, [ThreadWrapper]);
         } catch (e) {
-            this.log(e.toString());
+            logErr('evaluateFunction', e);
             return null;
         }
     };
@@ -1120,15 +1120,6 @@ export class DwarfApi {
     };
 
     /**
-     * log whatever to Dwarf console
-     */
-    public log = (what): void => {
-        if (isDefined(what)) {
-            Dwarf.loggedSend("log:::" + what);
-        }
-    };
-
-    /**
      * A shortcut and secure way to read a string from a pointer with frida on any os
      *
      * @return the string pointed by address until termination or optional length
@@ -1271,7 +1262,7 @@ export class DwarfApi {
             Dwarf.PROC_RESUMED = true;
             Dwarf.loggedSend("resume:::0");
         } else {
-            console.log("Error: Process already resumed");
+            console.error("Process already resumed");
         }
     };
 

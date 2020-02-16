@@ -133,7 +133,7 @@ global.logDebug = function(...data: Array<any>): void {
 
     for (let what of data) {
         if (what instanceof ArrayBuffer) {
-            console.log(hexdump(what));
+            what = hexdump(what);
         } else if (what instanceof Object) {
             what = JSON.stringify(what, null, 2);
         }
@@ -145,17 +145,17 @@ global.logDebug = function(...data: Array<any>): void {
     }
 
     if (outputMsg !== "") {
-        console.log(timeStamp() + "[JS DEBUG] " + outputMsg);
+        console.warn(timeStamp() + "[JS DEBUG] " + outputMsg);
     }
 };
 
 global.logErr = function(tag: string, err: Error): void {
-    console.log(timeStamp() + "[JS ERROR] => " + tag + " -> " + err);
+    console.error(timeStamp() + "[JS ERROR] => " + tag + " -> " + err);
 };
 
 global.trace = function(str: string): void {
     if (DEBUG) {
-        console.log(timeStamp() + "[JS TRACE] -> " + str);
+        console.warn(timeStamp() + "[JS TRACE] -> " + str);
     }
 };
 

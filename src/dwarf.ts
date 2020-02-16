@@ -151,11 +151,6 @@ export class DwarfCore {
             this.breakAtStart = true;
         }
 
-        if (redirectConsole) {
-            console.log = function(message?: any, ...optionalParams: any[]) {
-                send("log:::" + message);
-            };
-        }
 
         if (Java.available) {
             setImmediate(function() {
