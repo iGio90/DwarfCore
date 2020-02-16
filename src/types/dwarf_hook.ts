@@ -209,6 +209,21 @@ export class DwarfHook {
         DwarfHooksManager.getInstance().update(true);
     }
 
+    public setCallback(userCallback: DwarfCallback) {
+        trace("DwarfHook::setCallback()");
+        if (isDefined(userCallback)) {
+            if (this.getType() === DwarfHookType.MEMORY && !isFunction(userCallback) && !isString(userCallback)) {
+                this.userCallback = "breakpoint";
+            } else {
+                this.userCallback = userCallback;
+            }
+            DwarfHooksManager.getInstance().update(true);
+        } else {
+            this.userCallback = "breakpoint";
+            DwarfHooksManager.getInstance().update(true);
+        }
+    }
+
     public onEnterCallback(dwarfHook: DwarfHook, thisArg: any, funcArgs: InvocationArguments | IArguments) {
         const self = dwarfHook;
         if (!self.isEnabled() || !self.isAttached()) {
@@ -342,19 +357,17 @@ export class DwarfHook {
             }
             if (item === "userCallback") {
                 if (isFunction(this[item])) {
-                    jsonRet[item] = "" + this[item];
+                    jsonRet[item] = this[item].toString().replace("'", '"');
                 } else if (isString(this[item])) {
                     jsonRet[item] = this[item];
                 } else {
-                    if (typeof this[item] === "object") {
-                        this[item]["toJSON"] = function(key) {
-                            if (isFunction(this[item][key])) {
-                                return "" + this[item][key];
-                            } else {
-                                return this[item][key];
-                            }
-                        };
-                    }
+                    jsonRet[item] = JSON.stringify(this[item], function(key, val) {
+                        if(isFunction(val)) {
+                            return val.toString().replace("'", '"');
+                        } else {
+                            return val;
+                        }
+                    });
                 }
             } else {
                 jsonRet[item] = this[item];

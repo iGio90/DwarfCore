@@ -424,7 +424,7 @@ export class DwarfHooksManager {
      * @param  {NativePointer|string} hookAddress
      * @returns boolean
      */
-    public removeHookAtAddress = (hookAddress: NativePointer | string, syncUi:boolean): boolean => {
+    public removeHookAtAddress = (hookAddress: NativePointer | string, syncUi: boolean): boolean => {
         trace("DwarfHooksManager::removeHookAtAddress()");
 
         let dwarfHook = this.getHookByAddress(hookAddress);
@@ -451,6 +451,16 @@ export class DwarfHooksManager {
         return false;
     };
 
+    public getHookById = (hookID: number): DwarfHook => {
+        trace("DwarfHooksManager::getHookById()");
+
+        for (let dwarfHook of this.dwarfHooks) {
+            if (dwarfHook.getHookId() === hookID) {
+                return dwarfHook;
+            }
+        }
+        return null;
+    };
     /**
      * @param  {NativePointer|string} hookAddress
      * @returns DwarfHook
@@ -513,6 +523,22 @@ export class DwarfHooksManager {
             dwarfHook.disable();
             return dwarfHook.isEnabled();
         }
+    };
+
+    public replaceCallback = (hookID: number, userCallback: DwarfCallback) => {
+        trace("DwarfHooksManager::replaceCallback()");
+
+        let dwarfHook = this.getHookById(hookID);
+
+        if(isDefined(dwarfHook)) {
+            try {
+                return dwarfHook.setCallback(userCallback);
+            } catch(e) {
+                logErr("DwarfHooksManager::replaceCallback()", e);
+                throw e;
+            }
+        }
+        throw new Error('DwarfHooksManager::replaceCallback() -> No Hook with id ' + hookID);
     };
 
     /**
@@ -631,7 +657,7 @@ export class DwarfHooksManager {
     /**
      * Removes SingleShots and syncs ui
      */
-    public update = (syncUi:boolean) => {
+    public update = (syncUi: boolean) => {
         trace("DwarfHooksManager::update()");
 
         const newHooks = [];
@@ -650,7 +676,7 @@ export class DwarfHooksManager {
         DwarfHooksManager.getInstance().dwarfHooks = newHooks;
 
         //sync ui
-        if(syncUi) {
+        if (syncUi) {
             DwarfCore.getInstance().sync({ dwarfHooks: DwarfHooksManager.getInstance().dwarfHooks });
         }
     };
