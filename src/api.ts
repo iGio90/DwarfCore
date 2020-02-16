@@ -658,6 +658,7 @@ export class DwarfApi {
      * @param w
      */
     public evaluate = (js_code:string): any => {
+        js_code = js_code.replace(/\'/g, '"');
         const Thread = ThreadWrapper;
         try {
             return eval(js_code);
@@ -671,9 +672,10 @@ export class DwarfApi {
      * Evaluate javascript. Used from the UI to inject javascript code into the process
      * @param w
      */
-    public evaluateFunction = (w): any => {
+    public evaluateFunction = (js_code:string): any => {
         try {
-            const fn = new Function("Thread", w);
+            js_code = js_code.replace(/\'/g, '"');
+            const fn = new Function("Thread", js_code);
             return fn.apply(this, [ThreadWrapper]);
         } catch (e) {
             logErr('evaluateFunction', e);

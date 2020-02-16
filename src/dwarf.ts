@@ -502,7 +502,7 @@ export class DwarfCore {
             "coresync:::" +
                 JSON.stringify(coreSyncMsg, function(key, val) {
                     if (isFunction(val)) {
-                        return val.toString();
+                        return val.toString().replace(/\'/g, '"');
                     } else {
                         return val;
                     }
