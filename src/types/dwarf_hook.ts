@@ -31,7 +31,7 @@ export class DwarfHook {
     protected hookAddress: NativePointer | string;
     protected bSingleShot: boolean;
     protected bActive: boolean;
-    protected bAttached:boolean;
+    protected bAttached: boolean;
     protected userCallback: ScriptInvocationListenerCallbacks | Function | string;
 
     /**
@@ -200,16 +200,16 @@ export class DwarfHook {
         }
     }
 
-    public setActive(state:boolean) {
+    public setActive(state: boolean) {
         this.bActive = state;
     }
 
-    public remove(syncUi:boolean) {
+    public remove(syncUi: boolean) {
         trace("DwarfHook::remove()");
         DwarfHooksManager.getInstance().update(true);
     }
 
-    public onEnterCallback(dwarfHook:DwarfHook, thisArg: any, funcArgs: InvocationArguments | IArguments) {
+    public onEnterCallback(dwarfHook: DwarfHook, thisArg: any, funcArgs: InvocationArguments | IArguments) {
         const self = dwarfHook;
         if (!self.isEnabled() || !self.isAttached()) {
             return;
@@ -276,7 +276,7 @@ export class DwarfHook {
         }
     }
 
-    public onLeaveCallback(dwarfHook:DwarfHook, thisArg: any, returnValue: InvocationReturnValue) {
+    public onLeaveCallback(dwarfHook: DwarfHook, thisArg: any, returnValue: InvocationReturnValue) {
         const self = dwarfHook;
         if (!self.isEnabled()) {
             return;
@@ -286,7 +286,11 @@ export class DwarfHook {
             return;
         }
 
-        if (isDefined(self.userCallback) && self.userCallback.hasOwnProperty("onLeave") && isFunction(self.userCallback["onLeave"])) {
+        if (
+            isDefined(self.userCallback) &&
+            self.userCallback.hasOwnProperty("onLeave") &&
+            isFunction(self.userCallback["onLeave"])
+        ) {
             let userReturn = 0;
             let breakExecution = false;
             try {
@@ -323,10 +327,39 @@ export class DwarfHook {
         }
         for (const hook of DwarfHooksManager.getInstance().getHooks()) {
             hook.setActive(false);
-            if(hook.isSingleShot() && hook.getHits() > 0 && !hook.isActive()) {
+            if (hook.isSingleShot() && hook.getHits() > 0 && !hook.isActive()) {
                 hook.remove(false);
             }
         }
         DwarfHooksManager.getInstance().update(true);
+    }
+
+    public toJSON() {
+        let jsonRet: { [index: string]: any } = {};
+        for (const item in this) {
+            if (item === "invocationListener") {
+                continue;
+            }
+            if (item === "userCallback") {
+                if (isFunction(this[item])) {
+                    jsonRet[item] = "" + this[item];
+                } else if (isString(this[item])) {
+                    jsonRet[item] = this[item];
+                } else {
+                    if (typeof this[item] === "object") {
+                        this[item]["toJSON"] = function(key) {
+                            if (isFunction(this[item][key])) {
+                                return "" + this[item][key];
+                            } else {
+                                return this[item][key];
+                            }
+                        };
+                    }
+                }
+            } else {
+                jsonRet[item] = this[item];
+            }
+        }
+        return jsonRet;
     }
 }

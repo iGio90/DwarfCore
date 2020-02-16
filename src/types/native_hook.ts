@@ -108,18 +108,4 @@ export class NativeHook extends DwarfHook {
         }
         return super.remove(syncUi);
     }
-
-    public toJSON() {
-        let jsonRet: { [index: string]: any } = {};
-        for (const item in this) {
-            if (item !== "invocationListener") {
-                if(item === 'userCallback') {
-                    jsonRet[item] = JSON.stringify(this[item]);
-                } else {
-                    jsonRet[item] = this[item];
-                }
-            }
-        }
-        return jsonRet;
-    }
 }
