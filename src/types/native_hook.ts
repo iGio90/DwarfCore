@@ -97,6 +97,9 @@ export class NativeHook extends DwarfHook {
     public detach(): void {
         if (isDefined(this.invocationListener)) {
             this.invocationListener.detach();
+            this.bActive = false;
+            this.bAttached = false;
+            this.bEnabled = false;
         }
     }
 
