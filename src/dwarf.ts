@@ -366,7 +366,7 @@ export class DwarfCore {
                     logDebug("[" + threadId + "] getting register information:", reg, val);
 
                     const ts = Dwarf.dwarfApi.getAddressTs(val);
-                    isValidPtr = ts[0] > 0;
+                    isValidPtr = ts[0] != -1;
                     newCtx[reg] = {
                         value: val,
                         isValidPointer: isValidPtr,

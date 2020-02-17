@@ -657,13 +657,13 @@ export class DwarfApi {
      * Evaluate javascript. Used from the UI to inject javascript code into the process
      * @param w
      */
-    public evaluate = (js_code:string): any => {
+    public evaluate = (js_code: string): any => {
         js_code = js_code.replace(/\'/g, '"');
         const Thread = ThreadWrapper;
         try {
             return eval(js_code);
         } catch (e) {
-            logErr('evaluate', e);
+            logErr("evaluate", e);
             return null;
         }
     };
@@ -672,13 +672,13 @@ export class DwarfApi {
      * Evaluate javascript. Used from the UI to inject javascript code into the process
      * @param w
      */
-    public evaluateFunction = (js_code:string): any => {
+    public evaluateFunction = (js_code: string): any => {
         try {
             js_code = js_code.replace(/\'/g, '"');
             const fn = new Function("Thread", js_code);
             return fn.apply(this, [ThreadWrapper]);
         } catch (e) {
-            logErr('evaluateFunction', e);
+            logErr("evaluateFunction", e);
             return null;
         }
     };
@@ -775,9 +775,21 @@ export class DwarfApi {
         if (isDefined(_range)) {
             if (_range.protection.indexOf("r") !== -1) {
                 try {
-                    const s = this.readString(_ptr);
-                    if (s !== "") {
-                        return [0, s];
+                    let string = this.readString(_ptr);
+                    if (isString(string)) {
+                        for (let i = 0; i < string.length; i++) {
+                            if (!this.isPrintable(string.charCodeAt(i))) {
+                                if (i > 0) {
+                                    string = string.substr(0, i);
+                                } else {
+                                    string = "";
+                                }
+                                break;
+                            }
+                        }
+                        if (string.length > 0) {
+                            return [0, string];
+                        }
                     }
                 } catch (e) {}
                 try {
@@ -796,9 +808,9 @@ export class DwarfApi {
         minLen: number = 3,
         filter?: string
     ) => {
-        console.log('Searching for Strings, Please wait...');
+        console.log("Searching for Strings, Please wait...");
         this.enumerateStrings(startAddress, scanLength, minLen, filter, true);
-        console.log('***** Done *****');
+        console.log("***** Done *****");
     };
 
     public enumerateStrings = (
@@ -825,7 +837,7 @@ export class DwarfApi {
         //@ts-ignore
         let arrayBuffer = new Uint8Array(ArrayBuffer.wrap(startAddress, scanLength));
 
-        if(isString(filter)) {
+        if (isString(filter)) {
             minLen = filter.length;
         }
 
@@ -1126,55 +1138,44 @@ export class DwarfApi {
      *
      * @return the string pointed by address until termination or optional length
      */
-    public readString = (address, length?) => {
-        try {
-            address = ptr(address);
-            let fstring = "";
-            if (!isNumber(length)) {
-                length = -1;
-            }
-            const range = Process.findRangeByAddress(address);
-            if (!isDefined(range)) {
-                return "";
-            }
-            if (isString(range.protection) && range.protection.indexOf("r") === -1) {
-                //Access violation
-                return "";
-            }
-            const _np = new NativePointer(address);
-            if (!isDefined(_np)) {
-                return "";
-            }
-            if (Process.platform === "windows") {
-                fstring = _np.readAnsiString(length);
-
-                if (fstring === null) {
-                    fstring = _np.readUtf16String(length);
-                }
-            }
-            if (fstring === null) {
-                fstring = _np.readCString(length);
-            }
-            if (fstring === null) {
-                fstring = _np.readUtf8String(length);
-            }
-            if (isString(fstring) && fstring.length) {
-                for (let i = 0; i < fstring.length; i++) {
-                    if (!this.isPrintable(fstring.charCodeAt(i))) {
-                        fstring = null;
-                        break;
-                    }
-                }
-            }
-            if (fstring !== null && isString(fstring) && fstring.length) {
-                return fstring;
-            } else {
-                return "";
-            }
-        } catch (e) {
-            logErr("readString", e);
-            return "";
+    public readString = (address: NativePointer | number | string, length: number = -1): string => {
+        address = makeNativePointer(address);
+        let fstring = "";
+        if (!isNumber(length)) {
+            length = -1;
         }
+        const rangeDetails = Process.getRangeByAddress(address);
+
+        if (rangeDetails.protection.indexOf("r") === -1) {
+            if (!Memory.protect(rangeDetails.base, rangeDetails.size, "rwx")) {
+                //Access violation
+                throw new Error("Unable to access Memory!");
+            }
+        }
+
+        if (Process.platform === "windows") {
+            try {
+                fstring = address.readAnsiString(length);
+                return fstring;
+            } catch (e) {}
+
+            try {
+                fstring = address.readUtf16String(length);
+                return fstring;
+            } catch (e) {}
+        }
+
+        try {
+            fstring = address.readCString(length);
+            return fstring;
+        } catch (e) {}
+
+        try {
+            fstring = address.readUtf8String(length);
+            return fstring;
+        } catch (e) {}
+
+        return fstring;
     };
 
     /**
@@ -1371,9 +1372,17 @@ export class DwarfApi {
         ) {
             if ((data as ArrayBuffer).byteLength) {
                 const ptr_size = Dwarf.processInfo.getPointerSize();
-                const arch = Dwarf.processInfo.getArchitecture()
+                const arch = Dwarf.processInfo.getArchitecture();
                 DwarfCore.getInstance().sync({
-                    showData: { type: dataType, ident: dataIdentifier, data: ba2hex(data), ptr_size: ptr_size, arch: arch, base: base, mode: mode }
+                    showData: {
+                        type: dataType,
+                        ident: dataIdentifier,
+                        data: ba2hex(data),
+                        ptr_size: ptr_size,
+                        arch: arch,
+                        base: base,
+                        mode: mode
+                    }
                 });
             }
         }
