@@ -301,6 +301,14 @@ export class DwarfCore {
             }
             //return this.getHooksManager().handleMemoryHooks(exception);
         }
+
+        this.sync({ exception: exception });
+        let isHandled = false;
+        const op = recv('exception', function(value) {
+            isHandled = value;
+        });
+        op.wait();
+        return isHandled;
     };
 
     loggedSend = (message: any, data?: ArrayBuffer | number[] | null): void => {
