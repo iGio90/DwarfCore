@@ -157,7 +157,7 @@ rpc.exports = {
     fetchmem: function(address, length = 0) {
         length = parseInt(length);
         var nativePointer = makeNativePointer(address);
-        var memoryRange = Process.findRangeByAddress(nativePointer);
+        var memoryRange = Process.getRangeByAddress(nativePointer);
         if (isDefined(memoryRange)) {
             if (memoryRange && memoryRange.hasOwnProperty("protection") && memoryRange.protection.indexOf("r") === 0) {
                 Memory.protect(memoryRange.base, length, 'rwx');
