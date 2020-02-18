@@ -305,7 +305,7 @@ export class DwarfCore {
         this.sync({ exception: exception });
         let isHandled = false;
         const op = recv('exception', function(value) {
-            isHandled = value;
+            isHandled = parseInt(value.payload) == 1;
         });
         op.wait();
         return isHandled;
