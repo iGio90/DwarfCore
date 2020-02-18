@@ -119,7 +119,11 @@ export class DwarfJavaHelper {
                         dwarfHook.onLeaveCallback(dwarfHook, this, result);
                     }
 
-                    const syncMsg = { java_class_loaded: className };
+                    const syncMsg = {};
+
+                    if (self.classCache.indexOf(className) === -1) {
+                        syncMsg["java_class_loaded"] = className;
+                    }
 
                     try {
                         if (self.hooksToAttach.length > 0) {
