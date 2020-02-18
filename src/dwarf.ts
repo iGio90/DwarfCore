@@ -302,6 +302,10 @@ export class DwarfCore {
             //return this.getHooksManager().handleMemoryHooks(exception);
         }
 
+        if(exception.type === 'access-violation' || exception.type === 'guard-page') {
+            return true;
+        }
+
         this.sync({ exception: exception });
         let isHandled = false;
         const op = recv('exception', function(value) {
