@@ -131,8 +131,7 @@ export class DwarfJavaHelper {
                             });
                             self.hooksToAttach = self.hooksToAttach.filter(dwarfHook => !dwarfHook.isAttached());
                         }
-                    } catch (e) {
-                    }
+                    } catch (e) {}
                     //sync ui
                     Dwarf.sync(syncMsg);
 
@@ -158,6 +157,29 @@ export class DwarfJavaHelper {
     invalidateClassCache = () => {
         trace("JavaHelper::invalidateClassCache()");
         this.classCache = new Array<string>();
+    };
+
+    getApplicationContext = (): Java.Wrapper => {
+        trace("JavaHelper::getApplicationContext()");
+
+        this.checkRequirements();
+
+        Java.performNow(function() {
+            try {
+                const ActivityThread = Java.use("android.app.ActivityThread");
+                const Context = Java.use("android.content.Context");
+
+                const appContext = Java.cast(ActivityThread.currentApplication().getApplicationContext(), Context);
+
+                ActivityThread.$dispose();
+                Context.$dispose();
+
+                return appContext;
+            } catch (e) {
+                logErr("getApplicationContext() -> ", e);
+            }
+        });
+        return null;
     };
 
     getClassMethods = (className: string, syncUi: boolean = false): Array<string> => {
@@ -229,6 +251,41 @@ export class DwarfJavaHelper {
                 }
             });
         }
+    };
+
+    enumerateDexClasses = () => {
+        trace("DwarfJavaHelper::enumerateDexClasses()");
+        const self = this;
+
+        this.checkRequirements();
+
+        const dexClasses = new Array<string>();
+
+        Java.performNow(function() {
+            try {
+                const ActivityThread = Java.use("android.app.ActivityThread");
+                const Context = Java.use("android.content.Context");
+
+                const appContext = Java.cast(ActivityThread.currentApplication().getApplicationContext(), Context);
+                const apkPath = appContext.getPackageCodePath();
+                const DexFile = Java.use("dalvik.system.DexFile");
+
+                const dexFile = DexFile.$new(apkPath);
+                const enumeration = dexFile.entries();
+
+                while (enumeration.hasMoreElements()) {
+                    const className = enumeration.nextElement();
+                    dexClasses.push(className);
+                }
+                dexFile.$dispose();
+                DexFile.$dispose();
+
+                Dwarf.sync({ dexClasses: dexClasses });
+            } catch (e) {
+                logErr("enumerateDexClasses() -> ", e);
+            }
+        });
+        return dexClasses;
     };
 
     hookInJVM = (className: string, methodName: string = "$init", implementation: Function) => {

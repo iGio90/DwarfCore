@@ -294,14 +294,6 @@ export class DwarfCore {
             }
         }
 
-        //handle MemoryHooks
-        if (exception.type === "access-violation") {
-            if (Process.platform === "windows") {
-                return true;
-            }
-            //return this.getHooksManager().handleMemoryHooks(exception);
-        }
-
         if(exception.type === 'access-violation' || exception.type === 'guard-page') {
             return true;
         }
