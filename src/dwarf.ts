@@ -294,14 +294,10 @@ export class DwarfCore {
             }
         }
 
-        if(exception.type === 'access-violation' || exception.type === 'guard-page') {
-            return true;
-        }
-
-        this.sync({ exception: exception });
+        Dwarf.sync({ exception: exception });
         let isHandled = false;
         const op = recv('exception', function(value) {
-            isHandled = parseInt(value.payload) == 1;
+            isHandled = (value.payload == 1);
         });
         op.wait();
         return isHandled;
