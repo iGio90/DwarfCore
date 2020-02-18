@@ -12,10 +12,11 @@
     "scripts": {
         "prepare": "python3 ./change_theme_fontsize.py && npm run build",
         "build": "npm run build_core && npm run build_docs && npm run build_types",
-        "build_core": "frida-compile --no-sourcemap ./src/index.ts -o ./dist/core.js && python3 ./place_dwarf_license.py && python3 ./generate_dwarf_api.py",
+        "build_core": "frida-compile --no-sourcemap ./src/index.ts -o ./dist/core.js && python3 ./place_dwarf_license.py && python3 ./generate_dwarf_api.py && npm run copy",
         "build_docs": "typedoc --hideGenerator --out dist/docs ./src",
         "build_types": "tsc -d --removeComments false --declarationDir ./dwarf-typings --emitDeclarationOnly",
-        "watch": "frida-compile --no-sourcemap ./src/index.ts -o ./dist/core.js -w"
+        "watch": "frida-compile --no-sourcemap ./src/index.ts -o ./dist/core.js -w",
+        "copy": "cp ./dist/core.js ../Dwarf/dwarf_debugger/core/scripts/core.js"
     },
     "devDependencies": {
         "@types/frida-gum": "^14.2.2",
