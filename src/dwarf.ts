@@ -151,15 +151,6 @@ export class DwarfCore {
             this.breakAtStart = true;
         }
 
-        if (Java.available) {
-            setImmediate(function() {
-                Dwarf.dwarfJavaHelper.initalize();
-            });
-            this.androidApiLevel = this.getAndroidApiLevel();
-
-            LogicJava.init();
-        }
-
         this.processInfo = new DwarfProcessInfo(
             procName,
             wasSpawned,
@@ -173,6 +164,10 @@ export class DwarfCore {
             ObjC.available
         );
 
+        /**
+         * ** DONT add some Java.xxx stuff in here!!! put to start() ***
+         */
+
         //send initdata
         let initData = {
             process: this.processInfo,
@@ -181,10 +176,6 @@ export class DwarfCore {
             threads: Process.enumerateThreads()
         };
         send("coresync:::" + JSON.stringify(initData));
-
-        //LogicInitialization.init();
-        this.getHooksManager().initialize();
-        DwarfInterceptor.init();
 
         // register global api functions
         /*if (globalApiFuncs && globalApiFuncs.length > 0) {
@@ -215,6 +206,14 @@ export class DwarfCore {
     start = () => {
         //attach init breakpoints
         if (Java.available && this.processInfo.wasSpawned && this.breakAtStart) {
+
+            setImmediate(function () {
+                Dwarf.dwarfJavaHelper.initalize();
+            });
+            this.androidApiLevel = this.getAndroidApiLevel();
+
+            LogicJava.init();
+
             //android init breakpoint
             if (this.getAndroidApiLevel() >= 23) {
                 const initBreakpoint = this.getHooksManager().addJavaHook(
@@ -242,13 +241,16 @@ export class DwarfCore {
             this.dwarfJavaHelper.enumerateLoadedClasses(false);
         }
 
+        this.getHooksManager().initialize();
+        DwarfInterceptor.init();
+
         if (Process.platform === "windows") {
             // break proc at main
             if (this.processInfo.wasSpawned && this.breakAtStart) {
                 //Inital breakpoint
                 const invocationListener = Interceptor.attach(
                     this.dwarfApi.findExport("RtlUserThreadStart"),
-                    function() {
+                    function () {
                         trace("Creating startbreakpoint");
                         const invocationContext: InvocationContext = this;
                         let address = null;
@@ -277,7 +279,7 @@ export class DwarfCore {
 
         Dwarf.sync({ exception: exception });
         let isHandled = false;
-        const op = recv("exception", function(value) {
+        const op = recv("exception", function (value) {
             isHandled = value.payload == 1;
         });
         op.wait();
@@ -413,7 +415,7 @@ export class DwarfCore {
 
         logDebug("[" + threadId + "] looping api");
 
-        const op = recv("" + threadId, function() {});
+        const op = recv("" + threadId, function () { });
         op.wait();
 
         const threadContext: ThreadContext = this.threadContexts[threadId.toString()];
@@ -481,13 +483,13 @@ export class DwarfCore {
 
         send(
             "coresync:::" +
-                JSON.stringify(coreSyncMsg, function(key, val) {
-                    if (isFunction(val)) {
-                        return val.toString().replace(/\'/g, '"');
-                    } else {
-                        return val;
-                    }
-                })
+            JSON.stringify(coreSyncMsg, function (key, val) {
+                if (isFunction(val)) {
+                    return val.toString().replace(/\'/g, '"');
+                } else {
+                    return val;
+                }
+            })
         );
     };
 
