@@ -275,29 +275,10 @@ export class DwarfCore {
     handleException = (exception: ExceptionDetails) => {
         trace("DwarfCore::handleException()");
 
-        if (DEBUG) {
-            let dontLog = false;
-            if (Process.platform === "windows") {
-                // hide SetThreadName - https://github.com/frida/glib/blob/master/glib/gthread-win32.c#L579
-                let reg = null;
-                if (Process.arch === "x64") {
-                    reg = exception["context"]["rax"];
-                } else if (Process.arch === "ia32") {
-                    reg = exception["context"]["eax"];
-                }
-                if (reg !== null && reg.readInt() === 0x406d1388) {
-                    dontLog = true;
-                }
-            }
-            if (!dontLog) {
-                console.log("[" + Process.getCurrentThreadId() + "] exception handler: " + JSON.stringify(exception));
-            }
-        }
-
         Dwarf.sync({ exception: exception });
         let isHandled = false;
-        const op = recv('exception', function(value) {
-            isHandled = (value.payload == 1);
+        const op = recv("exception", function(value) {
+            isHandled = value.payload == 1;
         });
         op.wait();
         return isHandled;
