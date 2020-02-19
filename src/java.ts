@@ -63,43 +63,26 @@ export class DwarfJavaHelper {
         this.checkRequirements();
 
         this.sdk_version = Dwarf.getAndroidApiLevel();
+        logDebug("initializing logicJava with sdk: " + this.sdk_version);
 
         const self = this;
-
-        Java.performNow(() => {
-            logDebug("initializing logicJava with sdk: " + this.sdk_version);
-
-            /*const Class = Java.use("java.lang.Class");
-
-            //https://android.googlesource.com/platform/libcore/+/a7752f4d22097346dd7849b92b9f36d0a0a7a8f3/libdvm/src/main/java/java/lang/Class.java#216
-            Class.classForName.overload(
-                "java.lang.String",
-                "boolean",
-                "java.lang.ClassLoader"
-            ).implementation = function(className, shouldInitialize, classLoader) {
-                let isExcluded = false;
-                self.excludedClasses.forEach(excludedClass => {
-                    if (className.startsWith(excludedClass)) {
-                        isExcluded = true;
-                    }
-                });
-                if (!isExcluded) {
-                    console.log("Class: " + className);
-                }
-                return this.classForName(className, shouldInitialize, classLoader);
-            };*/
-
+        Java.perform(function () {
             //class loader
             const ClassLoader = Java.use("java.lang.ClassLoader");
 
-            ClassLoader.loadClass.overload("java.lang.String", "boolean").implementation = function(
+            ClassLoader.loadClass.overload("java.lang.String", "boolean").implementation = function (
                 className: string,
                 resolve: boolean
             ) {
                 try {
+                    let syncMsg = {};
+
                     if (self.classCache.indexOf(className) === -1) {
                         self.classCache.push(className);
                     }
+
+                    syncMsg = Object.assign(syncMsg, { javaClassLoaded: className });
+
                     //handle classLoadHooks enter
                     const dwarfHook = DwarfHooksManager.getInstance().getHookByAddress(
                         className,
@@ -119,23 +102,19 @@ export class DwarfJavaHelper {
                         dwarfHook.onLeaveCallback(dwarfHook, this, result);
                     }
 
-                    const syncMsg = {};
-
-                    if (self.classCache.indexOf(className) === -1) {
-                        syncMsg["java_class_loaded"] = className;
-                    }
 
                     try {
                         if (self.hooksToAttach.length > 0) {
                             self.hooksToAttach.forEach(javaHook => {
                                 if (!javaHook.isAttached()) {
                                     javaHook.setup();
-                                    syncMsg["dwarfHooks"] = DwarfHooksManager.getInstance().getHooks();
+                                    syncMsg = Object.assign(syncMsg, { dwarfHooks: DwarfHooksManager.getInstance().getHooks() });
                                 }
                             });
                             self.hooksToAttach = self.hooksToAttach.filter(dwarfHook => !dwarfHook.isAttached());
                         }
-                    } catch (e) {}
+                    } catch (e) { }
+
                     //sync ui
                     Dwarf.sync(syncMsg);
 
@@ -148,6 +127,7 @@ export class DwarfJavaHelper {
                 }
             };
         });
+
         this.initDone = true;
     };
 
@@ -163,27 +143,13 @@ export class DwarfJavaHelper {
         this.classCache = new Array<string>();
     };
 
-    getApplicationContext = (): Java.Wrapper => {
+    getApplicationContext = (): any => {
         trace("JavaHelper::getApplicationContext()");
 
         this.checkRequirements();
 
-        Java.performNow(function() {
-            try {
-                const ActivityThread = Java.use("android.app.ActivityThread");
-                const Context = Java.use("android.content.Context");
-
-                const appContext = Java.cast(ActivityThread.currentApplication().getApplicationContext(), Context);
-
-                ActivityThread.$dispose();
-                Context.$dispose();
-
-                return appContext;
-            } catch (e) {
-                logErr("getApplicationContext() -> ", e);
-            }
-        });
-        return null;
+        const ActivityThread = Java.use("android.app.ActivityThread");
+        return ActivityThread.currentApplication().getApplicationContext();
     };
 
     getClassMethods = (className: string, syncUi: boolean = false): Array<string> => {
@@ -239,7 +205,7 @@ export class DwarfJavaHelper {
         } else {
             this.invalidateClassCache();
 
-            Java.performNow(function() {
+            Java.performNow(function () {
                 try {
                     Java.enumerateLoadedClasses({
                         onMatch: className => {
@@ -265,12 +231,9 @@ export class DwarfJavaHelper {
 
         const dexClasses = new Array<string>();
 
-        Java.performNow(function() {
+        Java.performNow(function () {
             try {
-                const ActivityThread = Java.use("android.app.ActivityThread");
-                const Context = Java.use("android.content.Context");
-
-                const appContext = Java.cast(ActivityThread.currentApplication().getApplicationContext(), Context);
+                const appContext = self.getApplicationContext();
                 const apkPath = appContext.getPackageCodePath();
                 const DexFile = Java.use("dalvik.system.DexFile");
 
@@ -279,7 +242,7 @@ export class DwarfJavaHelper {
 
                 while (enumeration.hasMoreElements()) {
                     const className = enumeration.nextElement();
-                    dexClasses.push(className);
+                    dexClasses.push(className.toString());
                 }
                 dexFile.$dispose();
                 DexFile.$dispose();
@@ -310,7 +273,7 @@ export class DwarfJavaHelper {
         }
 
         const self = this;
-        Java.performNow(function() {
+        Java.performNow(function () {
             try {
                 const javaWrapper = Java.use(className);
 
@@ -325,7 +288,7 @@ export class DwarfJavaHelper {
                                     parameters.push(overloads[i].argumentTypes[j].className);
                                 }
 
-                                javaWrapper[methodName].overloads[i].implementation = function() {
+                                javaWrapper[methodName].overloads[i].implementation = function () {
                                     this.types = parameters;
                                     var args = [].slice.call(arguments);
                                     return implementation.apply(this, args);
@@ -362,7 +325,7 @@ export class DwarfJavaHelper {
 
         const self = this;
 
-        Java.performNow(function() {
+        Java.performNow(function () {
             try {
                 const javaWrapper = Java.use(className);
 
