@@ -151,6 +151,10 @@ export class DwarfCore {
             this.breakAtStart = true;
         }
 
+        if (Java.available) {
+            this.androidApiLevel = this.getAndroidApiLevel();
+        }
+
         this.processInfo = new DwarfProcessInfo(
             procName,
             wasSpawned,
@@ -206,38 +210,36 @@ export class DwarfCore {
     start = () => {
         //attach init breakpoints
         if (Java.available && this.processInfo.wasSpawned && this.breakAtStart) {
-
-            setImmediate(function () {
-                Dwarf.dwarfJavaHelper.initalize();
-            });
-            this.androidApiLevel = this.getAndroidApiLevel();
-
+            Dwarf.dwarfJavaHelper.initalize();
             LogicJava.init();
 
-            //android init breakpoint
-            if (this.getAndroidApiLevel() >= 23) {
-                const initBreakpoint = this.getHooksManager().addJavaHook(
-                    "com.android.internal.os.RuntimeInit",
-                    "commonInit",
-                    "breakpoint",
-                    true,
-                    true
-                );
-                if (!isDefined(initBreakpoint)) {
-                    logDebug("Failed to attach initHook!");
+            setImmediate(() => {
+                //android init breakpoint
+                if (this.getAndroidApiLevel() >= 23) {
+                    const initBreakpoint = this.getHooksManager().addJavaHook(
+                        "com.android.internal.os.RuntimeInit",
+                        "commonInit",
+                        "breakpoint",
+                        true,
+                        true
+                    );
+                    if (!isDefined(initBreakpoint)) {
+                        logDebug("Failed to attach initHook!");
+                    }
+                } else {
+                    const initBreakpoint = this.getHooksManager().addJavaHook(
+                        "android.app.Application",
+                        "onCreate",
+                        "breakpoint",
+                        true,
+                        true
+                    );
+                    if (!isDefined(initBreakpoint)) {
+                        logDebug("Failed to attach initHook!");
+                    }
                 }
-            } else {
-                const initBreakpoint = this.getHooksManager().addJavaHook(
-                    "android.app.Application",
-                    "onCreate",
-                    "breakpoint",
-                    true,
-                    true
-                );
-                if (!isDefined(initBreakpoint)) {
-                    logDebug("Failed to attach initHook!");
-                }
-            }
+            });
+
             this.dwarfJavaHelper.enumerateLoadedClasses(false);
         }
 
