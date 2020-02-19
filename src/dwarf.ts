@@ -277,6 +277,10 @@ export class DwarfCore {
     handleException = (exception: ExceptionDetails) => {
         trace("DwarfCore::handleException()");
 
+        if (exception.memory.operation === 'read' && exception.memory.address.toString() === NULL.toString()) {
+            return false;
+        }
+
         Dwarf.sync({ exception: exception });
         let isHandled = false;
         const op = recv("exception", function (value) {
