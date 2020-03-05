@@ -136,14 +136,13 @@ export class DwarfCore {
         procName: string,
         wasSpawned: boolean,
         breakStart: boolean,
-        debug: boolean,
-        redirectConsole: boolean = false,
+        enableDebug: boolean = false,
         enableTrace: boolean = false,
         globalApiFuncs?: Array<string>
     ): void => {
         trace("DwarfCore::init()");
 
-        if (debug) {
+        if (enableDebug) {
             DEBUG = true;
         }
 
@@ -179,7 +178,7 @@ export class DwarfCore {
             regions: Process.enumerateRanges("---"),
             threads: Process.enumerateThreads()
         };
-        send("coresync:::" + JSON.stringify(initData));
+        send({ initData: initData });
 
         // register global api functions
         /*if (globalApiFuncs && globalApiFuncs.length > 0) {
@@ -213,32 +212,30 @@ export class DwarfCore {
             Dwarf.dwarfJavaHelper.initalize();
             LogicJava.init();
 
-            setImmediate(() => {
-                //android init breakpoint
-                if (this.getAndroidApiLevel() >= 23) {
-                    const initBreakpoint = this.getHooksManager().addJavaHook(
-                        "com.android.internal.os.RuntimeInit",
-                        "commonInit",
-                        "breakpoint",
-                        true,
-                        true
-                    );
-                    if (!isDefined(initBreakpoint)) {
-                        logDebug("Failed to attach initHook!");
-                    }
-                } else {
-                    const initBreakpoint = this.getHooksManager().addJavaHook(
-                        "android.app.Application",
-                        "onCreate",
-                        "breakpoint",
-                        true,
-                        true
-                    );
-                    if (!isDefined(initBreakpoint)) {
-                        logDebug("Failed to attach initHook!");
-                    }
+            //android init breakpoint
+            if (this.getAndroidApiLevel() >= 23) {
+                const initBreakpoint = this.getHooksManager().addJavaHook(
+                    "com.android.internal.os.RuntimeInit",
+                    "commonInit",
+                    "breakpoint",
+                    true,
+                    true
+                );
+                if (!isDefined(initBreakpoint)) {
+                    logDebug("Failed to attach initHook!");
                 }
-            });
+            } else {
+                const initBreakpoint = this.getHooksManager().addJavaHook(
+                    "android.app.Application",
+                    "onCreate",
+                    "breakpoint",
+                    true,
+                    true
+                );
+                if (!isDefined(initBreakpoint)) {
+                    logDebug("Failed to attach initHook!");
+                }
+            }
 
             this.dwarfJavaHelper.enumerateLoadedClasses(false);
         }
@@ -487,16 +484,15 @@ export class DwarfCore {
         let coreSyncMsg = {};
         coreSyncMsg = Object.assign(coreSyncMsg, extraData);
 
-        send(
-            "coresync:::" +
-            JSON.stringify(coreSyncMsg, function (key, val) {
+        send(coreSyncMsg);
+            /*JSON.stringify(coreSyncMsg, function (key, val) {
                 if (isFunction(val)) {
                     return val.toString().replace(/\'/g, '"');
                 } else {
                     return val;
                 }
             })
-        );
+        );*/
     };
 
     //from https://github.com/frida/frida-java-bridge/blob/master/lib/android.js

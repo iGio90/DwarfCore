@@ -63,10 +63,9 @@ export class DwarfJavaHelper {
         this.checkRequirements();
 
         this.sdk_version = Dwarf.getAndroidApiLevel();
-        logDebug("initializing logicJava with sdk: " + this.sdk_version);
 
         const self = this;
-        Java.perform(function () {
+        Java.performNow(function () {
             //class loader
             const ClassLoader = Java.use("java.lang.ClassLoader");
 

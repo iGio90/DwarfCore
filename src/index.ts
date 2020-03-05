@@ -94,8 +94,7 @@ rpc.exports = {
         proc_name,
         spawned,
         breakStart,
-        debug,
-        redirectConsole,
+        enableDebug,
         enableTrace,
         globalApiFuncs?: Array<string>
     ) {
@@ -104,8 +103,7 @@ rpc.exports = {
             proc_name,
             spawned,
             breakStart,
-            debug,
-            redirectConsole,
+            enableDebug,
             enableTrace,
             globalApiFuncs
         );
@@ -151,7 +149,7 @@ rpc.exports = {
             }
             resolve({});
         }).then(moduleInfo => {
-            return JSON.stringify(moduleInfo);
+            return moduleInfo;
         });
     },
     fetchmem: function(address, length = 0) {
