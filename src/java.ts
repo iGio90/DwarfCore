@@ -15,10 +15,9 @@
     along with this program.  If not, see <https://www.gnu.org/licenses/>
 **/
 
-import { DwarfHaltReason, DwarfHookType } from "./consts";
+import { DwarfHookType } from "./consts";
 import { JavaHook } from "./types/java_hook";
 import { DwarfHooksManager } from "./hooks_manager";
-import { ClassLoadHook } from "./types/class_load_hook";
 
 export class DwarfJavaHelper {
     private static instanceRef: DwarfJavaHelper;
@@ -129,6 +128,14 @@ export class DwarfJavaHelper {
 
         this.initDone = true;
     };
+
+    detach = () => {
+        this.checkRequirements();
+        Java.performNow(function () {
+            const ClassLoader = Java.use("java.lang.ClassLoader");
+            ClassLoader.loadClass.overload("java.lang.String", "boolean").implementation = null;
+        });
+    }
 
     //add other stuff when needed
     checkRequirements = () => {
