@@ -213,6 +213,8 @@ export class DwarfCore {
             this.processInfo.wasSpawned &&
             this.breakAtStart
         ) {
+
+            //TODO: to add this bp 3x Java.performNow is used before resume try to reduce
             //android init breakpoint
             if (this.getAndroidApiLevel() >= 23) {
                 const initBreakpoint = this.getHooksManager().addJavaHook(
