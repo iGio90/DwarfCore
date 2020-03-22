@@ -106,11 +106,12 @@ export class LogicJava {
             return false;
         }
 
+        let result = false;
         Java.performNow(function () {
-            LogicJava.hookInJVM(className, method, implementation);
+            result = LogicJava.hookInJVM(className, method, implementation);
         });
 
-        return true;
+        return result;
     };
 
     static hookAllJavaMethods(className, implementation): boolean {
@@ -161,22 +162,24 @@ export class LogicJava {
                 className = className + '.' + method;
                 method = '$init';
                 handler = Java.use(className);
-            } catch (err) { }
+            } catch (err) {
+                return false;
+            }
 
             Utils.logErr('LogicJava.hook', err);
             if (handler === null) {
-                return;
+                return false;
             }
         }
 
         try {
             if (handler == null || typeof handler[method] === 'undefined') {
-                return;
+                return false;
             }
         } catch (e) {
             // catching here not supported overload error from frida
             Utils.logErr('LogicJava.hook', e);
-            return;
+            return false;
         }
 
         const overloadCount = handler[method].overloads.length;
@@ -214,8 +217,7 @@ export class LogicJava {
 
             const targetClass = targetClassMethod.slice(0, delim);
             const targetMethod = targetClassMethod.slice(delim + 1, targetClassMethod.length);
-            LogicJava.hook(targetClass, targetMethod, implementation);
-            return true;
+            return LogicJava.hook(targetClass, targetMethod, implementation);
         }
         return false;
     }
@@ -455,17 +457,18 @@ export class LogicJava {
         breakpoint.condition = condition;
 
         LogicJava.breakpoints[target] = breakpoint;
+        let result = false;
         if (target.endsWith('.$init')) {
-            LogicJava.hook(target, '$init', function () {
+            result = LogicJava.hook(target, '$init', function () {
                 LogicJava.jvmBreakpoint(this.className, this.method, arguments, this.overload.argumentTypes, condition);
             });
         } else {
-            LogicJava.hookJavaMethod(target, function () {
+            result = LogicJava.hookJavaMethod(target, function () {
                 LogicJava.jvmBreakpoint(this.className, this.method, arguments, this.overload.argumentTypes, condition);
             });
         }
 
-        return true;
+        return result;
     }
 
     static putJavaClassInitializationBreakpoint(className: string): boolean {
