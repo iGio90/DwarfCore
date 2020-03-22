@@ -389,7 +389,7 @@ export class LogicJava {
                         sub_handle = handle[name]['$handle'];
                     } else {
                         if (handle[name] !== null && handle[name]['value'] !== null) {
-                            sub_handle_class = handle[name]['value']['className'];
+                            sub_handle_class = handle[name]['value']['$className'];
                         }
 
                         if (handle[name] !== null && handle[name]['value'] !== null &&

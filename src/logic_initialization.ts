@@ -128,7 +128,40 @@ export class LogicInitialization {
             }
         } else if (LogicJava.available) {
             // android native onload code
-            if (LogicJava.sdk >= 23) {
+            // taken from new core without onLeave!!!
+            //https://android.googlesource.com/platform/art/+/android-6.0.0_r26/runtime/java_vm_ext.cc#596
+            const artModule = Process.findModuleByName("libart.so");
+            if (artModule) {
+                for (let moduleExportDetail of artModule.enumerateExports()) {
+                    if (moduleExportDetail.name.indexOf("LoadNativeLibrary") != -1) {
+                        //changed in sdk 22, 23, 25 but we're only interested in path arg
+                        //<=22 args = (void *JavaVMExt, std::string &path,...)
+                        //>=23 args = (void *JavaVMExt, JNIEnv *env, std::string &path, ...)
+                        const argNum = LogicJava.sdk <= 22 ? 1 : 2;
+                        Interceptor.attach(moduleExportDetail.address, {
+                            onEnter: function(args) {
+                                const moduleName = Utils.readStdString(args[argNum]);
+                                LogicInitialization.hitModuleLoading.apply(this, [moduleName]);
+                            }
+                        });
+                    }
+                }
+            }
+            //https://android.googlesource.com/platform/dalvik/+/eclair-release/vm/Native.c#443
+            const dvmModule = Process.findModuleByName("libdvm.so");
+            if (dvmModule) {
+                for (let moduleExportDetail of dvmModule.enumerateExports()) {
+                    if (moduleExportDetail.name.indexOf("dvmLoadNativeCode") != -1) {
+                        Interceptor.attach(moduleExportDetail.address, {
+                            onEnter: function(args) {
+                                const moduleName = args[0].readUtf8String();
+                                LogicInitialization.hitModuleLoading.apply(this, [moduleName]);
+                            }
+                        });
+                    }
+                }
+            }
+            /*if (LogicJava.sdk >= 23) {
                 const module = Process.findModuleByName(Process.arch.indexOf('64') >= 0 ? 'linker64' : "linker");
                 if (module !== null) {
                     const symbols = module.enumerateSymbols();
@@ -169,7 +202,7 @@ export class LogicInitialization {
                         }
                     }
                 }
-            }
+            }*/
         }
     }
 

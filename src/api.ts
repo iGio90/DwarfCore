@@ -25,7 +25,11 @@ import { LogicStalker } from "./logic_stalker";
 import { LogicWatchpoint } from "./logic_watchpoint";
 import { ThreadWrapper } from "./thread_wrapper";
 import { Utils } from "./utils";
-import { MEMORY_ACCESS_EXECUTE, MEMORY_ACCESS_READ, MEMORY_ACCESS_WRITE } from "./watchpoint";
+import {
+    MEMORY_ACCESS_EXECUTE,
+    MEMORY_ACCESS_READ,
+    MEMORY_ACCESS_WRITE
+} from "./watchpoint";
 
 export class Api {
     private static _internalMemoryScan(start, size, pattern) {
@@ -52,7 +56,7 @@ export class Api {
         } else {
             return Memory.scanSync(start, size, pattern);
         }
-    };
+    }
 
     /**
      * Shortcut to retrieve native backtrace
@@ -66,16 +70,17 @@ export class Api {
             }
         }
 
-        return Thread.backtrace(context, Backtracer.FUZZY)
-            .map(DebugSymbol.fromAddress);
-    };
+        return Thread.backtrace(context, Backtracer.FUZZY).map(
+            DebugSymbol.fromAddress
+        );
+    }
 
     /**
      * Enumerate exports for the given module name or pointer
      * @param module an hex/int address or string name
      */
     static enumerateExports(module: any): Array<ModuleExportDetails> {
-        if (typeof module !== 'object') {
+        if (typeof module !== "object") {
             module = Api.findModule(module);
         }
         if (module !== null) {
@@ -85,14 +90,14 @@ export class Api {
             return module.enumerateExports();
         }
         return [];
-    };
+    }
 
     /**
      * Enumerate imports for the given module name or pointer
      * @param module an hex/int address or string name
      */
     static enumerateImports(module): Array<ModuleExportDetails> {
-        if (typeof module !== 'object') {
+        if (typeof module !== "object") {
             module = Api.findModule(module);
         }
         if (module !== null) {
@@ -102,7 +107,7 @@ export class Api {
             return module.enumerateImports();
         }
         return [];
-    };
+    }
 
     /**
      * Enumerate java classes
@@ -113,39 +118,45 @@ export class Api {
             useCache = false;
         }
 
-        if (useCache && LogicJava !== null && LogicJava.javaClasses.length > 0) {
-            Dwarf.loggedSend('enumerate_java_classes_start:::');
+        if (
+            useCache &&
+            LogicJava !== null &&
+            LogicJava.javaClasses.length > 0
+        ) {
+            Dwarf.loggedSend("enumerate_java_classes_start:::");
             for (let i = 0; i < LogicJava.javaClasses.length; i++) {
-                send('enumerate_java_classes_match:::' + LogicJava.javaClasses[i]);
+                send(
+                    "enumerate_java_classes_match:::" + LogicJava.javaClasses[i]
+                );
             }
-            Dwarf.loggedSend('enumerate_java_classes_complete:::');
+            Dwarf.loggedSend("enumerate_java_classes_complete:::");
         } else {
             // invalidate cache
             if (LogicJava !== null) {
                 LogicJava.javaClasses = [];
             }
 
-            Java.performNow(function () {
-                Dwarf.loggedSend('enumerate_java_classes_start:::');
+            Java.performNow(function() {
+                Dwarf.loggedSend("enumerate_java_classes_start:::");
                 try {
                     Java.enumerateLoadedClasses({
-                        onMatch: function (className) {
+                        onMatch: function(className) {
                             if (LogicJava !== null) {
                                 LogicJava.javaClasses.push(className);
                             }
-                            send('enumerate_java_classes_match:::' + className);
+                            send("enumerate_java_classes_match:::" + className);
                         },
-                        onComplete: function () {
-                            send('enumerate_java_classes_complete:::');
+                        onComplete: function() {
+                            Dwarf.loggedSend("enumerate_java_classes_complete:::");
                         }
                     });
                 } catch (e) {
-                    Utils.logErr('enumerateJavaClasses', e);
-                    Dwarf.loggedSend('enumerate_java_classes_complete:::');
+                    Utils.logErr("enumerateJavaClasses", e);
+                    Dwarf.loggedSend("enumerate_java_classes_complete:::");
                 }
             });
         }
-    };
+    }
 
     /**
      * Enumerate method for the given class
@@ -153,23 +164,33 @@ export class Api {
     static enumerateJavaMethods(className: string): void {
         if (Java.available) {
             const that = this;
-            Java.performNow(function () {
-                // 0xdea code -> https://github.com/0xdea/frida-scripts/blob/master/raptor_frida_android_trace.js
-                const clazz = Java.use(className);
-                const methods = clazz.class.getDeclaredMethods();
-                clazz.$dispose();
-
-                const parsedMethods = [];
-                methods.forEach(function (method) {
-                    parsedMethods.push(method.toString().replace(className + ".",
-                        "TOKEN").match(/\sTOKEN(.*)\(/)[1]);
-                });
-                const result = Utils.uniqueBy(parsedMethods);
-                Dwarf.loggedSend('enumerate_java_methods_complete:::' + className + ':::' +
-                    JSON.stringify(result));
+            Java.performNow(function() {
+                try {
+                    // 0xdea code -> https://github.com/0xdea/frida-scripts/blob/master/raptor_frida_android_trace.js
+                    const clazz = Java.use(className);
+                    const methods = clazz.class.getDeclaredMethods();
+                    const parsedMethods = [];
+                    methods.forEach(function(method) {
+                        parsedMethods.push(
+                            method
+                                .toString()
+                                .replace(className + ".", "TOKEN")
+                                .match(/\sTOKEN(.*)\(/)[1]
+                        );
+                    });
+                    const result = Utils.uniqueBy(parsedMethods);
+                    Dwarf.loggedSend(
+                        "enumerate_java_methods_complete:::" +
+                            className +
+                            ":::" +
+                            JSON.stringify(result)
+                    );
+                } catch (e) {
+                    Utils.logErr("classMethods", e);
+                }
             });
         }
-    };
+    }
 
     /**
      * Enumerate modules for ObjC inspector panel
@@ -177,49 +198,56 @@ export class Api {
     static enumerateObjCModules(className: string): void {
         const modules = Process.enumerateModules();
         const names = modules.map(m => m.name);
-        Dwarf.loggedSend('enumerate_objc_modules:::' + JSON.stringify(names));
-    };
+        Dwarf.loggedSend("enumerate_objc_modules:::" + JSON.stringify(names));
+    }
 
     /**
      * Enumerate objc classes
      * @param useCache false by default
      */
     static enumerateObjCClasses(moduleName: string) {
-        Dwarf.loggedSend('enumerate_objc_classes_start:::');
+        Dwarf.loggedSend("enumerate_objc_classes_start:::");
         try {
-            ObjC.enumerateLoadedClasses({ ownedBy: new ModuleMap((m) => { return moduleName === m['name']; }) }, {
-                onMatch: function (className) {
-                    if (LogicObjC !== null) {
-                        LogicObjC.objcClasses.push(className);
-                    }
-                    send('enumerate_objc_classes_match:::' + className);
+            ObjC.enumerateLoadedClasses(
+                {
+                    ownedBy: new ModuleMap(m => {
+                        return moduleName === m["name"];
+                    })
                 },
-                onComplete: function () {
-                    send('enumerate_objc_classes_complete:::');
+                {
+                    onMatch: function(className) {
+                        if (LogicObjC !== null) {
+                            LogicObjC.objcClasses.push(className);
+                        }
+                        send("enumerate_objc_classes_match:::" + className);
+                    },
+                    onComplete: function() {
+                        send("enumerate_objc_classes_complete:::");
+                    }
                 }
-            });
+            );
         } catch (e) {
-            Utils.logErr('enumerateObjCClasses', e);
-            Dwarf.loggedSend('enumerate_objc_classes_complete:::');
+            Utils.logErr("enumerateObjCClasses", e);
+            Dwarf.loggedSend("enumerate_objc_classes_complete:::");
         }
-    };
+    }
 
     /**
      * Enumerate method for the given class
      */
     static enumerateObjCMethods(className: string): void {
         if (ObjC.available) {
-            Dwarf.loggedSend('enumerate_objc_methods_start:::');
+            Dwarf.loggedSend("enumerate_objc_methods_start:::");
             const that = this;
             const clazz = ObjC.classes[className];
             const methods = clazz.$ownMethods;
 
-            methods.forEach(function (method) {
-                send('enumerate_objc_methods_match:::' + method);
+            methods.forEach(function(method) {
+                send("enumerate_objc_methods_match:::" + method);
             });
-            Dwarf.loggedSend('enumerate_objc_methods_complete:::');
+            Dwarf.loggedSend("enumerate_objc_methods_complete:::");
         }
-    };
+    }
 
     /**
      * Enumerate loaded modules
@@ -235,14 +263,14 @@ export class Api {
                 }
 
                 // skip ntdll on windoof (access_violation)
-                if (Process.platform === 'windows') {
-                    if (modules[i].name === 'ntdll.dll') {
+                if (Process.platform === "windows") {
+                    if (modules[i].name === "ntdll.dll") {
                         continue;
                     }
-                } else if (Process.platform === 'linux') {
+                } else if (Process.platform === "linux") {
                     if (LogicJava !== null) {
                         if (LogicJava.sdk <= 23) {
-                            if (modules[i].name === 'app_process') {
+                            if (modules[i].name === "app_process") {
                                 continue;
                             }
                         }
@@ -253,7 +281,7 @@ export class Api {
             }
         }
         return modules;
-    };
+    }
 
     /**
      * Enumerate all information about the module (imports / exports / symbols)
@@ -278,41 +306,46 @@ export class Api {
         }
 
         if (Dwarf.modulesBlacklist.indexOf(_module.name) >= 0) {
-            Api.log('Error: Module ' + _module.name + ' is blacklisted');
+            Api.log("Error: Module " + _module.name + " is blacklisted");
             return _module;
         }
 
         try {
-            _module['imports'] = _module.enumerateImports();
-            _module['exports'] = _module.enumerateExports();
-            _module['symbols'] = _module.enumerateSymbols();
+            _module["imports"] = _module.enumerateImports();
+            _module["exports"] = _module.enumerateExports();
+            _module["symbols"] = _module.enumerateSymbols();
         } catch (e) {
             return _module;
         }
 
-        _module['entry'] = null;
+        _module["entry"] = null;
         const header = _module.base.readByteArray(4);
-        if (header[0] !== 0x7f && header[1] !== 0x45 && header[2] !== 0x4c && header[3] !== 0x46) {
+        if (
+            header[0] !== 0x7f &&
+            header[1] !== 0x45 &&
+            header[2] !== 0x4c &&
+            header[3] !== 0x46
+        ) {
             // Elf
-            _module['entry'] = _module.base.add(24).readPointer();
+            _module["entry"] = _module.base.add(24).readPointer();
         }
 
         return _module;
-    };
+    }
 
     /**
      * Enumerate all mapped ranges
      */
     static enumerateRanges(): RangeDetails[] {
-        return Process.enumerateRanges('---');
-    };
+        return Process.enumerateRanges("---");
+    }
 
     /**
      * Enumerate symbols for the given module name or pointer
      * @param module an hex/int address or string name
      */
     static enumerateSymbols(module): Array<ModuleSymbolDetails> {
-        if (typeof module !== 'object') {
+        if (typeof module !== "object") {
             module = Api.findModule(module);
         }
         if (module !== null) {
@@ -322,7 +355,7 @@ export class Api {
             return module.enumerateSymbols();
         }
         return [];
-    };
+    }
 
     /**
      * Evaluate javascript. Used from the UI to inject javascript code into the process
@@ -336,7 +369,7 @@ export class Api {
             Api.log(e.toString());
             return null;
         }
-    };
+    }
 
     /**
      * Evaluate javascript. Used from the UI to inject javascript code into the process
@@ -344,13 +377,13 @@ export class Api {
      */
     static evaluateFunction(w) {
         try {
-            const fn = new Function('Thread', w);
+            const fn = new Function("Thread", w);
             return fn.apply(this, [ThreadWrapper]);
         } catch (e) {
             Api.log(e.toString());
             return null;
         }
-    };
+    }
 
     /**
      * Evaluate any input and return a NativePointer
@@ -362,7 +395,7 @@ export class Api {
         } catch (e) {
             return NULL;
         }
-    };
+    }
 
     /**
      * Shortcut to quickly retrieve an export
@@ -376,29 +409,33 @@ export class Api {
      * @param module: optional name of the module
      */
     static findExport(name, module?): NativePointer | null {
-        if (typeof module === 'undefined') {
+        if (typeof module === "undefined") {
             module = null;
         }
         return Module.findExportByName(module, name);
-    };
+    }
 
     /**
      * Find a module providing any argument. Could be a string/int pointer or module name
      */
     static findModule(module: any): Module | Module[] | null {
         let _module;
-        if (Utils.isString(module) && module.substring(0, 2) !== '0x') {
+        if (Utils.isString(module) && module.substring(0, 2) !== "0x") {
             _module = Process.findModuleByName(module);
             if (Utils.isDefined(_module)) {
                 return _module;
             } else {
                 // do wildcard search
-                if (module.indexOf('*') !== -1) {
+                if (module.indexOf("*") !== -1) {
                     const modules = Process.enumerateModules();
-                    const searchName = module.toLowerCase().split('*')[0];
+                    const searchName = module.toLowerCase().split("*")[0];
                     for (let i = 0; i < modules.length; i++) {
                         // remove non matching
-                        if (modules[i].name.toLowerCase().indexOf(searchName) === -1) {
+                        if (
+                            modules[i].name
+                                .toLowerCase()
+                                .indexOf(searchName) === -1
+                        ) {
                             modules.splice(i, 1);
                             i--;
                         }
@@ -418,14 +455,14 @@ export class Api {
             return _module;
         }
         return null;
-    };
+    }
 
     /**
      * Find a symbol matching the given pattern
      */
     static findSymbol(pattern) {
         return DebugSymbol.findFunctionsMatching(pattern);
-    };
+    }
 
     /**
      * get telescope information for the given pointer argument
@@ -435,23 +472,22 @@ export class Api {
         const _ptr = ptr(p);
         const _range = Process.findRangeByAddress(_ptr);
         if (Utils.isDefined(_range)) {
-            if (_range.protection.indexOf('r') !== -1) {
+            if (_range.protection.indexOf("r") !== -1) {
                 try {
                     const s = Api.readString(_ptr);
                     if (s !== "") {
                         return [0, s];
                     }
-                } catch (e) { }
+                } catch (e) {}
                 try {
                     const ptrVal = _ptr.readPointer();
                     return [1, ptrVal];
-                } catch (e) {
-                }
+                } catch (e) {}
                 return [2, p];
             }
         }
         return [-1, p];
-    };
+    }
 
     /**
      * Return an array of DebugSymbol for the requested pointers
@@ -463,7 +499,7 @@ export class Api {
             try {
                 ptrs = JSON.parse(ptrs);
             } catch (e) {
-                Utils.logErr('getDebugSymbols', e);
+                Utils.logErr("getDebugSymbols", e);
                 return symbols;
             }
             for (let i = 0; i < ptrs.length; i++) {
@@ -471,7 +507,7 @@ export class Api {
             }
         }
         return symbols;
-    };
+    }
 
     /**
      * Shortcut to retrieve an Instruction object for the given address
@@ -480,13 +516,13 @@ export class Api {
         try {
             const instruction = Instruction.parse(ptr(address));
             return JSON.stringify({
-                'string': instruction.toString()
+                string: instruction.toString()
             });
         } catch (e) {
-            Utils.logErr('getInstruction', e);
+            Utils.logErr("getInstruction", e);
         }
         return null;
-    };
+    }
 
     /**
      * Return a RangeDetails object or null for the requested pointer
@@ -494,7 +530,10 @@ export class Api {
     static getRange(address: any): RangeDetails | null {
         try {
             const nativeAddress = ptr(address);
-            if (nativeAddress === null || parseInt(nativeAddress.toString()) === 0) {
+            if (
+                nativeAddress === null ||
+                parseInt(nativeAddress.toString()) === 0
+            ) {
                 return null;
             }
             const ret = Process.findRangeByAddress(nativeAddress);
@@ -503,10 +542,10 @@ export class Api {
             }
             return ret;
         } catch (e) {
-            Utils.logErr('getRange', e);
+            Utils.logErr("getRange", e);
             return null;
         }
-    };
+    }
 
     /**
      * Return DebugSymbol or null for the given pointer
@@ -516,10 +555,10 @@ export class Api {
             pt = ptr(pt);
             return DebugSymbol.fromAddress(pt);
         } catch (e) {
-            Utils.logErr('getSymbolByAddress', e);
+            Utils.logErr("getSymbolByAddress", e);
             return null;
         }
-    };
+    }
 
     /**
      * Hook all the methods for the given java class
@@ -534,7 +573,7 @@ export class Api {
      */
     static hookAllJavaMethods(className: string, callback: Function): boolean {
         return LogicJava.hookAllJavaMethods(className, callback);
-    };
+    }
 
     /**
      * Receive a callback whenever a java class is going to be loaded by the class loader.
@@ -547,9 +586,15 @@ export class Api {
      * @param className
      * @param callback
      */
-    static hookClassLoaderClassInitialization(className: string, callback: Function): boolean {
-        return LogicJava.hookClassLoaderClassInitialization(className, callback);
-    };
+    static hookClassLoaderClassInitialization(
+        className: string,
+        callback: Function
+    ): boolean {
+        return LogicJava.hookClassLoaderClassInitialization(
+            className,
+            callback
+        );
+    }
 
     /**
      * Hook the constructor of the given java class
@@ -562,8 +607,8 @@ export class Api {
      * @param callback
      */
     static hookJavaConstructor(className: string, callback: Function): boolean {
-        return LogicJava.hook(className, '$init', callback);
-    };
+        return LogicJava.hook(className, "$init", callback);
+    }
 
     /**
      * Hook the constructor of the given java class
@@ -581,9 +626,12 @@ export class Api {
      * @param targetClassMethod
      * @param callback
      */
-    static hookJavaMethod(targetClassMethod: string, callback: Function): boolean {
+    static hookJavaMethod(
+        targetClassMethod: string,
+        callback: Function
+    ): boolean {
         return LogicJava.hookJavaMethod(targetClassMethod, callback);
-    };
+    }
 
     /**
      * Receive a callback when the native module is being loaded
@@ -595,8 +643,14 @@ export class Api {
      * @param moduleName
      * @param callback
      */
-    static hookModuleInitialization(moduleName: string, callback: Function): boolean {
-        return LogicInitialization.hookModuleInitialization(moduleName, callback);
+    static hookModuleInitialization(
+        moduleName: string,
+        callback: Function
+    ): boolean {
+        return LogicInitialization.hookModuleInitialization(
+            moduleName,
+            callback
+        );
     }
 
     /**
@@ -607,22 +661,33 @@ export class Api {
     static injectBlob(name: string, blob: string) {
         // arm syscall memfd_create
         let sys_num = 385;
-        if (Process.arch === 'ia32') {
+        if (Process.arch === "ia32") {
             sys_num = 356;
-        } else if (Process.arch === 'x64') {
+        } else if (Process.arch === "x64") {
             sys_num = 319;
         }
 
-        const syscall_ptr = Api.findExport('syscall');
-        const write_ptr = Api.findExport('write');
-        const dlopen_ptr = Api.findExport('dlopen');
+        const syscall_ptr = Api.findExport("syscall");
+        const write_ptr = Api.findExport("write");
+        const dlopen_ptr = Api.findExport("dlopen");
 
         if (syscall_ptr !== null && !syscall_ptr.isNull()) {
-            const syscall = new NativeFunction(syscall_ptr, 'int', ['int', 'pointer', 'int']);
+            const syscall = new NativeFunction(syscall_ptr, "int", [
+                "int",
+                "pointer",
+                "int"
+            ]);
             if (write_ptr !== null && !write_ptr.isNull()) {
-                const write = new NativeFunction(write_ptr, 'int', ['int', 'pointer', 'int']);
+                const write = new NativeFunction(write_ptr, "int", [
+                    "int",
+                    "pointer",
+                    "int"
+                ]);
                 if (dlopen_ptr !== null && !dlopen_ptr.isNull()) {
-                    const dlopen = new NativeFunction(dlopen_ptr, 'int', ['pointer', 'int']);
+                    const dlopen = new NativeFunction(dlopen_ptr, "int", [
+                        "pointer",
+                        "int"
+                    ]);
 
                     const m = FileSystem.allocateRw(128);
                     m.writeUtf8String(name);
@@ -630,10 +695,10 @@ export class Api {
                     if (fd > 0) {
                         const hexArr = Utils.hex2a(blob);
                         const blob_space = Memory.alloc(hexArr.length);
-                        Memory.protect(blob_space, hexArr.length, 'rwx');
+                        Memory.protect(blob_space, hexArr.length, "rwx");
                         blob_space.writeByteArray(hexArr);
                         write(fd, blob_space, hexArr.length);
-                        m.writeUtf8String('/proc/' + Process.id + '/fd/' + fd);
+                        m.writeUtf8String("/proc/" + Process.id + "/fd/" + fd);
                         return dlopen(m, 1);
                     } else {
                         return -4;
@@ -647,43 +712,45 @@ export class Api {
         } else {
             return -1;
         }
-    };
+    }
 
     /**
      * @return a boolean indicating if the given pointer is currently watched
      */
     static isAddressWatched(pt: any): boolean {
-        const watchpoint = LogicWatchpoint.memoryWatchpoints[ptr(pt).toString()];
+        const watchpoint =
+            LogicWatchpoint.memoryWatchpoints[ptr(pt).toString()];
         return Utils.isDefined(watchpoint);
-    };
+    }
 
     private static isPrintable(char) {
         try {
-            const isprint_ptr = Api.findExport('isprint');
+            const isprint_ptr = Api.findExport("isprint");
             if (Utils.isDefined(isprint_ptr)) {
-                const isprint_fn = new NativeFunction(isprint_ptr, 'int', ['int']);
+                const isprint_fn = new NativeFunction(isprint_ptr, "int", [
+                    "int"
+                ]);
                 if (Utils.isDefined(isprint_fn)) {
                     return isprint_fn(char);
                 }
-            }
-            else {
-                if ((char > 31) && (char < 127)) {
+            } else {
+                if (char > 31 && char < 127) {
                     return true;
                 }
             }
             return false;
         } catch (e) {
-            Utils.logErr('isPrintable', e);
+            Utils.logErr("isPrintable", e);
             return false;
         }
-    };
+    }
 
     /**
      * @return a java stack trace. Must be executed in JVM thread
      */
     static javaBacktrace() {
         return LogicJava.backtrace();
-    };
+    }
 
     /**
      * @return the explorer object for the given java handle
@@ -697,35 +764,41 @@ export class Api {
      */
     static log(what): void {
         if (Utils.isDefined(what)) {
-            Dwarf.loggedSend('log:::' + what);
+            Dwarf.loggedSend("log:::" + what);
         }
-    };
+    }
 
     private static memoryScan(start, size, pattern) {
         let result = [];
         try {
             result = Api._internalMemoryScan(ptr(start), size, pattern);
         } catch (e) {
-            Utils.logErr('memoryScan', e);
+            Utils.logErr("memoryScan", e);
         }
-        Dwarf.loggedSend('memoryscan_result:::' + JSON.stringify(result));
-    };
+        Dwarf.loggedSend("memoryscan_result:::" + JSON.stringify(result));
+    }
 
     private static memoryScanList(ranges, pattern) {
         ranges = JSON.parse(ranges);
         let result = [];
         for (let i = 0; i < ranges.length; i++) {
             try {
-                result = result.concat(Api._internalMemoryScan(ptr(ranges[i]['start']), ranges[i]['size'], pattern));
+                result = result.concat(
+                    Api._internalMemoryScan(
+                        ptr(ranges[i]["start"]),
+                        ranges[i]["size"],
+                        pattern
+                    )
+                );
             } catch (e) {
-                Utils.logErr('memoryScanList', e);
+                Utils.logErr("memoryScanList", e);
             }
             if (result.length >= 100) {
                 break;
             }
         }
-        Dwarf.loggedSend('memoryscan_result:::' + JSON.stringify(result));
-    };
+        Dwarf.loggedSend("memoryscan_result:::" + JSON.stringify(result));
+    }
 
     /**
      * put a breakpoint on a native pointer or a java class with an optional evaluated condition
@@ -751,7 +824,10 @@ export class Api {
      * @param address_or_class
      * @param condition
      */
-    static putBreakpoint(address_or_class: any, condition?: string | Function): boolean {
+    static putBreakpoint(
+        address_or_class: any,
+        condition?: string | Function
+    ): boolean {
         return LogicBreakpoint.putBreakpoint(address_or_class, condition);
     }
 
@@ -776,7 +852,9 @@ export class Api {
      * @param moduleName
      */
     static putModuleInitializationBreakpoint(moduleName: string): boolean {
-        return LogicInitialization.putModuleInitializationBreakpoint(moduleName);
+        return LogicInitialization.putModuleInitializationBreakpoint(
+            moduleName
+        );
     }
 
     /**
@@ -800,18 +878,18 @@ export class Api {
      */
     static putWatchpoint(address: any, flags: string, callback?: Function) {
         let intFlags = 0;
-        if (flags.indexOf('r') >= 0) {
+        if (flags.indexOf("r") >= 0) {
             intFlags |= MEMORY_ACCESS_READ;
         }
-        if (flags.indexOf('w') >= 0) {
+        if (flags.indexOf("w") >= 0) {
             intFlags |= MEMORY_ACCESS_WRITE;
         }
-        if (flags.indexOf('x') >= 0) {
+        if (flags.indexOf("x") >= 0) {
             intFlags |= MEMORY_ACCESS_EXECUTE;
         }
 
         return LogicWatchpoint.putWatchpoint(address, intFlags, callback);
-    };
+    }
 
     /**
      * A shortcut and secure way to read a string from a pointer with frida on any os
@@ -829,7 +907,10 @@ export class Api {
             if (!Utils.isDefined(range)) {
                 return "";
             }
-            if (Utils.isString(range.protection) && range.protection.indexOf('r') === -1) {
+            if (
+                Utils.isString(range.protection) &&
+                range.protection.indexOf("r") === -1
+            ) {
                 //Access violation
                 return "";
             }
@@ -837,13 +918,13 @@ export class Api {
             if (!Utils.isDefined(_np)) {
                 return "";
             }
-            if (Process.platform === 'windows') {
+            if (Process.platform === "windows") {
                 fstring = _np.readAnsiString(length);
             }
-            if (Utils.isString(fstring) && (fstring.length === 0)) {
+            if (Utils.isString(fstring) && fstring.length === 0) {
                 fstring = _np.readCString(length);
             }
-            if (Utils.isString(fstring) && (fstring.length === 0)) {
+            if (Utils.isString(fstring) && fstring.length === 0) {
                 fstring = _np.readUtf8String(length);
             }
             if (Utils.isString(fstring) && fstring.length) {
@@ -860,10 +941,10 @@ export class Api {
                 return "";
             }
         } catch (e) {
-            Utils.logErr('readString', e);
+            Utils.logErr("readString", e);
             return "";
         }
-    };
+    }
 
     /**
      * A shortcut for safely reading from memory
@@ -887,8 +968,8 @@ export class Api {
                     break;
                 }
                 if (range) {
-                    if (range.protection[0] !== 'r') {
-                        Memory.protect(range.base, range.size, 'r--');
+                    if (range.protection[0] !== "r") {
+                        Memory.protect(range.base, range.size, "r--");
                         ranges.push(range);
                     }
 
@@ -909,10 +990,10 @@ export class Api {
 
             return data;
         } catch (e) {
-            Utils.logErr('readBytes', e);
+            Utils.logErr("readBytes", e);
             return [];
         }
-    };
+    }
 
     /**
      * @return a pointer from the given address
@@ -921,17 +1002,17 @@ export class Api {
         try {
             return ptr(pt).readPointer();
         } catch (e) {
-            Utils.logErr('readPointer', e);
+            Utils.logErr("readPointer", e);
             return NULL;
         }
-    };
+    }
 
     /**
      * resume the execution of the given thread id
      */
     static releaseFromJs(tid): void {
-        Dwarf.loggedSend('release_js:::' + tid);
-    };
+        Dwarf.loggedSend("release_js:::" + tid);
+    }
 
     /**
      * Remove a breakpoint on address_or_class
@@ -945,10 +1026,14 @@ export class Api {
      * Remove a java class initialization breakpoint on moduleName
      * @return a boolean indicating if removal was successful
      */
-    static removeJavaClassInitializationBreakpoint(moduleName: string): boolean {
+    static removeJavaClassInitializationBreakpoint(
+        moduleName: string
+    ): boolean {
         const ret = LogicJava.removeModuleInitializationBreakpoint(moduleName);
         if (ret) {
-            Dwarf.loggedSend('breakpoint_deleted:::java_class_initialization:::' + moduleName);
+            Dwarf.loggedSend(
+                "breakpoint_deleted:::java_class_initialization:::" + moduleName
+            );
         }
         return ret;
     }
@@ -958,9 +1043,13 @@ export class Api {
      * @return a boolean indicating if removal was successful
      */
     static removeModuleInitializationBreakpoint(moduleName: string): boolean {
-        const ret = LogicInitialization.removeModuleInitializationBreakpoint(moduleName);
+        const ret = LogicInitialization.removeModuleInitializationBreakpoint(
+            moduleName
+        );
         if (ret) {
-            Dwarf.loggedSend('breakpoint_deleted:::module_initialization:::' + moduleName);
+            Dwarf.loggedSend(
+                "breakpoint_deleted:::module_initialization:::" + moduleName
+            );
         }
         return ret;
     }
@@ -984,19 +1073,25 @@ export class Api {
         }
 
         return false;
-    };
+    }
 
     private static resume() {
         if (!Dwarf.PROC_RESUMED) {
             Dwarf.PROC_RESUMED = true;
-            Dwarf.loggedSend('resume:::0');
+            Dwarf.loggedSend("resume:::0");
         } else {
-            console.log('Error: Process already resumed');
+            console.log("Error: Process already resumed");
         }
-    };
+    }
 
-    private static setBreakpointCondition(address_or_class: any, condition?: string | Function): boolean {
-        return LogicBreakpoint.setBreakpointCondition(address_or_class, condition);
+    private static setBreakpointCondition(
+        address_or_class: any,
+        condition?: string | Function
+    ): boolean {
+        return LogicBreakpoint.setBreakpointCondition(
+            address_or_class,
+            condition
+        );
     }
 
     /**
@@ -1011,26 +1106,26 @@ export class Api {
      * ```
      */
     static setData(key, data) {
-        if (typeof key !== 'string' && key.length < 1) {
+        if (typeof key !== "string" && key.length < 1) {
             return;
         }
 
-        if (data.constructor.name === 'ArrayBuffer') {
-            Dwarf.loggedSend('set_data:::' + key, data)
+        if (data.constructor.name === "ArrayBuffer") {
+            Dwarf.loggedSend("set_data:::" + key, data);
         } else {
-            if (typeof data === 'object') {
+            if (typeof data === "object") {
                 data = JSON.stringify(data, null, 4);
             }
-            Dwarf.loggedSend('set_data:::' + key + ':::' + data)
+            Dwarf.loggedSend("set_data:::" + key + ":::" + data);
         }
-    };
+    }
 
     /**
      * Start the java tracer on the given classes
      */
     static startJavaTracer(classes: string[], callback: Function) {
         return LogicJava.startTrace(classes, callback);
-    };
+    }
 
     /**
      * Start the native tracer on the current thread
@@ -1055,14 +1150,14 @@ export class Api {
         }
 
         return false;
-    };
+    }
 
     /**
      * Stop the java tracer
      */
     static stopJavaTracer(): boolean {
         return LogicJava.stopTrace();
-    };
+    }
 
     /**
      * start strace
@@ -1073,26 +1168,39 @@ export class Api {
 
     private static updateModules() {
         const modules = Api.enumerateModules();
-        Dwarf.loggedSend('update_modules:::' + Process.getCurrentThreadId() + ':::' + JSON.stringify(modules));
-    };
+        Dwarf.loggedSend(
+            "update_modules:::" +
+                Process.getCurrentThreadId() +
+                ":::" +
+                JSON.stringify(modules)
+        );
+    }
 
     private static updateRanges() {
         try {
-            Dwarf.loggedSend('update_ranges:::' + Process.getCurrentThreadId() + ':::' +
-                JSON.stringify(Process.enumerateRanges('---')))
+            Dwarf.loggedSend(
+                "update_ranges:::" +
+                    Process.getCurrentThreadId() +
+                    ":::" +
+                    JSON.stringify(Process.enumerateRanges("---"))
+            );
         } catch (e) {
-            Utils.logErr('updateRanges', e);
+            Utils.logErr("updateRanges", e);
         }
-    };
+    }
 
     private static updateSearchableRanges() {
         try {
-            Dwarf.loggedSend('update_searchable_ranges:::' + Process.getCurrentThreadId() + ':::' +
-                JSON.stringify(Process.enumerateRanges('r--')))
+            Dwarf.loggedSend(
+                "update_searchable_ranges:::" +
+                    Process.getCurrentThreadId() +
+                    ":::" +
+                    JSON.stringify(Process.enumerateRanges("r--"))
+            );
         } catch (e) {
-            Utils.logErr('updateSearchableRanges', e);
+            Utils.logErr("updateSearchableRanges", e);
         }
-    };
+    }
 
     /**
      * Write the given hex string or ArrayBuffer into the given address
@@ -1100,17 +1208,17 @@ export class Api {
     static writeBytes(address: any, what: string | ArrayBuffer) {
         try {
             address = ptr(address);
-            if (typeof what === 'string') {
+            if (typeof what === "string") {
                 Api.writeUtf8(address, Utils.hex2a(what));
             } else {
                 address.writeByteArray(what);
             }
             return true;
         } catch (e) {
-            Utils.logErr('writeBytes', e);
+            Utils.logErr("writeBytes", e);
             return false;
         }
-    };
+    }
 
     private static writeUtf8(address: any, str: any) {
         try {
@@ -1118,8 +1226,8 @@ export class Api {
             address.writeUtf8String(str);
             return true;
         } catch (e) {
-            Utils.logErr('writeUtf8', e);
+            Utils.logErr("writeUtf8", e);
             return false;
         }
-    };
+    }
 }
