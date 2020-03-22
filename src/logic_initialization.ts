@@ -128,7 +128,7 @@ export class LogicInitialization {
             }
         } else if (LogicJava.available) {
             // android native onload code
-            // taken from new core without onLeave!!!
+            /*! taken from new core without onLeave!!! */
             //https://android.googlesource.com/platform/art/+/android-6.0.0_r26/runtime/java_vm_ext.cc#596
             const artModule = Process.findModuleByName("libart.so");
             if (artModule) {

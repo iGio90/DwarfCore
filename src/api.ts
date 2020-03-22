@@ -147,7 +147,9 @@ export class Api {
                             send("enumerate_java_classes_match:::" + className);
                         },
                         onComplete: function() {
-                            Dwarf.loggedSend("enumerate_java_classes_complete:::");
+                            Dwarf.loggedSend(
+                                "enumerate_java_classes_complete:::"
+                            );
                         }
                     });
                 } catch (e) {
@@ -876,16 +878,33 @@ export class Api {
      * @param flags
      * @param callback
      */
-    static putWatchpoint(address: any, flags: string, callback?: Function) {
+    static putWatchpoint(
+        address: any,
+        flags: string | number,
+        callback?: Function
+    ) {
         let intFlags = 0;
-        if (flags.indexOf("r") >= 0) {
-            intFlags |= MEMORY_ACCESS_READ;
+        if (!Utils.isDefined(flags)) {
+            flags = "rw";
         }
-        if (flags.indexOf("w") >= 0) {
-            intFlags |= MEMORY_ACCESS_WRITE;
+        if (Utils.isNumber(flags)) {
+            intFlags = flags as number;
+        } else if (Utils.isString(flags)) {
+            if ((flags as string).indexOf("r") >= 0) {
+                intFlags |= MEMORY_ACCESS_READ;
+            }
+
+            if ((flags as string).indexOf("w") >= 0) {
+                intFlags |= MEMORY_ACCESS_WRITE;
+            }
+
+            if ((flags as string).indexOf("x") >= 0) {
+                intFlags |= MEMORY_ACCESS_EXECUTE;
+            }
         }
-        if (flags.indexOf("x") >= 0) {
-            intFlags |= MEMORY_ACCESS_EXECUTE;
+
+        if (!Utils.isNumber(intFlags) || intFlags == 0) {
+            return;
         }
 
         return LogicWatchpoint.putWatchpoint(address, intFlags, callback);
