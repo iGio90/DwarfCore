@@ -53,6 +53,11 @@ export class DwarfJavaHelper {
         return DwarfJavaHelper.instanceRef;
     }
 
+    public javaPerform = (fn: () => void) => {
+        logDebug('Using performnow');
+        return Java.performNow(fn);
+    }
+
     public initalize = () => {
         if (this.initDone) {
             logDebug("DwarfJavaHelper => Init already done!");
@@ -64,7 +69,7 @@ export class DwarfJavaHelper {
         this.sdk_version = Dwarf.getAndroidApiLevel();
 
         const self = this;
-        Java.performNow(function () {
+        this.javaPerform(function () {
             //class loader
             const ClassLoader = Java.use("java.lang.ClassLoader");
 
@@ -131,7 +136,7 @@ export class DwarfJavaHelper {
 
     detach = () => {
         this.checkRequirements();
-        Java.performNow(function () {
+        this.javaPerform(function () {
             const ClassLoader = Java.use("java.lang.ClassLoader");
             ClassLoader.loadClass.overload("java.lang.String", "boolean").implementation = null;
         });
@@ -165,7 +170,7 @@ export class DwarfJavaHelper {
 
         const parsedMethods: Array<string> = new Array<string>();
 
-        Java.performNow(() => {
+        this.javaPerform(() => {
             try {
                 const clazz = Java.use(className);
                 const methods: Array<Java.Method> = clazz.class.getDeclaredMethods();
@@ -211,7 +216,7 @@ export class DwarfJavaHelper {
         } else {
             this.invalidateClassCache();
 
-            Java.performNow(function () {
+            this.javaPerform(function () {
                 try {
                     Java.enumerateLoadedClasses({
                         onMatch: className => {
@@ -237,7 +242,7 @@ export class DwarfJavaHelper {
 
         const dexClasses = new Array<string>();
 
-        Java.performNow(function () {
+        this.javaPerform(function () {
             try {
                 const appContext = self.getApplicationContext();
                 const apkPath = appContext.getPackageCodePath();
@@ -279,7 +284,7 @@ export class DwarfJavaHelper {
         }
 
         const self = this;
-        Java.performNow(function () {
+        this.javaPerform(function () {
             try {
                 const javaWrapper = Java.use(className);
 
@@ -331,7 +336,7 @@ export class DwarfJavaHelper {
 
         const self = this;
 
-        Java.performNow(function () {
+        this.javaPerform(function () {
             try {
                 const javaWrapper = Java.use(className);
 

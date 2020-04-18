@@ -176,7 +176,7 @@ export class DwarfCore {
             process: this.processInfo,
             modules: Process.enumerateModules(),
             regions: Process.enumerateRanges("---"),
-            threads: Process.enumerateThreads()
+            threads: Process.enumerateThreads(),
         };
         send({ initData: initData });
 
@@ -185,7 +185,7 @@ export class DwarfCore {
 
         }*/
         const exclusions = ["constructor", "length", "name", "prototype"];
-        Object.getOwnPropertyNames(this.dwarfApi).forEach(prop => {
+        Object.getOwnPropertyNames(this.dwarfApi).forEach((prop) => {
             if (exclusions.indexOf(prop) < 0) {
                 global[prop] = this.dwarfApi[prop];
             }
@@ -208,44 +208,39 @@ export class DwarfCore {
 
     start = () => {
         //attach init breakpoints
-        if (
-            Java.available &&
-            this.processInfo.wasSpawned &&
-            this.breakAtStart
-        ) {
-
-            //TODO: to add this bp 3x Java.performNow is used before resume try to reduce
-            //android init breakpoint
-            if (this.getAndroidApiLevel() >= 23) {
-                const initBreakpoint = this.getHooksManager().addJavaHook(
-                    "com.android.internal.os.RuntimeInit",
-                    "commonInit",
-                    "breakpoint",
-                    true,
-                    true
-                );
-                if (!isDefined(initBreakpoint)) {
-                    logDebug("Failed to attach initHook!");
+        if (Java.available) {
+            if (this.processInfo.wasSpawned && this.breakAtStart) {
+                //TODO: to add this bp 3x Java.performNow is used before resume try to reduce
+                //android init breakpoint
+                if (this.getAndroidApiLevel() >= 23) {
+                    const initBreakpoint = this.getHooksManager().addJavaHook(
+                        "com.android.internal.os.RuntimeInit",
+                        "commonInit",
+                        "breakpoint",
+                        true,
+                        true
+                    );
+                    if (!isDefined(initBreakpoint)) {
+                        logDebug("Failed to attach initHook!");
+                    }
+                } else {
+                    const initBreakpoint = this.getHooksManager().addJavaHook(
+                        "android.app.Application",
+                        "onCreate",
+                        "breakpoint",
+                        true,
+                        true
+                    );
+                    if (!isDefined(initBreakpoint)) {
+                        logDebug("Failed to attach initHook!");
+                    }
                 }
-            } else {
-                const initBreakpoint = this.getHooksManager().addJavaHook(
-                    "android.app.Application",
-                    "onCreate",
-                    "breakpoint",
-                    true,
-                    true
-                );
-                if (!isDefined(initBreakpoint)) {
-                    logDebug("Failed to attach initHook!");
-                }
-            }
+            } //breakatinit
 
-            setImmediate(() => {
-                Dwarf.dwarfJavaHelper.initalize();
-                LogicJava.init();
-                this.dwarfJavaHelper.enumerateLoadedClasses(false);
-            });
-        }
+            Dwarf.dwarfJavaHelper.initalize();
+            LogicJava.init();
+            this.dwarfJavaHelper.enumerateLoadedClasses(false);
+        } //java.available
 
         this.getHooksManager().initialize();
         DwarfInterceptor.init();
@@ -256,7 +251,7 @@ export class DwarfCore {
                 //Inital breakpoint
                 const invocationListener = Interceptor.attach(
                     this.dwarfApi.findExport("RtlUserThreadStart"),
-                    function() {
+                    function () {
                         trace("Creating startbreakpoint");
                         const invocationContext: InvocationContext = this;
                         let address = null;
@@ -281,23 +276,25 @@ export class DwarfCore {
                         }
                     }
                 );
-            }
-        }
+            } //breakatinit
+        } //platform==windows
     };
 
     handleException = (exception: ExceptionDetails) => {
         trace("DwarfCore::handleException()");
 
+        //TODO: remove
+        /*
         if (
             exception.memory.operation === "read" &&
             exception.memory.address.toString() === NULL.toString()
         ) {
             return false;
-        }
+        }*/
 
         Dwarf.sync({ exception: exception });
         let isHandled = false;
-        const op = recv("exception", function(value) {
+        const op = recv("exception", function (value) {
             isHandled = value.payload == 1;
         });
         op.wait();
@@ -339,7 +336,7 @@ export class DwarfCore {
             hookid: breakpointId,
             tid: threadId,
             reason: haltReason,
-            address: address_or_class
+            address: address_or_class,
         };
 
         if (!isDefined(context) && isDefined(this["context"])) {
@@ -369,7 +366,7 @@ export class DwarfCore {
 
                 breakpointData["backtrace"] = {
                     bt: Dwarf.dwarfApi.backtrace(context),
-                    type: "native"
+                    type: "native",
                 };
 
                 logDebug(
@@ -393,7 +390,7 @@ export class DwarfCore {
                     newCtx[reg] = {
                         value: val,
                         isValidPointer: isValidPtr,
-                        telescope: ts
+                        telescope: ts,
                     };
                     if (reg === "pc") {
                         if (symbol !== null) {
@@ -406,7 +403,7 @@ export class DwarfCore {
                                 groups: inst.groups,
                                 thumb:
                                     inst.groups.indexOf("thumb") >= 0 ||
-                                    inst.groups.indexOf("thumb2") >= 0
+                                    inst.groups.indexOf("thumb2") >= 0,
                             };
                         } catch (e) {
                             logErr("_sendInfos", e);
@@ -425,7 +422,7 @@ export class DwarfCore {
 
                 breakpointData["backtrace"] = {
                     bt: Dwarf.dwarfApi.javaBacktrace(),
-                    type: "java"
+                    type: "java",
                 };
             }
         }
@@ -456,7 +453,7 @@ export class DwarfCore {
             );
             Dwarf.sync({
                 breakpoint: breakpointData,
-                threads: Process.enumerateThreads()
+                threads: Process.enumerateThreads(),
             });
 
             logDebug(
@@ -478,7 +475,7 @@ export class DwarfCore {
 
         logDebug("[" + threadId + "] looping api");
 
-        const op = recv("" + threadId, function() {});
+        const op = recv("" + threadId, function () {});
         op.wait();
 
         const threadContext: ThreadContext = this.threadContexts[
@@ -583,7 +580,7 @@ export class DwarfCore {
                 "int",
                 ["pointer", "pointer"],
                 {
-                    exceptions: "propagate"
+                    exceptions: "propagate",
                 }
             );
         }
@@ -615,15 +612,15 @@ export class DwarfCore {
         Memory.scan(startAddress, size, pattern, {
             onMatch: (foundAddress, foundSize) => {
                 self.sync({
-                    search_result: { address: foundAddress, size: foundSize }
+                    search_result: { address: foundAddress, size: foundSize },
                 });
             },
             onComplete: () => {
                 self.sync({ search_finished: true });
             },
-            onError: reason => {
+            onError: (reason) => {
                 self.sync({ search_error: reason });
-            }
+            },
         });
     };
 }

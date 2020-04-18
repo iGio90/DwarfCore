@@ -391,25 +391,25 @@ export class DwarfApi {
      * Enumerate exports for the given module name or pointer
      * @param module an hex/int address or string name
      */
-    public enumerateModuleExports = (module: Module | NativePointer | number | string): Array<ModuleExportDetails> => {
-        let fridaModule: Module | null = null;
+    public enumerateModuleExports = (moduleInput: Module | NativePointer | number | string): Array<ModuleExportDetails> => {
+        let fridaModule: Module = undefined;
 
-        if (!isDefined(module)) {
+        if (!isDefined(moduleInput)) {
             throw new Error("DwarfApi::enumerateExports() -> Invalid Arguments!");
         }
 
         try {
-            const nativePtr = makeNativePointer(module);
+            const nativePtr = makeNativePointer(moduleInput);
             fridaModule = Process.findModuleByAddress(nativePtr);
         } catch (e) {
             logErr("DwarfApi::enumerateExports()", e);
         }
 
         if (!isDefined(fridaModule)) {
-            if (isString(module)) {
-                fridaModule = Process.findModuleByName(module as string);
-            } else if (typeof module === "object" && module.hasOwnProperty("enumerateExports")) {
-                fridaModule = module as Module;
+            if (isString(moduleInput)) {
+                fridaModule = Process.findModuleByName(moduleInput as string);
+            } else if (typeof moduleInput === "object" && moduleInput.hasOwnProperty("enumerateExports")) {
+                fridaModule = moduleInput as Module;
             }
         }
 
@@ -421,7 +421,6 @@ export class DwarfApi {
             throw new Error("DwarfApi::enumerateExports() -> Module is blacklisted!");
         }
 
-        //@ts-ignore
         return fridaModule.enumerateExports();
     };
 
@@ -429,25 +428,25 @@ export class DwarfApi {
      * Enumerate imports for the given module name or pointer
      * @param module an hex/int address or string name
      */
-    public enumerateModuleImports = (module: Module | NativePointer | number | string): Array<ModuleImportDetails> => {
-        let fridaModule: Module | null = null;
+    public enumerateModuleImports = (moduleInput: Module | NativePointer | number | string): Array<ModuleImportDetails> => {
+        let fridaModule: Module = undefined;
 
-        if (!isDefined(module)) {
+        if (!isDefined(moduleInput)) {
             throw new Error("DwarfApi::enumerateImports() -> Invalid Arguments!");
         }
 
         try {
-            const nativePtr = makeNativePointer(module);
+            const nativePtr = makeNativePointer(moduleInput);
             fridaModule = Process.findModuleByAddress(nativePtr);
         } catch (e) {
             logErr("DwarfApi::enumerateImports()", e);
         }
 
         if (!isDefined(fridaModule)) {
-            if (isString(module)) {
-                fridaModule = Process.findModuleByName(module as string);
-            } else if (typeof module === "object" && module.hasOwnProperty("enumerateImports")) {
-                fridaModule = module as Module;
+            if (isString(moduleInput)) {
+                fridaModule = Process.findModuleByName(moduleInput as string);
+            } else if (typeof moduleInput === "object" && moduleInput.hasOwnProperty("enumerateImports")) {
+                fridaModule = moduleInput as Module;
             }
         }
 
@@ -459,7 +458,6 @@ export class DwarfApi {
             throw new Error("DwarfApi::enumerateImports() -> Module is blacklisted!");
         }
 
-        //@ts-ignore
         return fridaModule.enumerateImports();
     };
 

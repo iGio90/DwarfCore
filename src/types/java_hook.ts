@@ -51,7 +51,7 @@ export class JavaHook extends DwarfHook {
         this.bAttached = false;
 
         //try to attach or add to classLoaderHook wich calls setup when class is loaded
-        Java.performNow(() => {
+        DwarfJavaHelper.getInstance().javaPerform(() => {
             try {
                 const testWrapper = Java.use(className);
                 if (isDefined(testWrapper) && isDefined(testWrapper[methodName])) {
@@ -69,7 +69,7 @@ export class JavaHook extends DwarfHook {
         if (self.bAttached) {
             return;
         }
-        Java.performNow(function() {
+        DwarfJavaHelper.getInstance().javaPerform(function() {
             const className = (self.hookAddress as string).substr(0, (self.hookAddress as string).lastIndexOf("."));
             const methodName = (self.hookAddress as string).substr((self.hookAddress as string).lastIndexOf(".") + 1);
             const testWrapper = Java.use(className);
