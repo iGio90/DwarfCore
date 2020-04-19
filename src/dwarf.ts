@@ -39,7 +39,7 @@ export class DwarfCore {
     protected processInfo: DwarfProcessInfo | null;
 
     private dwarfApi: DwarfApi;
-    private DwarfHooksManager: DwarfHooksManager;
+    private dwarfHooksManager: DwarfHooksManager;
     private dwarfFS: DwarfFS;
     private dwarfObserver: DwarfObserver;
     private dwarfJavaHelper: DwarfJavaHelper;
@@ -69,7 +69,7 @@ export class DwarfCore {
         this._systemPropertyGet = null;
 
         this.dwarfApi = DwarfApi.getInstance();
-        this.DwarfHooksManager = DwarfHooksManager.getInstance();
+        this.dwarfHooksManager = DwarfHooksManager.getInstance();
         this.dwarfFS = DwarfFS.getInstance();
         this.dwarfJavaHelper = DwarfJavaHelper.getInstance();
         this.dwarfObserver = DwarfObserver.getInstance();
@@ -98,7 +98,7 @@ export class DwarfCore {
 
     getHooksManager = (): DwarfHooksManager => {
         trace("Dwarf::getHooksManager()");
-        return this.DwarfHooksManager;
+        return this.dwarfHooksManager;
     };
 
     getFS = (): DwarfFS => {
@@ -173,6 +173,7 @@ export class DwarfCore {
 
         //send initdata
         let initData = {
+            frida: Frida.version,
             process: this.processInfo,
             modules: Process.enumerateModules(),
             regions: Process.enumerateRanges("---"),
@@ -207,6 +208,7 @@ export class DwarfCore {
     };
 
     start = () => {
+        this.dwarfHooksManager.initialize();
         //attach init breakpoints
         if (Java.available) {
             if (this.processInfo.wasSpawned && this.breakAtStart) {
@@ -237,12 +239,12 @@ export class DwarfCore {
                 }
             } //breakatinit
 
-            Dwarf.dwarfJavaHelper.initalize();
-            LogicJava.init();
+            Process.getCurrentThreadId
+
+            this.dwarfJavaHelper.initalize();
             this.dwarfJavaHelper.enumerateLoadedClasses(false);
         } //java.available
 
-        this.getHooksManager().initialize();
         DwarfInterceptor.init();
 
         if (Process.platform === "windows") {

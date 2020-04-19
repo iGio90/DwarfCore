@@ -7,3 +7,4 @@ docs*
 core.js
 typed*
 dwarf-typings
+.vscode

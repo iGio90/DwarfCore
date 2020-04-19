@@ -59,6 +59,8 @@ export class DwarfHooksManager {
     }
 
     public initialize() {
+        trace('DwarfHooksManager::initialize()');
+
         if (this.initDone) {
             logDebug("DwarfHooksManager => Init already done!");
         }
