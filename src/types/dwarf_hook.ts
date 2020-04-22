@@ -321,12 +321,16 @@ export class DwarfHook {
             }
             if (breakExecution) {
                 if (self.hookType == DwarfHookType.JAVA) {
+                    let breakpointInfo = [{
+                        value: returnValue,
+                        type: thisArg.retType
+                    }];
                     DwarfCore.getInstance().onBreakpoint(
                         self.hookID,
                         self.threadId,
                         DwarfHaltReason.BREAKPOINT,
                         self.hookAddress,
-                        null,
+                        breakpointInfo,
                         thisArg
                     );
                 } else {
