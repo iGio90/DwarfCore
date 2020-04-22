@@ -209,6 +209,7 @@ export class DwarfCore {
 
     start = () => {
         this.dwarfHooksManager.initialize();
+
         //attach init breakpoints
         if (Java.available) {
             if (this.processInfo.wasSpawned && this.breakAtStart) {
@@ -239,9 +240,8 @@ export class DwarfCore {
                 }
             } //breakatinit
 
-            Process.getCurrentThreadId
-
             this.dwarfJavaHelper.initalize();
+            LogicJava.init();
             this.dwarfJavaHelper.enumerateLoadedClasses(false);
         } //java.available
 
