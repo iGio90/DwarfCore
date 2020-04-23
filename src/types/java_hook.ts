@@ -56,6 +56,8 @@ export class JavaHook extends DwarfHook {
                 const testWrapper = Java.use(className);
                 if (isDefined(testWrapper) && isDefined(testWrapper[methodName])) {
                     this.setup();
+                } else {
+                    console.log('Warning: Class or Method not found! (' + className + '.' + methodName + ')');
                 }
             } catch (e) {
                 //this is used in classloader wich setups the bp later when class is loaded
@@ -74,6 +76,7 @@ export class JavaHook extends DwarfHook {
             const methodName = (self.hookAddress as string).substr((self.hookAddress as string).lastIndexOf(".") + 1);
             const testWrapper = Java.use(className);
             if (!isDefined(testWrapper) || !isDefined(testWrapper[methodName])) {
+                console.log('Warning: Class or Method not found! (' + self.hookAddress + ')');
                 return;
             }
             try {

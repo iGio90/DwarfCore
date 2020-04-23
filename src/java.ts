@@ -301,7 +301,7 @@ export class DwarfJavaHelper {
                                     parameters.push(overload.argumentTypes[j].className);
                                 }
                             }
-                            if(overload.hasOwnProperty("returnType")) {
+                            if (overload.hasOwnProperty("returnType")) {
                                 returnType = overload.returnType.className;
                             }
                             overload.implementation = function () {
