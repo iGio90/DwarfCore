@@ -20,6 +20,7 @@ import { DwarfHookType } from "../consts";
 import { DwarfJavaHelper } from "../java";
 
 export class JavaHook extends DwarfHook {
+    protected warningShown: boolean;
 
     constructor(
         className: string,
@@ -49,6 +50,7 @@ export class JavaHook extends DwarfHook {
         super(DwarfHookType.JAVA, className + "." + methodName, userCallback, isSingleShot, isEnabled);
 
         this.bAttached = false;
+        this.warningShown = false;
 
         //try to attach or add to classLoaderHook wich calls setup when class is loaded
         Java.performNow(() => {
@@ -57,7 +59,8 @@ export class JavaHook extends DwarfHook {
                 if (isDefined(testWrapper) && isDefined(testWrapper[methodName])) {
                     this.setup();
                 } else {
-                    console.log('Warning: Class or Method not found! (' + className + '.' + methodName + ')');
+                    console.log("Warning: Class or Method not found! (" + className + "." + methodName + ")");
+                    this.warningShown = true;
                 }
             } catch (e) {
                 //this is used in classloader wich setups the bp later when class is loaded
@@ -71,16 +74,19 @@ export class JavaHook extends DwarfHook {
         if (self.bAttached) {
             return;
         }
-        Java.performNow(function() {
+        Java.performNow(function () {
             const className = (self.hookAddress as string).substr(0, (self.hookAddress as string).lastIndexOf("."));
             const methodName = (self.hookAddress as string).substr((self.hookAddress as string).lastIndexOf(".") + 1);
             const testWrapper = Java.use(className);
             if (!isDefined(testWrapper) || !isDefined(testWrapper[methodName])) {
-                console.log('Warning: Class or Method not found! (' + self.hookAddress + ')');
+                if (!self.warningShown) {
+                    console.log("Warning: Class or Method not found! (" + self.hookAddress + ")");
+                    self.warningShown = true;
+                }
                 return;
             }
             try {
-                Dwarf.getJavaHelper().hookInJVM(className, methodName, function() {
+                Dwarf.getJavaHelper().hookInJVM(className, methodName, function () {
                     try {
                         let result = null;
                         self.onEnterCallback(self, this, arguments);
@@ -93,10 +99,10 @@ export class JavaHook extends DwarfHook {
                         console.log(e);
                     }
                 });
+                self.bAttached = true;
             } catch (e) {
                 self.bAttached = false;
             }
-            self.bAttached = true;
         });
     }
 
