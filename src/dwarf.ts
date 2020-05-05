@@ -1,4 +1,10 @@
 /**
+ * @hidden
+ * @ignore
+ * @internal
+ */
+
+/**
     Dwarf - Copyright (C) 2018-2020 Giovanni Rocca (iGio90)
 
     This program is free software: you can redistribute it and/or modify
@@ -242,7 +248,6 @@ export class DwarfCore {
 
             this.dwarfJavaHelper.initalize();
             LogicJava.init();
-            this.dwarfJavaHelper.enumerateLoadedClasses(false);
         } //java.available
 
         DwarfInterceptor.init();

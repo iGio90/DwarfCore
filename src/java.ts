@@ -1,4 +1,10 @@
 /**
+ * @hidden
+ * @ignore
+ * @internal
+ */
+
+/**
     Dwarf - Copyright (C) 2018-2020 Giovanni Rocca (iGio90)
 
     This program is free software: you can redistribute it and/or modify
@@ -129,6 +135,7 @@ export class DwarfJavaHelper {
             };
         });
 
+        this.initClassCache();
         this.initDone = true;
     };
 
@@ -152,6 +159,42 @@ export class DwarfJavaHelper {
         this.classCache = new Array<string>();
     };
 
+    initClassCache = () => {
+        trace("JavaHelper::initClassCache()");
+        this.checkRequirements();
+        this.invalidateClassCache();
+
+        const self = this;
+
+        const dexClasses = self.enumerateDexClasses();
+        self.updateClassCache(function(loadedClasses) {
+            Dwarf.sync({ dexClasses: dexClasses, loadedClasses: loadedClasses });
+        });
+    };
+
+    updateClassCache = (fnCallback:Function) => {
+        trace("JavaHelper::updateClassCache()");
+        this.checkRequirements();
+
+        const self = this;
+        Java.performNow(function () {
+            try {
+                Java.enumerateLoadedClasses({
+                    onMatch: (className) => {
+                        self.classCache.push(className);
+                    },
+                    onComplete: () => {
+                        if(isFunction(fnCallback)) {
+                            fnCallback(self.classCache);
+                        }
+                    },
+                });
+            } catch (e) {
+                logDebug("JavaHelper::updateClassCache() => Error: " + e);
+            }
+        });
+    }
+
     getApplicationContext = (): any => {
         trace("JavaHelper::getApplicationContext()");
 
@@ -161,7 +204,31 @@ export class DwarfJavaHelper {
         return ActivityThread.currentApplication().getApplicationContext();
     };
 
-    getClassMethods = (className: string, syncUi: boolean = false): Array<string> => {
+    getClassMethodsUI = (className: string) => {
+        trace("DwarfJavaHelper::getClassMethodsUI()");
+
+        this.checkRequirements();
+
+        const parsedMethods: Array<string> = new Array<string>();
+
+        Java.performNow(() => {
+            try {
+                const clazz = Java.use(className);
+                const methods: Array<Java.Method> = clazz.class.getDeclaredMethods();
+                clazz.$dispose();
+
+                for (const method of methods) {
+                    let methodStr = method.toString().replace(className + ".", "");
+                    parsedMethods.push(methodStr.substring(0, methodStr.indexOf(")") + 1));
+                }
+            } catch (e) {
+                logErr("DwarfJavaHelper::getClassMethodsUi()", e);
+            }
+        });
+        return Dwarf.sync({ class_methods: parsedMethods });
+    };
+
+    getClassMethods = (className: string): Array<string> => {
         trace("DwarfJavaHelper::getClassMethods()");
 
         this.checkRequirements();
@@ -187,52 +254,34 @@ export class DwarfJavaHelper {
             }
         });
         if (parsedMethods.length > 0) {
-            if (syncUi) {
-                return Dwarf.sync({ class_methods: uniqueBy(parsedMethods) });
-            } else {
-                return uniqueBy(parsedMethods);
-            }
+            return uniqueBy(parsedMethods);
         } else {
-            if (syncUi) {
-                return Dwarf.sync({ class_methods: [] });
-            } else {
-                return new Array();
-            }
+            return new Array();
         }
     };
 
-    enumerateLoadedClasses = (useCache: boolean = false) => {
-        trace("JavaHelper::enumerateLoadedClasses()");
+    enumerateLoadedClassesUI = () => {
+        trace("JavaHelper::enumerateLoadedClassesUI()");
 
         this.checkRequirements();
+        this.invalidateClassCache();
 
         const self = this;
 
-        if (useCache && this.classCache.length) {
-            //return this.classCache;
-            Dwarf.sync({ java_classes: self.classCache, cached: useCache });
-        } else {
-            this.invalidateClassCache();
-
-            Java.performNow(function () {
-                try {
-                    Java.enumerateLoadedClasses({
-                        onMatch: (className) => {
-                            self.classCache.push(className);
-                        },
-                        onComplete: () => {
-                            let syncMsg = {
-                                java_classes: self.classCache,
-                                cached: useCache,
-                            };
-                            Dwarf.sync(syncMsg);
-                        },
-                    });
-                } catch (e) {
-                    logDebug("JavaHelper::enumerateLoadedClasses() => Error: " + e);
-                }
-            });
-        }
+        Java.performNow(function () {
+            try {
+                Java.enumerateLoadedClasses({
+                    onMatch: (className) => {
+                        self.classCache.push(className);
+                    },
+                    onComplete: () => {
+                        Dwarf.sync({ loadedJavaClasses: self.classCache });
+                    },
+                });
+            } catch (e) {
+                logDebug("JavaHelper::enumerateLoadedClassesUI() => Error: " + e);
+            }
+        });
     };
 
     enumerateDexClasses = () => {
@@ -258,8 +307,6 @@ export class DwarfJavaHelper {
                 }
                 dexFile.$dispose();
                 DexFile.$dispose();
-
-                Dwarf.sync({ dexClasses: dexClasses });
             } catch (e) {
                 logErr("enumerateDexClasses() -> ", e);
             }
@@ -382,7 +429,7 @@ export class DwarfJavaHelper {
     addHookToAttach = (javaHook: JavaHook) => {
         trace("DwarfJavaHelper::addHookToAttach()");
 
-        if (javaHook.getType() == DwarfHookType.JAVA) {
+        if ((javaHook.getType() === DwarfHookType.JAVA) && !javaHook.isAttached()) {
             this.hooksToAttach.push(javaHook);
         }
     };

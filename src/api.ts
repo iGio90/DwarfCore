@@ -211,13 +211,7 @@ export class DwarfApi {
         }
 
         try {
-            const memoryHook = DwarfHooksManager.getInstance().addMemoryHook(
-                bpAddress,
-                intFlags,
-                userCallback,
-                isSingleShot,
-                isEnabled
-            );
+            const memoryHook = DwarfHooksManager.getInstance().addMemoryHook(bpAddress, intFlags, userCallback, isSingleShot, isEnabled);
             return memoryHook;
         } catch (error) {
             logErr("DwarfApi::addMemoryHook()", error);
@@ -238,12 +232,7 @@ export class DwarfApi {
             if (!checkNativePointer(bpAddress)) {
                 throw new Error("DwarfApi::addNativeHook() => Invalid Address!");
             }
-            const NativeHook = DwarfHooksManager.getInstance().addNativeHook(
-                bpAddress,
-                userCallback,
-                isSingleShot,
-                isEnabled
-            );
+            const NativeHook = DwarfHooksManager.getInstance().addNativeHook(bpAddress, userCallback, isSingleShot, isEnabled);
             return NativeHook;
         } catch (error) {
             logErr("DwarfApi::addNativeHook()", error);
@@ -269,13 +258,7 @@ export class DwarfApi {
         }
 
         try {
-            const JavaHook = DwarfHooksManager.getInstance().addJavaHook(
-                className,
-                methodName,
-                userCallback,
-                isSingleShot,
-                isEnabled
-            );
+            const JavaHook = DwarfHooksManager.getInstance().addJavaHook(className, methodName, userCallback, isSingleShot, isEnabled);
             return JavaHook;
         } catch (error) {
             logErr("DwarfApi::addNativeHook()", error);
@@ -294,12 +277,7 @@ export class DwarfApi {
         throw new Error("Not implemented!");
     };
 
-    public addModuleLoadHook = (
-        moduleName: string,
-        userCallback: DwarfCallback,
-        isSingleShot: boolean = false,
-        isEnabled: boolean = true
-    ): ModuleLoadHook => {
+    public addModuleLoadHook = (moduleName: string, userCallback: DwarfCallback, isSingleShot: boolean = false, isEnabled: boolean = true): ModuleLoadHook => {
         return DwarfHooksManager.getInstance().addModuleLoadHook(moduleName, userCallback, isSingleShot, isEnabled);
     };
 
@@ -387,8 +365,30 @@ export class DwarfApi {
         return Thread.backtrace(context, Backtracer.FUZZY).map(DebugSymbol.fromAddress);
     };
 
+    public enumModExp = (moduleInput: Module | NativePointer | number | string): Array<ModuleExportDetails> => {
+        return this.enumerateModuleExports(moduleInput);
+    };
+
+    public enumModImp = (moduleInput: Module | NativePointer | number | string): Array<ModuleImportDetails> => {
+        return this.enumerateModuleImports(moduleInput);
+    };
+
+    public enumModSym = (moduleInput: Module | NativePointer | number | string): Array<ModuleSymbolDetails> => {
+        return this.enumerateModuleSymbols(moduleInput);
+    };
+
     /**
      * Enumerate exports for the given module name or pointer
+     *
+     * ```JSON
+     * [
+     *  {
+     *      type: "function" | "variable",
+     *      name: string,
+     *      address: NativePointer
+     *  }
+     * ]
+     * ```
      * @param module an hex/int address or string name
      */
     public enumerateModuleExports = (moduleInput: Module | NativePointer | number | string): Array<ModuleExportDetails> => {
@@ -504,10 +504,7 @@ export class DwarfApi {
      *
      * @param protection Minimum protection of ranges to include.
      */
-    public enumerateModuleRanges = (
-        module: Module | NativePointer | number | string,
-        protection: string = "r--"
-    ): Array<RangeDetails> => {
+    public enumerateModuleRanges = (module: Module | NativePointer | number | string, protection: string = "r--"): Array<RangeDetails> => {
         let fridaModule: Module | null = null;
 
         if (!isDefined(module) || !isString(protection)) {
@@ -547,7 +544,7 @@ export class DwarfApi {
      */
     public enumerateJavaMethods = (className: string): void => {
         if (Java.available) {
-            Java.performNow(function() {
+            Java.performNow(function () {
                 // 0xdea code -> https://github.com/0xdea/frida-scripts/blob/master/raptor_frida_android_trace.js
                 const clazz = Java.use(className);
                 const methods: Array<Java.Method> = clazz.class.getDeclaredMethods();
@@ -576,7 +573,7 @@ export class DwarfApi {
      */
     public enumerateObjCModules = (className: string): void => {
         const modules = Process.enumerateModules();
-        const names = modules.map(m => m.name);
+        const names = modules.map((m) => m.name);
         Dwarf.loggedSend("enumerate_objc_modules:::" + JSON.stringify(names));
     };
 
@@ -800,24 +797,13 @@ export class DwarfApi {
         return [-1, p];
     };
 
-    public showStrings = (
-        startAddress: NativePointer | number | string,
-        scanLength: number,
-        minLen: number = 3,
-        filter?: string
-    ) => {
+    public showStrings = (startAddress: NativePointer | number | string, scanLength: number, minLen: number = 3, filter?: string) => {
         console.log("Searching for Strings, Please wait...");
         this.enumerateStrings(startAddress, scanLength, minLen, filter, true);
         console.log("***** Done *****");
     };
 
-    public enumerateStrings = (
-        startAddress: NativePointer | number | string,
-        scanLength: number,
-        minLen: number = 3,
-        filter?: string,
-        fromUi?: boolean
-    ) => {
+    public enumerateStrings = (startAddress: NativePointer | number | string, scanLength: number, minLen: number = 3, filter?: string, fromUi?: boolean) => {
         startAddress = makeNativePointer(startAddress);
 
         let searchResults = new Array<StringSearchResult>();
@@ -852,11 +838,11 @@ export class DwarfApi {
                                 const result = {
                                     string: string,
                                     length: string.length,
-                                    address: startAddress.add(i)
+                                    address: startAddress.add(i),
                                 };
                                 if (isDefined(fromUi) && fromUi === true) {
                                     Dwarf.sync({
-                                        stringResult: result
+                                        stringResult: result,
                                     });
                                 } else {
                                     searchResults.push(result);
@@ -865,11 +851,11 @@ export class DwarfApi {
                                 const result = {
                                     string: string,
                                     length: string.length,
-                                    address: startAddress.add(i)
+                                    address: startAddress.add(i),
                                 };
                                 if (isDefined(fromUi) && fromUi === true) {
                                     Dwarf.sync({
-                                        stringResult: result
+                                        stringResult: result,
                                     });
                                 } else {
                                     searchResults.push(result);
@@ -910,11 +896,11 @@ export class DwarfApi {
     /**
      * Shortcut to retrieve an Instruction object for the given address
      */
-    public getInstruction = address => {
+    public getInstruction = (address) => {
         try {
             const instruction = Instruction.parse(ptr(address));
             return JSON.stringify({
-                string: instruction.toString()
+                string: instruction.toString(),
             });
         } catch (e) {
             logErr("getInstruction", e);
@@ -990,12 +976,7 @@ export class DwarfApi {
      * @param  isEnabled
      * @returns `ClassLoadHook`
      */
-    public addClassLoadHook = (
-        className: string,
-        userCallback: DwarfCallback = "breakpoint",
-        isSingleShot: boolean = false,
-        isEnabled: boolean = true
-    ) => {
+    public addClassLoadHook = (className: string, userCallback: DwarfCallback = "breakpoint", isSingleShot: boolean = false, isEnabled: boolean = true) => {
         trace("DwarfApi::addClassLoaderHook()");
 
         if (!isString(className)) {
@@ -1214,7 +1195,7 @@ export class DwarfApi {
 
             const data = ptr(address).readByteArray(length);
 
-            ranges.forEach(range => {
+            ranges.forEach((range) => {
                 Memory.protect(range.base, range.size, range.protection);
             });
 
@@ -1228,7 +1209,7 @@ export class DwarfApi {
     /**
      * @return a pointer from the given address
      */
-    public readPointer = pt => {
+    public readPointer = (pt) => {
         try {
             return ptr(pt).readPointer();
         } catch (e) {
@@ -1364,10 +1345,7 @@ export class DwarfApi {
             if (data_json.length) {
                 DwarfCore.getInstance().sync({ showData: { type: dataType, ident: dataIdentifier, data: data_json } });
             }
-        } else if (
-            (dataType === DwarfDataDisplayType.HEX || dataType === DwarfDataDisplayType.DISASM) &&
-            data.constructor.name === "ArrayBuffer"
-        ) {
+        } else if ((dataType === DwarfDataDisplayType.HEX || dataType === DwarfDataDisplayType.DISASM) && data.constructor.name === "ArrayBuffer") {
             if ((data as ArrayBuffer).byteLength) {
                 const ptr_size = Dwarf.processInfo.getPointerSize();
                 const arch = Dwarf.processInfo.getArchitecture();
@@ -1379,8 +1357,8 @@ export class DwarfApi {
                         ptr_size: ptr_size,
                         arch: arch,
                         base: base,
-                        mode: mode
-                    }
+                        mode: mode,
+                    },
                 });
             }
         }
@@ -1408,7 +1386,7 @@ export class DwarfApi {
      * });
      * ```
      */
-    public startNativeTracer = callback => {
+    public startNativeTracer = (callback) => {
         const stalkerInfo = LogicStalker.stalk();
         if (stalkerInfo !== null) {
             stalkerInfo.currentMode = callback;
@@ -1439,12 +1417,7 @@ export class DwarfApi {
 
     private updateRanges = () => {
         try {
-            Dwarf.loggedSend(
-                "update_ranges:::" +
-                    Process.getCurrentThreadId() +
-                    ":::" +
-                    JSON.stringify(Process.enumerateRanges("---"))
-            );
+            Dwarf.loggedSend("update_ranges:::" + Process.getCurrentThreadId() + ":::" + JSON.stringify(Process.enumerateRanges("---")));
         } catch (e) {
             logErr("updateRanges", e);
         }
@@ -1452,12 +1425,7 @@ export class DwarfApi {
 
     private updateSearchableRanges = () => {
         try {
-            Dwarf.loggedSend(
-                "update_searchable_ranges:::" +
-                    Process.getCurrentThreadId() +
-                    ":::" +
-                    JSON.stringify(Process.enumerateRanges("r--"))
-            );
+            Dwarf.loggedSend("update_searchable_ranges:::" + Process.getCurrentThreadId() + ":::" + JSON.stringify(Process.enumerateRanges("r--")));
         } catch (e) {
             logErr("updateSearchableRanges", e);
         }

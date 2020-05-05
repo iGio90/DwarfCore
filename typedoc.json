@@ -1,0 +1,14 @@
+{
+    "name": "DwarfApi",
+    "hideGenerator": true,
+    "excludePrivate": true,
+    "excludeProtected": true,
+    "excludeNotExported": true,
+    "disableSources": true,
+    "theme": "./node_modules/eledoc",
+    "inputFiles": [
+        "./src"
+    ],
+    "mode": "modules",
+    "out": "./dist/docs"
+}
