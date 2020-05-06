@@ -891,11 +891,7 @@ export class Api {
      * @param flags
      * @param callback
      */
-    static putWatchpoint(
-        address: any,
-        flags: string | number,
-        callback?: Function
-    ) {
+    static putWatchpoint(address: any, flags: string | number, callback?: Function) {
         let intFlags = 0;
         if (!Utils.isDefined(flags)) {
             flags = "rw";
