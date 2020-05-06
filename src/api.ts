@@ -60,6 +60,7 @@ export class Api {
 
     /**
      * Shortcut to retrieve native backtrace
+     *
      * @param context: the CpuContext object
      */
     static backtrace(context?: CpuContext): DebugSymbol[] | null {
@@ -77,6 +78,7 @@ export class Api {
 
     /**
      * Enumerate exports for the given module name or pointer
+     *
      * @param module an hex/int address or string name
      */
     static enumerateExports(module: any): Array<ModuleExportDetails> {
@@ -94,7 +96,8 @@ export class Api {
 
     /**
      * Enumerate imports for the given module name or pointer
-     * @param module an hex/int address or string name
+     *
+     * @param module: an hex/int address or string name
      */
     static enumerateImports(module): Array<ModuleExportDetails> {
         if (typeof module !== "object") {
@@ -111,7 +114,8 @@ export class Api {
 
     /**
      * Enumerate java classes
-     * @param useCache false by default
+     *
+     * @param useCache: false by default
      */
     static enumerateJavaClasses(useCache?) {
         if (!Utils.isDefined(useCache)) {
@@ -161,7 +165,9 @@ export class Api {
     }
 
     /**
-     * Enumerate method for the given class
+     * Enumerate method for the given class name
+     *
+     * @param className: the name of the class
      */
     static enumerateJavaMethods(className: string): void {
         if (Java.available) {
@@ -197,15 +203,16 @@ export class Api {
     /**
      * Enumerate modules for ObjC inspector panel
      */
-    static enumerateObjCModules(className: string): void {
+    static enumerateObjCModules(): void {
         const modules = Process.enumerateModules();
         const names = modules.map(m => m.name);
         Dwarf.loggedSend("enumerate_objc_modules:::" + JSON.stringify(names));
     }
 
     /**
-     * Enumerate objc classes
-     * @param useCache false by default
+     * Enumerate ObjC classes in the given module
+     *
+     * @param moduleName: the name of the module
      */
     static enumerateObjCClasses(moduleName: string) {
         Dwarf.loggedSend("enumerate_objc_classes_start:::");
@@ -235,7 +242,9 @@ export class Api {
     }
 
     /**
-     * Enumerate method for the given class
+     * Enumerate ObjC methods for the given class
+     *
+     * @param className: the name of the class
      */
     static enumerateObjCMethods(className: string): void {
         if (ObjC.available) {
@@ -253,6 +262,9 @@ export class Api {
 
     /**
      * Enumerate loaded modules
+     *
+     * @param fillInformation: optional bool, default false.
+     * When true, it will enumerate import/exports/symbols of modules
      */
     static enumerateModules(fillInformation?: boolean) {
         fillInformation = fillInformation || false;
@@ -287,7 +299,8 @@ export class Api {
 
     /**
      * Enumerate all information about the module (imports / exports / symbols)
-     * @param fridaModule object from frida-gum
+     *
+     * @param fridaModule: object from frida-gum
      */
     /*
         TODO: recheck! when doc says object from frida-gum it shouldnt used by dwarf with string
@@ -344,7 +357,8 @@ export class Api {
 
     /**
      * Enumerate symbols for the given module name or pointer
-     * @param module an hex/int address or string name
+     *
+     * @param module: an hex/int address or string name
      */
     static enumerateSymbols(module): Array<ModuleSymbolDetails> {
         if (typeof module !== "object") {
@@ -361,12 +375,13 @@ export class Api {
 
     /**
      * Evaluate javascript. Used from the UI to inject javascript code into the process
-     * @param w
+     *
+     * @param jsCode: the code to evaluate
      */
-    static evaluate(w) {
+    static evaluate(jsCode: string) {
         const Thread = ThreadWrapper;
         try {
-            return eval(w);
+            return eval(jsCode);
         } catch (e) {
             Api.log(e.toString());
             return null;
@@ -375,11 +390,12 @@ export class Api {
 
     /**
      * Evaluate javascript. Used from the UI to inject javascript code into the process
-     * @param w
+     *
+     * @param jsFnc: the javascript string to evaluate
      */
-    static evaluateFunction(w) {
+    static evaluateFunction(jsFnc: string) {
         try {
-            const fn = new Function("Thread", w);
+            const fn = new Function("Thread", jsFnc);
             return fn.apply(this, [ThreadWrapper]);
         } catch (e) {
             Api.log(e.toString());
@@ -389,11 +405,12 @@ export class Api {
 
     /**
      * Evaluate any input and return a NativePointer
-     * @param w
+     *
+     * @param pointer: a number/string
      */
-    static evaluatePtr(w: any): NativePointer {
+    static evaluatePtr(pointer: any): NativePointer {
         try {
-            return ptr(eval(w));
+            return ptr(eval(pointer));
         } catch (e) {
             return NULL;
         }
@@ -468,7 +485,6 @@ export class Api {
 
     /**
      * get telescope information for the given pointer argument
-     * @param p: pointer
      */
     static getAddressTs(p) {
         const _ptr = ptr(p);
@@ -493,6 +509,7 @@ export class Api {
 
     /**
      * Return an array of DebugSymbol for the requested pointers
+     *
      * @param ptrs: an array of NativePointer
      */
     static getDebugSymbols(ptrs): DebugSymbol[] {
@@ -570,8 +587,9 @@ export class Api {
      *     console.log('hello from:', this.className, this.method);
      * })
      * ```
-     * @param className
-     * @param callback
+     *
+     * @param className: the class name
+     * @param callback: a function callback
      */
     static hookAllJavaMethods(className: string, callback: Function): boolean {
         return LogicJava.hookAllJavaMethods(className, callback);
@@ -585,13 +603,11 @@ export class Api {
      *     console.log('target is being loaded');
      * })
      * ```
-     * @param className
-     * @param callback
+     *
+     * @param className: the class name
+     * @param callback: a function callback
      */
-    static hookClassLoaderClassInitialization(
-        className: string,
-        callback: Function
-    ): boolean {
+    static hookClassLoaderClassInitialization(className: string, callback: Function): boolean {
         return LogicJava.hookClassLoaderClassInitialization(
             className,
             callback
@@ -605,8 +621,9 @@ export class Api {
      *     console.log('activity created');
      * })
      * ```
-     * @param className
-     * @param callback
+     *
+     * @param className: the class name
+     * @param callback: a function callback
      */
     static hookJavaConstructor(className: string, callback: Function): boolean {
         return LogicJava.hook(className, "$init", callback);
@@ -625,13 +642,11 @@ export class Api {
      *     }
      * })
      * ```
-     * @param targetClassMethod
-     * @param callback
+     *
+     * @param targetClassMethod: class name and method
+     * @param callback: a function callback
      */
-    static hookJavaMethod(
-        targetClassMethod: string,
-        callback: Function
-    ): boolean {
+    static hookJavaMethod(targetClassMethod: string, callback: Function): boolean {
         return LogicJava.hookJavaMethod(targetClassMethod, callback);
     }
 
@@ -642,13 +657,11 @@ export class Api {
      *     console.log('libtarget is being loaded');
      * });
      * ```
-     * @param moduleName
-     * @param callback
+     *
+     * @param moduleName: the name of the module
+     * @param callback: a function callback
      */
-    static hookModuleInitialization(
-        moduleName: string,
-        callback: Function
-    ): boolean {
+    static hookModuleInitialization(moduleName: string, callback: Function): boolean {
         return LogicInitialization.hookModuleInitialization(
             moduleName,
             callback
@@ -826,10 +839,7 @@ export class Api {
      * @param address_or_class
      * @param condition
      */
-    static putBreakpoint(
-        address_or_class: any,
-        condition?: string | Function
-    ): boolean {
+    static putBreakpoint(address_or_class: any, condition?: string | Function): boolean {
         return LogicBreakpoint.putBreakpoint(address_or_class, condition);
     }
 
@@ -839,6 +849,7 @@ export class Api {
      * ```javascript
      * putJavaClassInitializationBreakpoint('android.app.Activity');
      * ```
+     *
      * @param className
      */
     static putJavaClassInitializationBreakpoint(className: string): boolean {
@@ -851,6 +862,7 @@ export class Api {
      * ```javascript
      * putModuleInitializationBreakpoint('libtarget.so');
      * ```
+     *
      * @param moduleName
      */
     static putModuleInitializationBreakpoint(moduleName: string): boolean {
@@ -874,6 +886,7 @@ export class Api {
      *     }
      * });
      * ```
+     *
      * @param address
      * @param flags
      * @param callback
@@ -1035,6 +1048,7 @@ export class Api {
 
     /**
      * Remove a breakpoint on address_or_class
+     *
      * @return a boolean indicating if removal was successful
      */
     static removeBreakpoint(address_or_class: any): boolean {
@@ -1043,11 +1057,10 @@ export class Api {
 
     /**
      * Remove a java class initialization breakpoint on moduleName
+     *
      * @return a boolean indicating if removal was successful
      */
-    static removeJavaClassInitializationBreakpoint(
-        moduleName: string
-    ): boolean {
+    static removeJavaClassInitializationBreakpoint(moduleName: string): boolean {
         const ret = LogicJava.removeModuleInitializationBreakpoint(moduleName);
         if (ret) {
             Dwarf.loggedSend(
@@ -1059,6 +1072,7 @@ export class Api {
 
     /**
      * Remove a module initialization breakpoint on moduleName
+     *
      * @return a boolean indicating if removal was successful
      */
     static removeModuleInitializationBreakpoint(moduleName: string): boolean {
@@ -1075,6 +1089,7 @@ export class Api {
 
     /**
      * Remove a watchpoint on the given address
+     *
      * @return a boolean indicating if removal was successful
      */
     static removeWatchpoint(address: any): boolean {
@@ -1179,7 +1194,7 @@ export class Api {
     }
 
     /**
-     * start strace
+     * start syscall tracing
      */
     static strace(callback): boolean {
         return LogicStalker.strace(callback);
