@@ -30,6 +30,7 @@ import {
     MEMORY_ACCESS_READ,
     MEMORY_ACCESS_WRITE
 } from "./watchpoint";
+import {loadavg} from "os";
 
 export class Api {
     private static _internalMemoryScan(start, size, pattern) {
@@ -143,19 +144,24 @@ export class Api {
             Java.performNow(function() {
                 Dwarf.loggedSend("enumerate_java_classes_start:::");
                 try {
-                    Java.enumerateLoadedClasses({
-                        onMatch: function(className) {
-                            if (LogicJava !== null) {
-                                LogicJava.javaClasses.push(className);
+                    const mainLoader = Java.classFactory.loader;
+                    Java.enumerateClassLoadersSync().forEach(function (loaderz) {
+                        Java.classFactory.loader = loaderz;
+                        Java.enumerateLoadedClasses({
+                            onMatch: function(className) {
+                                if (LogicJava !== null) {
+                                    LogicJava.javaClasses.push(className);
+                                }
+                                send("enumerate_java_classes_match:::" + className);
+                            },
+                            onComplete: function() {
+                                Dwarf.loggedSend(
+                                    "enumerate_java_classes_complete:::"
+                                );
                             }
-                            send("enumerate_java_classes_match:::" + className);
-                        },
-                        onComplete: function() {
-                            Dwarf.loggedSend(
-                                "enumerate_java_classes_complete:::"
-                            );
-                        }
+                        });
                     });
+                    Java.classFactory.loader = mainLoader;
                 } catch (e) {
                     Utils.logErr("enumerateJavaClasses", e);
                     Dwarf.loggedSend("enumerate_java_classes_complete:::");
