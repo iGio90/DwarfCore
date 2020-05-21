@@ -30,7 +30,6 @@ import {
     MEMORY_ACCESS_READ,
     MEMORY_ACCESS_WRITE
 } from "./watchpoint";
-import {loadavg} from "os";
 
 export class Api {
     private static _internalMemoryScan(start, size, pattern) {
@@ -145,7 +144,9 @@ export class Api {
                 Dwarf.loggedSend("enumerate_java_classes_start:::");
                 try {
                     const mainLoader = Java.classFactory.loader;
-                    Java.enumerateClassLoadersSync().forEach(function (loaderz) {
+                    let ldr = Java.enumerateClassLoadersSync();
+                    let n = 0;
+                    ldr.forEach(function (loaderz) {
                         Java.classFactory.loader = loaderz;
                         Java.enumerateLoadedClasses({
                             onMatch: function(className) {
@@ -155,9 +156,12 @@ export class Api {
                                 send("enumerate_java_classes_match:::" + className);
                             },
                             onComplete: function() {
-                                Dwarf.loggedSend(
-                                    "enumerate_java_classes_complete:::"
-                                );
+                                n++;
+                                if (n === ldr.length) {
+                                    Dwarf.loggedSend(
+                                        "enumerate_java_classes_complete:::"
+                                    );
+                                }
                             }
                         });
                     });
