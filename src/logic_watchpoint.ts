@@ -73,7 +73,7 @@ export class LogicWatchpoint {
         if (watchpoint !== null) {
             const invocationListener = Interceptor.attach(exception.address, function (args) {
                 invocationListener.detach();
-                Interceptor.flush();
+                Interceptor['flush']();
 
                 if (watchpoint.callback !== null) {
                     watchpoint.callback.call(this, args);
@@ -124,7 +124,7 @@ export class LogicWatchpoint {
         if (watchpoint !== null) {
             const invocationListener = Interceptor.attach(fromPtr, function (args) {
                 invocationListener.detach();
-                Interceptor.flush();
+                Interceptor['flush']();
 
                 if (watchpoint.callback !== null) {
                     watchpoint.callback.call(this, args);

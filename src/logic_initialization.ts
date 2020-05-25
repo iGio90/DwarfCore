@@ -127,31 +127,35 @@ export class LogicInitialization {
                 }
             }
         } else if (LogicJava.available) {
-            // android native onload code
-            /*! taken from new core without onLeave!!! */
-            //https://android.googlesource.com/platform/art/+/android-6.0.0_r26/runtime/java_vm_ext.cc#596
-            const artModule = Process.findModuleByName("libart.so");
-            if (artModule) {
-                for (let moduleExportDetail of artModule.enumerateExports()) {
-                    if (moduleExportDetail.name.indexOf("LoadNativeLibrary") != -1) {
-                        //changed in sdk 22, 23, 25 but we're only interested in path arg
-                        //<=22 args = (void *JavaVMExt, std::string &path,...)
-                        //>=23 args = (void *JavaVMExt, JNIEnv *env, std::string &path, ...)
-                        const argNum = LogicJava.sdk <= 22 ? 1 : 2;
-                        Interceptor.attach(moduleExportDetail.address, {
-                            onEnter: function(args) {
-                                const moduleName = Utils.readStdString(args[argNum]);
-                                LogicInitialization.hitModuleLoading.apply(this, [moduleName]);
-                            }
-                        });
-                    }
-                }
-            }
-            //https://android.googlesource.com/platform/dalvik/+/eclair-release/vm/Native.c#443
+            // check if dvm is available
+            // https://android.googlesource.com/platform/dalvik/+/eclair-release/vm/Native.c#443
             const dvmModule = Process.findModuleByName("libdvm.so");
             if (dvmModule) {
+                // android native onload code
+                /*! taken from new core without onLeave!!! */
+                //https://android.googlesource.com/platform/art/+/android-6.0.0_r26/runtime/java_vm_ext.cc#596
+                const artModule = Process.findModuleByName("libart.so");
+                if (artModule) {
+                    for (let moduleExportDetail of artModule.enumerateExports()) {
+                        if (moduleExportDetail.name.indexOf("LoadNativeLibrary") != -1) {
+                            console.log('hook loadnative');
+                            //changed in sdk 22, 23, 25 but we're only interested in path arg
+                            //<=22 args = (void *JavaVMExt, std::string &path,...)
+                            //>=23 args = (void *JavaVMExt, JNIEnv *env, std::string &path, ...)
+                            const argNum = LogicJava.sdk <= 22 ? 1 : 2;
+                            Interceptor.attach(moduleExportDetail.address, {
+                                onEnter: function(args) {
+                                    const moduleName = Utils.readStdString(args[argNum]);
+                                    LogicInitialization.hitModuleLoading.apply(this, [moduleName]);
+                                }
+                            });
+                        }
+                    }
+                }
+
                 for (let moduleExportDetail of dvmModule.enumerateExports()) {
                     if (moduleExportDetail.name.indexOf("dvmLoadNativeCode") != -1) {
+                        console.log('hook dvmLoadNativeCode');
                         Interceptor.attach(moduleExportDetail.address, {
                             onEnter: function(args) {
                                 const moduleName = args[0].readUtf8String();
@@ -160,49 +164,50 @@ export class LogicInitialization {
                         });
                     }
                 }
-            }
-            /*if (LogicJava.sdk >= 23) {
-                const module = Process.findModuleByName(Process.arch.indexOf('64') >= 0 ? 'linker64' : "linker");
-                if (module !== null) {
-                    const symbols = module.enumerateSymbols();
-                    const call_constructors = symbols.find(symbol => symbol.name.indexOf('call_constructors') >= 0);
-
-                    if (Utils.isDefined(call_constructors)) {
-                        Interceptor.attach(call_constructors.address, function (args) {
-                            try {
-                                LogicInitialization.hitModuleLoading.apply(this, [args[4].readUtf8String()]);
-                            } catch (e) {
-                            }
-                        });
-                    }
-                }
             } else {
-                if (Process.arch === 'ia32') {
-                    // this suck hard but it's the best way i can think
-                    // working on latest nox emulator 5.1.1
-                    const linkerRanges = Process.findModuleByName('linker').enumerateRanges('r-x');
-                    for (let i = 0; i < linkerRanges.length; i++) {
-                        const range = linkerRanges[i];
-                        const res = Memory.scanSync(range.base, range.size, '89 FD C7 44 24 30 00 00 00 00');
-                        if (res.length > 0) {
-                            Interceptor.attach(res[0].address, function () {
-                                const context = this.context as Ia32CpuContext;
-                                if (context.ecx.toInt32() !== 0x8) {
-                                    return;
-                                }
+                if (LogicJava.sdk >= 23) {
+                    const module = Process.findModuleByName(Process.arch.indexOf('64') >= 0 ? 'linker64' : "linker");
+                    if (module !== null) {
+                        const symbols = module.enumerateSymbols();
+                        const call_constructors = symbols.find(symbol => symbol.name.indexOf('call_constructors') >= 0);
 
+                        if (Utils.isDefined(call_constructors)) {
+                            Interceptor.attach(call_constructors.address, function (args) {
                                 try {
-                                    const w = context.esi.readCString();
-                                    LogicInitialization.hitModuleLoading.apply(this, [w]);
+                                    LogicInitialization.hitModuleLoading.apply(this, [args[4].readUtf8String()]);
                                 } catch (e) {
-                                    Utils.logErr('Dwarf.onLoad setup', e);
                                 }
                             });
-                            break;
+                        }
+                    }
+                } else {
+                    if (Process.arch === 'ia32') {
+                        // this suck hard but it's the best way i can think
+                        // working on latest nox emulator 5.1.1
+                        const linkerRanges = Process.findModuleByName('linker').enumerateRanges('r-x');
+                        for (let i = 0; i < linkerRanges.length; i++) {
+                            const range = linkerRanges[i];
+                            const res = Memory.scanSync(range.base, range.size, '89 FD C7 44 24 30 00 00 00 00');
+                            if (res.length > 0) {
+                                Interceptor.attach(res[0].address, function () {
+                                    const context = this.context as Ia32CpuContext;
+                                    if (context.ecx.toInt32() !== 0x8) {
+                                        return;
+                                    }
+
+                                    try {
+                                        const w = context.esi.readCString();
+                                        LogicInitialization.hitModuleLoading.apply(this, [w]);
+                                    } catch (e) {
+                                        Utils.logErr('Dwarf.onLoad setup', e);
+                                    }
+                                });
+                                break;
+                            }
                         }
                     }
                 }
-            }*/
+            }
         }
     }
 
