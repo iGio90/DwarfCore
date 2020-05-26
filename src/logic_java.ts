@@ -383,10 +383,14 @@ export class LogicJava {
                     }
                 } else if (t === 'object') {
                     if (handle[name] !== null) {
-                        sub_handle_class = handle[name]['$className'];
+                        if (typeof handle[name] !== 'undefined') {
+                            sub_handle_class = handle[name]['$className'];
+                        }
                     }
 
-                    if (typeof handle[name]['$handle'] !== 'undefined' && handle[name]['$handle'] !== null) {
+                    if (typeof handle[name] !== 'undefined' &&
+                        typeof handle[name]['$handle'] !== 'undefined' &&
+                        handle[name]['$handle'] !== null) {
                         value = handle[name]['$handle'];
                         sub_handle = handle[name]['$handle'];
                     } else {

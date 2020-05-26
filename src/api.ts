@@ -1201,6 +1201,13 @@ export class Api {
 
     /**
      * start syscall tracing
+     *
+     * strace(function() {
+     *     console.log(this.context.x0);
+     *     if (1 === 1) {
+     *         this.stop();
+     *     }
+     * });
      */
     static strace(callback): boolean {
         return LogicStalker.strace(callback);
