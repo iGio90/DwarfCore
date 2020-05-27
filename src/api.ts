@@ -1163,7 +1163,7 @@ export class Api {
     /**
      * Start the java tracer on the given classes
      */
-    static startJavaTracer(classes: string[], callback: Function) {
+    static startJavaTracer(classes: string[], callback: Function | object) {
         return LogicJava.startTrace(classes, callback);
     }
 
