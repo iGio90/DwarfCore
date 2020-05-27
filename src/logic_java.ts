@@ -31,51 +31,62 @@ export class LogicJava {
     static javaHandles = {};
     static tracedClasses = [];
     static tracing = false;
+    static tracerDepth = 1;
     static sdk = 0;
+
+    private static applyTracerImplementationAtClass(className, attach, callback?) {
+        try {
+            const clazz = Java.use(className);
+
+            const overloadCount = clazz["$init"].overloads.length;
+            if (overloadCount > 0) {
+                for (let i = 0; i < overloadCount; i++) {
+                    if (attach) {
+                        clazz["$init"].overloads[i].implementation =
+                            LogicJava.traceImplementation(callback, className, '$init');
+                    } else {
+                        clazz["$init"].overloads[i].implementation = null;
+                    }
+                }
+            }
+
+            let methods = clazz.class.getDeclaredMethods();
+            const parsedMethods = [];
+            methods.forEach(function (method) {
+                parsedMethods.push(method.toString().replace(className + ".",
+                    "TOKEN").match(/\sTOKEN(.*)\(/)[1]);
+            });
+            methods = Utils.uniqueBy(parsedMethods);
+            methods.forEach((method) => {
+                const overloadCount = clazz[method].overloads.length;
+                if (overloadCount > 0) {
+                    for (let i = 0; i < overloadCount; i++) {
+                        if (attach) {
+                            clazz[method].overloads[i].implementation =
+                                LogicJava.traceImplementation(callback, className, method);
+                        } else {
+                            clazz[method].overloads[i].implementation = null;
+                        }
+                    }
+                }
+            });
+
+            clazz.$dispose();
+        } catch (e) {
+            if (e.toString().indexOf('ClassNotFoundException') >= 0) {
+                LogicJava.hookClassLoaderClassInitialization(className, function (clazz) {
+                    LogicJava.applyTracerImplementationAtClass(clazz, attach, callback);
+                });
+            } else if (e.toString().indexOf('no supported overloads') < 0) {
+                Utils.logErr('LogicJava.startTrace', e);
+            }
+        }
+    }
 
     private static applyTracerImplementation(attach, callback?) {
         Java.performNow(() => {
             LogicJava.tracedClasses.forEach((className) => {
-                try {
-                    const clazz = Java.use(className);
-
-                    const overloadCount = clazz["$init"].overloads.length;
-                    if (overloadCount > 0) {
-                        for (let i = 0; i < overloadCount; i++) {
-                            if (attach) {
-                                clazz["$init"].overloads[i].implementation =
-                                    LogicJava.traceImplementation(callback, className, '$init');
-                            } else {
-                                clazz["$init"].overloads[i].implementation = null;
-                            }
-                        }
-                    }
-
-                    let methods = clazz.class.getDeclaredMethods();
-                    const parsedMethods = [];
-                    methods.forEach(function (method) {
-                        parsedMethods.push(method.toString().replace(className + ".",
-                            "TOKEN").match(/\sTOKEN(.*)\(/)[1]);
-                    });
-                    methods = Utils.uniqueBy(parsedMethods);
-                    methods.forEach((method) => {
-                        const overloadCount = clazz[method].overloads.length;
-                        if (overloadCount > 0) {
-                            for (let i = 0; i < overloadCount; i++) {
-                                if (attach) {
-                                    clazz[method].overloads[i].implementation =
-                                        LogicJava.traceImplementation(callback, className, method);
-                                } else {
-                                    clazz[method].overloads[i].implementation = null;
-                                }
-                            }
-                        }
-                    });
-
-                    clazz.$dispose();
-                } catch (e) {
-                    Utils.logErr('LogicJava.startTrace', e);
-                }
+                LogicJava.applyTracerImplementationAtClass(className, attach, callback);
             });
         });
     };
@@ -258,7 +269,7 @@ export class LogicJava {
                     const userCallback = LogicJava.javaClassLoaderCallbacks[clazz];
                     if (typeof userCallback !== 'undefined') {
                         if (userCallback !== null) {
-                            userCallback.call(this);
+                            userCallback.call(this, clazz);
                         } else {
                             Dwarf.loggedSend("java_class_initialization_callback:::" + clazz + ':::' + Process.getCurrentThreadId());
                             LogicBreakpoint.breakpoint(LogicBreakpoint.REASON_BREAKPOINT, clazz, {}, this);
@@ -530,6 +541,7 @@ export class LogicJava {
         }
 
         LogicJava.tracing = true;
+        LogicJava.tracerDepth = 1;
         LogicJava.tracedClasses = classes;
         LogicJava.applyTracerImplementation(true, callback);
 
@@ -542,6 +554,7 @@ export class LogicJava {
         }
 
         LogicJava.tracing = false;
+        LogicJava.tracerDepth = 1;
         LogicJava.applyTracerImplementation(true);
 
         return true;
@@ -551,16 +564,24 @@ export class LogicJava {
         return function () {
             const uiCallback = !Utils.isDefined(callback);
             const classMethod = className + '.' + method;
-
+            const thatObject = {
+                $className: className,
+                method: method,
+                depth: LogicJava.tracerDepth
+            }
             if (uiCallback) {
                 Dwarf.loggedSend('java_trace:::enter:::' + classMethod + ':::' + JSON.stringify(arguments));
             } else {
                 if (Utils.isDefined(callback['onEnter'])) {
-                    callback['onEnter'](arguments);
+                    callback['onEnter'].apply(thatObject, arguments);
+                } else if (typeof callback === 'function') {
+                    callback.apply(thatObject, arguments);
                 }
             }
 
+            LogicJava.tracerDepth += 1;
             let ret = this[method].apply(this, arguments);
+            LogicJava.tracerDepth -= 1;
 
             if (uiCallback) {
                 let traceRet = ret;
@@ -572,7 +593,7 @@ export class LogicJava {
                 Dwarf.loggedSend('java_trace:::leave:::' + classMethod + ':::' + traceRet);
             } else {
                 if (Utils.isDefined(callback['onLeave'])) {
-                    let tempRet = callback['onLeave'](ret);
+                    let tempRet = callback['onLeave'].apply(thatObject, ret);
                     if (typeof tempRet !== 'undefined') {
                         ret = tempRet;
                     }
