@@ -61,7 +61,11 @@ export class Api {
     /**
      * Shortcut to retrieve native backtrace
      *
-     * @param context: the CpuContext object
+     * ```javascript
+     * Interceptor.attach(targetPtr, function() {
+     *     console.log(backtrace(this.context));
+     * }
+     * ```
      */
     static backtrace(context?: CpuContext): DebugSymbol[] | null {
         if (!Utils.isDefined(context)) {
@@ -71,7 +75,7 @@ export class Api {
             }
         }
 
-        return Thread.backtrace(context, Backtracer.FUZZY).map(
+        return Thread.backtrace(context, Backtracer.ACCURATE).map(
             DebugSymbol.fromAddress
         );
     }
@@ -79,7 +83,9 @@ export class Api {
     /**
      * Enumerate exports for the given module name or pointer
      *
-     * @param module an hex/int address or string name
+     * ```javascript
+     * enumerateExports(Process.findModuleByName('libtarget.so'));
+     * ```
      */
     static enumerateExports(module: any): Array<ModuleExportDetails> {
         if (typeof module !== "object") {
@@ -97,7 +103,9 @@ export class Api {
     /**
      * Enumerate imports for the given module name or pointer
      *
-     * @param module: an hex/int address or string name
+     * ```javascript
+     * enumerateImports(Process.findModuleByName('libtarget.so'));
+     * ```
      */
     static enumerateImports(module): Array<ModuleExportDetails> {
         if (typeof module !== "object") {
@@ -115,7 +123,11 @@ export class Api {
     /**
      * Enumerate java classes
      *
-     * @param useCache: false by default
+     * ```javascript
+     * enumerateJavaClasses().forEach(function(clazz) {
+     *     console.log(clazz);
+     * });;
+     * ```
      */
     static enumerateJavaClasses(useCache?) {
         if (!Utils.isDefined(useCache)) {
@@ -177,7 +189,9 @@ export class Api {
     /**
      * Enumerate method for the given class name
      *
-     * @param className: the name of the class
+     * ```javascript
+     * enumerateJavaMethods('android.app.Activity');
+     * ```
      */
     static enumerateJavaMethods(className: string): void {
         if (Java.available) {
@@ -212,6 +226,10 @@ export class Api {
 
     /**
      * Enumerate modules for ObjC inspector panel
+     *
+     * ```javascript
+     * enumerateObjCModules();
+     * ```
      */
     static enumerateObjCModules(): void {
         const modules = Process.enumerateModules();
@@ -222,7 +240,9 @@ export class Api {
     /**
      * Enumerate ObjC classes in the given module
      *
-     * @param moduleName: the name of the module
+     * ```javascript
+     * enumerateObjCClasses('module');
+     * ```
      */
     static enumerateObjCClasses(moduleName: string) {
         Dwarf.loggedSend("enumerate_objc_classes_start:::");
@@ -254,7 +274,9 @@ export class Api {
     /**
      * Enumerate ObjC methods for the given class
      *
-     * @param className: the name of the class
+     * ```javascript
+     * enumerateObjCMethods('class');
+     * ```
      */
     static enumerateObjCMethods(className: string): void {
         if (ObjC.available) {
@@ -273,8 +295,9 @@ export class Api {
     /**
      * Enumerate loaded modules
      *
-     * @param fillInformation: optional bool, default false.
-     * When true, it will enumerate import/exports/symbols of modules
+     * ```javascript
+     * enumerateModules(true); // symbols, exports and imports - yes please.
+     * ```
      */
     static enumerateModules(fillInformation?: boolean) {
         fillInformation = fillInformation || false;
@@ -310,7 +333,9 @@ export class Api {
     /**
      * Enumerate all information about the module (imports / exports / symbols)
      *
-     * @param fridaModule: object from frida-gum
+     * ```javascript
+     * enumerateModuleInfo(Process.findModuleByName('target.so'));
+     * ```
      */
     /*
         TODO: recheck! when doc says object from frida-gum it shouldnt used by dwarf with string
@@ -360,6 +385,12 @@ export class Api {
 
     /**
      * Enumerate all mapped ranges
+     *
+     * ```javascript
+     * enumerateRanges().forEach(function(range) {
+     *     console.log(range.base, range.size);
+     * });
+     * ```
      */
     static enumerateRanges(): RangeDetails[] {
         return Process.enumerateRanges("---");
@@ -368,7 +399,9 @@ export class Api {
     /**
      * Enumerate symbols for the given module name or pointer
      *
-     * @param module: an hex/int address or string name
+     * ```javascript
+     * enumerateSymbols('module');
+     * ```
      */
     static enumerateSymbols(module): Array<ModuleSymbolDetails> {
         if (typeof module !== "object") {
@@ -386,7 +419,9 @@ export class Api {
     /**
      * Evaluate javascript. Used from the UI to inject javascript code into the process
      *
-     * @param jsCode: the code to evaluate
+     * ```javascript
+     * evaluate('console.log(1)');
+     * ```
      */
     static evaluate(jsCode: string) {
         const Thread = ThreadWrapper;
@@ -401,7 +436,11 @@ export class Api {
     /**
      * Evaluate javascript. Used from the UI to inject javascript code into the process
      *
-     * @param jsFnc: the javascript string to evaluate
+     * ```javascript
+     * evaluateFunction('(function() {
+     *     // do stuff
+     * })();');
+     * ```
      */
     static evaluateFunction(jsFnc: string) {
         try {
@@ -416,7 +455,10 @@ export class Api {
     /**
      * Evaluate any input and return a NativePointer
      *
-     * @param pointer: a number/string
+     * ```javascript
+     * evaluatePtr(10 + 10 + 0xabcd);
+     * evaluatePtr('0xabcd');
+     * ```
      */
     static evaluatePtr(pointer: any): NativePointer {
         try {
@@ -433,9 +475,6 @@ export class Api {
      * const openAddress = findExport('open');
      * const myTargetAddress = findExport('target_func', 'target_module.so');
      * ```
-     *
-     * @param name: the name of the export
-     * @param module: optional name of the module
      */
     static findExport(name, module?): NativePointer | null {
         if (typeof module === "undefined") {
@@ -446,6 +485,10 @@ export class Api {
 
     /**
      * Find a module providing any argument. Could be a string/int pointer or module name
+     *
+     * ```javascript
+     * findModule('mymodule');
+     * ```
      */
     static findModule(module: any): Module | Module[] | null {
         let _module;
@@ -488,6 +531,10 @@ export class Api {
 
     /**
      * Find a symbol matching the given pattern
+     *
+     * ```javascript
+     * findSymbol('*link*');
+     * ```
      */
     static findSymbol(pattern) {
         return DebugSymbol.findFunctionsMatching(pattern);
@@ -495,6 +542,10 @@ export class Api {
 
     /**
      * get telescope information for the given pointer argument
+     *
+     * ```javascript
+     * getAddressTs(0xdeadbeef);
+     * ```
      */
     static getAddressTs(p) {
         const _ptr = ptr(p);
@@ -520,7 +571,9 @@ export class Api {
     /**
      * Return an array of DebugSymbol for the requested pointers
      *
-     * @param ptrs: an array of NativePointer
+     * ```javascript
+     * getDebugSymbols([ptr(0x1234), ptr(0xabcd)]);
+     * ```
      */
     static getDebugSymbols(ptrs): DebugSymbol[] {
         const symbols = [];
@@ -540,6 +593,10 @@ export class Api {
 
     /**
      * Shortcut to retrieve an Instruction object for the given address
+     *
+     * ```javascript
+     * getInstruction(0xabcd);
+     * ```
      */
     static getInstruction(address) {
         try {
@@ -555,6 +612,10 @@ export class Api {
 
     /**
      * Return a RangeDetails object or null for the requested pointer
+     *
+     * ```javascript
+     * getRange(0xabcd);
+     * ```
      */
     static getRange(address: any): RangeDetails | null {
         try {
@@ -578,6 +639,10 @@ export class Api {
 
     /**
      * Return DebugSymbol or null for the given pointer
+     *
+     * ```javascript
+     * getSymbolByAddress(0xabcd);
+     * ```
      */
     static getSymbolByAddress(pt): DebugSymbol | null {
         try {
@@ -597,9 +662,6 @@ export class Api {
      *     console.log('hello from:', this.className, this.method);
      * })
      * ```
-     *
-     * @param className: the class name
-     * @param callback: a function callback
      */
     static hookAllJavaMethods(className: string, callback: Function): boolean {
         return LogicJava.hookAllJavaMethods(className, callback);
@@ -613,9 +675,6 @@ export class Api {
      *     console.log('target is being loaded');
      * })
      * ```
-     *
-     * @param className: the class name
-     * @param callback: a function callback
      */
     static hookClassLoaderClassInitialization(className: string, callback: Function): boolean {
         return LogicJava.hookClassLoaderClassInitialization(
@@ -631,9 +690,6 @@ export class Api {
      *     console.log('activity created');
      * })
      * ```
-     *
-     * @param className: the class name
-     * @param callback: a function callback
      */
     static hookJavaConstructor(className: string, callback: Function): boolean {
         return LogicJava.hook(className, "$init", callback);
@@ -652,9 +708,6 @@ export class Api {
      *     }
      * })
      * ```
-     *
-     * @param targetClassMethod: class name and method
-     * @param callback: a function callback
      */
     static hookJavaMethod(targetClassMethod: string, callback: Function): boolean {
         return LogicJava.hookJavaMethod(targetClassMethod, callback);
@@ -667,9 +720,6 @@ export class Api {
      *     console.log('libtarget is being loaded');
      * });
      * ```
-     *
-     * @param moduleName: the name of the module
-     * @param callback: a function callback
      */
     static hookModuleInitialization(moduleName: string, callback: Function): boolean {
         return LogicInitialization.hookModuleInitialization(
@@ -681,7 +731,9 @@ export class Api {
     /**
      * Map the given blob as hex string using memfd:create with the given name
      *
-     * @return a negative integer if error or fd
+     * ```javascript
+     * injectBlob('blob', 'aabbccddeeff');
+     * ```
      */
     static injectBlob(name: string, blob: string) {
         // arm syscall memfd_create
@@ -740,7 +792,9 @@ export class Api {
     }
 
     /**
-     * @return a boolean indicating if the given pointer is currently watched
+     * ```javascript
+     * var alreadyWatched = isAddressWatched(0x1234);
+     * ```
      */
     static isAddressWatched(pt: any): boolean {
         const watchpoint =
@@ -771,14 +825,21 @@ export class Api {
     }
 
     /**
-     * @return a java stack trace. Must be executed in JVM thread
+     * get the java stack trace. Must be executed in JVM thread
+     *
+     * ```javascript
+     * Java.perform(function() {
+     *     console.log(javaBacktrace());
+     * });
+     * ```
      */
     static javaBacktrace() {
         return LogicJava.backtrace();
     }
 
     /**
-     * @return the explorer object for the given java handle
+     * get the explorer object for the given java handle.
+     * required by UI
      */
     static jvmExplorer(handle) {
         return LogicJava.jvmExplorer(handle);
@@ -786,6 +847,10 @@ export class Api {
 
     /**
      * log whatever to Dwarf console
+     *
+     * ```javascript
+     * log('12345');
+     * ```
      */
     static log(what): void {
         if (Utils.isDefined(what)) {
@@ -845,9 +910,6 @@ export class Api {
      * var javaTarget = 'android.app.Activity.onCreate';
      * putBreakpoint(javaTarget);
      * ```
-     *
-     * @param address_or_class
-     * @param condition
      */
     static putBreakpoint(address_or_class: any, condition?: string | Function): boolean {
         return LogicBreakpoint.putBreakpoint(address_or_class, condition);
@@ -859,8 +921,6 @@ export class Api {
      * ```javascript
      * putJavaClassInitializationBreakpoint('android.app.Activity');
      * ```
-     *
-     * @param className
      */
     static putJavaClassInitializationBreakpoint(className: string): boolean {
         return LogicJava.putJavaClassInitializationBreakpoint(className);
@@ -872,8 +932,6 @@ export class Api {
      * ```javascript
      * putModuleInitializationBreakpoint('libtarget.so');
      * ```
-     *
-     * @param moduleName
      */
     static putModuleInitializationBreakpoint(moduleName: string): boolean {
         return LogicInitialization.putModuleInitializationBreakpoint(
@@ -896,10 +954,6 @@ export class Api {
      *     }
      * });
      * ```
-     *
-     * @param address
-     * @param flags
-     * @param callback
      */
     static putWatchpoint(address: any, flags: string | number, callback?: Function) {
         let intFlags = 0;
@@ -932,7 +986,10 @@ export class Api {
     /**
      * A shortcut and secure way to read a string from a pointer with frida on any os
      *
-     * @return the string pointed by address until termination or optional length
+     * ```javascript
+     * var what = readString(0x1234);
+     * var a = readString(0xabcd, 32);
+     * ```
      */
     static readString(address, length?) {
         try {
@@ -987,7 +1044,9 @@ export class Api {
     /**
      * A shortcut for safely reading from memory
      *
-     * @return an ArrayBuffer of the given length filled with data starting from target address
+     * ```javascript
+     * var buf = readBytes(0x1234, 32);
+     * ```
      */
     static readBytes(address, length) {
         try {
@@ -1034,7 +1093,11 @@ export class Api {
     }
 
     /**
-     * @return a pointer from the given address
+     * get a pointer from the given address
+     *
+     * ```javascript
+     * var p = readPointer(0x1234);
+     * ```
      */
     static readPointer(pt) {
         try {
@@ -1046,7 +1109,14 @@ export class Api {
     }
 
     /**
-     * resume the execution of the given thread id
+     * resume the execution of the given thread id when in breakpoints
+     *
+     * ```javascript
+     * Interceptor.attach(0x1234, function() {
+     *     // do my stuff
+     *     releaseFromJs(Process.getCurrentThreadId());
+     * });
+     * ```
      */
     static releaseFromJs(tid): void {
         Dwarf.loggedSend("release_js:::" + tid);
@@ -1064,7 +1134,9 @@ export class Api {
     /**
      * Remove a java class initialization breakpoint on moduleName
      *
-     * @return a boolean indicating if removal was successful
+     * ```javascript
+     * removeJavaClassInitializationBreakpoint('android.app.Activity');
+     * ```
      */
     static removeJavaClassInitializationBreakpoint(moduleName: string): boolean {
         const ret = LogicJava.removeModuleInitializationBreakpoint(moduleName);
@@ -1079,7 +1151,9 @@ export class Api {
     /**
      * Remove a module initialization breakpoint on moduleName
      *
-     * @return a boolean indicating if removal was successful
+     * ```javascript
+     * removeModuleInitializationBreakpoint('mytarget.so');
+     * ```
      */
     static removeModuleInitializationBreakpoint(moduleName: string): boolean {
         const ret = LogicInitialization.removeModuleInitializationBreakpoint(
@@ -1096,7 +1170,9 @@ export class Api {
     /**
      * Remove a watchpoint on the given address
      *
-     * @return a boolean indicating if removal was successful
+     * ```javascript
+     * removeWatchpoint(0x1234);
+     * ```
      */
     static removeWatchpoint(address: any): boolean {
         return LogicWatchpoint.removeWatchpoint(address);
@@ -1104,8 +1180,11 @@ export class Api {
 
     /**
      * Restart the application
-     *
      * Android only
+     *
+     * ```javascript
+     * restart();
+     * ```
      */
     static restart(): boolean {
         if (LogicJava.available) {
@@ -1162,6 +1241,12 @@ export class Api {
 
     /**
      * Start the java tracer on the given classes
+     *
+     * ```javascript
+     * startJavaTracer(['android.app.Activity', 'android.view.View'], function() {
+     *     console.log(this.$className, this.method);
+     * });
+     * ```
      */
     static startJavaTracer(classes: string[], callback: Function | object) {
         return LogicJava.startTrace(classes, callback);
@@ -1194,6 +1279,10 @@ export class Api {
 
     /**
      * Stop the java tracer
+     *
+     * ```javascript
+     * stopJavaTracer();
+     * ```
      */
     static stopJavaTracer(): boolean {
         return LogicJava.stopTrace();
@@ -1251,6 +1340,10 @@ export class Api {
 
     /**
      * Write the given hex string or ArrayBuffer into the given address
+     *
+     * ```javascript
+     * writeBytes(0x1234, 'aabbccddeeff');
+     * ```
      */
     static writeBytes(address: any, what: string | ArrayBuffer) {
         try {
