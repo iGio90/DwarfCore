@@ -41,10 +41,10 @@ def generate_types(file):
 
 def apply_doc_markdown():
     top = '''---
-    id: dwarf
-    title: Dwarf
-    sidebar_label: Dwarf
-    ---
+id: dwarf
+title: Dwarf
+sidebar_label: Dwarf
+---
     \n'''
 
     with open('dist/docs/classes/_api_.api.md', 'r') as f:
