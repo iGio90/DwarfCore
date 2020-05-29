@@ -852,9 +852,18 @@ export class Api {
      * log('12345');
      * ```
      */
-    static log(what): void {
-        if (Utils.isDefined(what)) {
-            Dwarf.loggedSend("log:::" + what);
+    static log(message?: any, ...optionalParams: any[]): void {
+        if (Utils.isDefined(message)) {
+            if (Dwarf.UI) {
+                if (optionalParams.length > 0) {
+                    optionalParams.forEach(function (param) {
+                        message += ' ' + param;
+                    });
+                }
+                Dwarf.loggedSend("log:::" + message);
+            } else {
+                console.log(message, optionalParams)
+            }
         }
     }
 

@@ -28,6 +28,13 @@ export class Dwarf {
     static DEBUG: boolean;
     static BREAK_START: boolean;
     static SPAWNED: boolean;
+    /*
+    Indicate if dwarf core has been initialized from the ui.
+    This is because the ui uses some reserved api which in some cases we want to use from an external thing
+    (injector or other tools which uses the core js).
+    So that flag can be used to switch the behavior of reserved ui api to work with external stuff
+     */
+    static UI: boolean;
 
     static PROC_RESUMED = false;
 
@@ -35,10 +42,11 @@ export class Dwarf {
 
     static modulesBlacklist = [];
 
-    static init(breakStart, debug, spawned) {
+    static init(breakStart, debug, spawned, isUi) {
         Dwarf.BREAK_START = breakStart;
         Dwarf.DEBUG = debug;
         Dwarf.SPAWNED = spawned;
+        Dwarf.UI = isUi;
 
         if (LogicJava.available) {
             LogicJava.init();

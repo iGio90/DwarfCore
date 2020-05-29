@@ -82,8 +82,11 @@ rpc.exports = {
 
         return Api[apiFunction].apply(this, apiArguments)
     },
-    init: function (breakStart, debug, spawned) {
-        Dwarf.init(breakStart, debug, spawned);
+    init: function (breakStart, debug, spawned, isUi?) {
+        if (!Utils.isDefined(isUi)) {
+            isUi = false;
+        }
+        Dwarf.init(breakStart, debug, spawned, isUi);
     },
     keywords: function () {
         const map = [];
