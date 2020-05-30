@@ -394,7 +394,7 @@ export class LogicJava {
                     }
                 } else if (t === 'object') {
                     if (handle[name] !== null) {
-                        if (typeof handle[name] !== 'undefined') {
+                        if (Utils.isDefined(handle[name])) {
                             sub_handle_class = handle[name]['$className'];
                         }
                     }
@@ -405,7 +405,7 @@ export class LogicJava {
                         value = handle[name]['$handle'];
                         sub_handle = handle[name]['$handle'];
                     } else {
-                        if (handle[name] !== null && handle[name]['value'] !== null) {
+                        if (Utils.isDefined(handle[name]) && Utils.isDefined(handle[name]['value'])) {
                             sub_handle_class = handle[name]['value']['$className'];
                         }
 
@@ -426,17 +426,17 @@ export class LogicJava {
                                     if (handle[name]['fieldReturnType']['type'] !== 'pointer') {
                                         value = sub_handle_class;
                                     } else {
-                                        if (handle[name]['value'] !== null) {
+                                        if (Utils.isDefined(handle[name]['value'])) {
                                             value = handle[name]['value'].toString();
                                             t = typeof (value);
                                         }
                                     }
                                 }
-                            } else if (handle[name]['value'] !== null) {
+                            } else if (Utils.isDefined(handle[name]['value'])) {
                                 value = handle[name]['value'].toString();
                                 t = typeof (value);
                             }
-                        } else if (handle[name]['value'] !== null) {
+                        } else if (Utils.isDefined(handle[name]['value'])) {
                             t = typeof (handle[name]['value']);
                             value = handle[name]['value'].toString();
                         }
