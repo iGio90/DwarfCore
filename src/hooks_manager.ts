@@ -4,7 +4,7 @@
  * @internal
  */
 
-/**
+/*
     Dwarf - Copyright (C) 2018-2020 Giovanni Rocca (iGio90)
 
     This program is free software: you can redistribute it and/or modify
@@ -19,7 +19,7 @@
 
     You should have received a copy of the GNU General Public License
     along with this program.  If not, see <https://www.gnu.org/licenses/>
-**/
+*/
 
 import { DwarfHook } from "./types/dwarf_hook";
 import { NativeHook } from "./types/native_hook";
@@ -46,9 +46,7 @@ export class DwarfHooksManager {
 
     private constructor() {
         if (DwarfHooksManager.instanceRef) {
-            throw new Error(
-                "DwarfHooksManager already exists! Use DwarfHooksManager.getInstance()/Dwarf.getHooksManager()"
-            );
+            throw new Error("DwarfHooksManager already exists! Use DwarfHooksManager.getInstance()/Dwarf.getHooksManager()");
         }
         trace("DwarfHooksManager()");
         this.dwarfHooks = new Array<DwarfHook>();
@@ -65,7 +63,7 @@ export class DwarfHooksManager {
     }
 
     public initialize() {
-        trace('DwarfHooksManager::initialize()');
+        trace("DwarfHooksManager::initialize()");
 
         if (this.initDone) {
             logDebug("DwarfHooksManager => Init already done!");
@@ -81,7 +79,7 @@ export class DwarfHooksManager {
                 let loadlibw_ptr = NULL;
                 let loadlibexw_ptr = NULL;
 
-                symbols.forEach(symbol => {
+                symbols.forEach((symbol) => {
                     if (symbol.name.indexOf("LoadLibraryA") >= 0) {
                         loadliba_ptr = symbol.address;
                     } else if (symbol.name.indexOf("LoadLibraryW") >= 0) {
@@ -92,52 +90,47 @@ export class DwarfHooksManager {
                         loadlibexw_ptr = symbol.address;
                     }
 
-                    if (
-                        loadliba_ptr != NULL &&
-                        loadlibw_ptr != NULL &&
-                        loadlibexa_ptr != NULL &&
-                        loadlibexw_ptr != NULL
-                    ) {
+                    if (loadliba_ptr != NULL && loadlibw_ptr != NULL && loadlibexa_ptr != NULL && loadlibexw_ptr != NULL) {
                         return;
                     }
                 });
 
                 if (loadliba_ptr != NULL && loadlibw_ptr != NULL && loadlibexa_ptr != NULL && loadlibexw_ptr != NULL) {
                     Interceptor.attach(loadliba_ptr, {
-                        onEnter: function(args) {
+                        onEnter: function (args) {
                             const moduleName = args[0].readAnsiString();
                             self.handleModuleLoadOnEnter.apply(null, [this, moduleName, args]);
                         },
-                        onLeave: function(retVal) {
+                        onLeave: function (retVal) {
                             self.handleModuleLoadOnLeave.apply(null, [this, retVal]);
-                        }
+                        },
                     });
                     Interceptor.attach(loadlibexa_ptr, {
-                        onEnter: function(args) {
+                        onEnter: function (args) {
                             const moduleName = args[0].readAnsiString();
                             self.handleModuleLoadOnEnter.apply(null, [this, moduleName, args]);
                         },
-                        onLeave: function(retVal) {
+                        onLeave: function (retVal) {
                             self.handleModuleLoadOnLeave.apply(null, [this, retVal]);
-                        }
+                        },
                     });
                     Interceptor.attach(loadlibw_ptr, {
-                        onEnter: function(args) {
+                        onEnter: function (args) {
                             const moduleName = args[0].readUtf16String();
                             self.handleModuleLoadOnEnter.apply(null, [this, moduleName, args]);
                         },
-                        onLeave: function(retVal) {
+                        onLeave: function (retVal) {
                             self.handleModuleLoadOnLeave.apply(null, [this, retVal]);
-                        }
+                        },
                     });
                     Interceptor.attach(loadlibexw_ptr, {
-                        onEnter: function(args) {
+                        onEnter: function (args) {
                             const moduleName = args[0].readUtf16String();
                             self.handleModuleLoadOnEnter.apply(null, [this, moduleName, args]);
                         },
-                        onLeave: function(retVal) {
+                        onLeave: function (retVal) {
                             self.handleModuleLoadOnLeave.apply(null, [this, retVal]);
-                        }
+                        },
                     });
                 }
             }
@@ -152,13 +145,13 @@ export class DwarfHooksManager {
                         //>=23 args = (void *JavaVMExt, JNIEnv *env, std::string &path, ...)
                         const argNum = Dwarf.getAndroidApiLevel() <= 22 ? 1 : 2;
                         Interceptor.attach(moduleExportDetail.address, {
-                            onEnter: function(args) {
+                            onEnter: function (args) {
                                 const moduleName = readStdString(args[argNum]);
                                 self.handleModuleLoadOnEnter.apply(null, [this, moduleName, args]);
                             },
-                            onLeave: function(retVal) {
+                            onLeave: function (retVal) {
                                 self.handleModuleLoadOnLeave.apply(null, [this, retVal]);
-                            }
+                            },
                         });
                     }
                 }
@@ -169,13 +162,13 @@ export class DwarfHooksManager {
                 for (let moduleExportDetail of dvmModule.enumerateExports()) {
                     if (moduleExportDetail.name.indexOf("dvmLoadNativeCode") != -1) {
                         Interceptor.attach(moduleExportDetail.address, {
-                            onEnter: function(args) {
+                            onEnter: function (args) {
                                 const moduleName = args[0].readUtf8String();
                                 self.handleModuleLoadOnEnter.apply(null, [this, moduleName, args]);
                             },
-                            onLeave: function(retVal) {
+                            onLeave: function (retVal) {
                                 self.handleModuleLoadOnLeave.apply(null, [this, retVal]);
-                            }
+                            },
                         });
                     }
                 }
@@ -185,6 +178,8 @@ export class DwarfHooksManager {
     }
 
     public getNextHookID(): number {
+        trace("DwarfHooksManager::getNextHookID()");
+
         this.nextHookID++;
         return this.nextHookID;
     }
@@ -192,13 +187,15 @@ export class DwarfHooksManager {
     public getHooks = (): Array<DwarfHook> => {
         trace("DwarfHooksManager::getHooks()");
 
-        const dwarfHooks = this.dwarfHooks.filter(breakpoint => {
+        const dwarfHooks = this.dwarfHooks.filter((breakpoint) => {
             return !breakpoint.hasOwnProperty("isInternal");
         });
         return dwarfHooks;
     };
 
     private checkExists(hookAddress: any): void {
+        trace("DwarfHooksManager::checkExists()");
+
         for (let dwarfHook of this.dwarfHooks) {
             if (dwarfHook.getAddress().toString() == hookAddress.toString()) {
                 throw new Error("DwarfHooksManager::addHook() -> Existing Hook at given Address!");
@@ -316,13 +313,7 @@ export class DwarfHooksManager {
         this.checkExists(hookAddress);
 
         try {
-            const memHook = new MemoryHook(
-                makeNativePointer(hookAddress),
-                bpFlags,
-                userCallback,
-                isSingleShot,
-                isEnabled
-            );
+            const memHook = new MemoryHook(makeNativePointer(hookAddress), bpFlags, userCallback, isSingleShot, isEnabled);
             this.dwarfHooks.push(memHook);
             this.updateMemoryHooks();
             this.update(true);
@@ -376,12 +367,7 @@ export class DwarfHooksManager {
      * @param  {string} hookAddress
      * @param  {boolean} bpEnabled?
      */
-    public addObjcHook = (
-        hookAddress: string,
-        userCallback: DwarfCallback = "breakpoint",
-        isSingleShot: boolean = false,
-        isEnabled: boolean = true
-    ) => {
+    public addObjcHook = (hookAddress: string, userCallback: DwarfCallback = "breakpoint", isSingleShot: boolean = false, isEnabled: boolean = true) => {
         trace("DwarfHooksManager::addObjcHook()");
 
         this.checkExists(hookAddress);
@@ -393,12 +379,7 @@ export class DwarfHooksManager {
      * @param  {string} hookAddress
      * @param  {boolean} bpEnabled?
      */
-    public addModuleLoadHook = (
-        moduleName: string,
-        userCallback: DwarfCallback = "breakpoint",
-        isSingleShot: boolean = false,
-        isEnabled: boolean = true
-    ) => {
+    public addModuleLoadHook = (moduleName: string, userCallback: DwarfCallback = "breakpoint", isSingleShot: boolean = false, isEnabled: boolean = true) => {
         trace("DwarfHooksManager::addModuleLoadHook()");
 
         if (!isString(moduleName)) {
@@ -473,12 +454,9 @@ export class DwarfHooksManager {
      * @param  {NativePointer|string} hookAddress
      * @returns DwarfHook
      */
-    public getHookByAddress = (
-        hookAddress: NativePointer | string,
-        checkEnabled: boolean = false,
-        checkForType?: DwarfHookType
-    ): DwarfHook | null => {
+    public getHookByAddress = (hookAddress: NativePointer | string, checkEnabled: boolean = false, checkForType?: DwarfHookType): DwarfHook | null => {
         trace("DwarfHooksManager::getHookByAddress()");
+
         let bpFindAddress;
         if (typeof hookAddress === "string") {
             bpFindAddress = hookAddress;
@@ -513,6 +491,7 @@ export class DwarfHooksManager {
      */
     public enableHookAtAddress = (hookAddress: NativePointer | string): boolean => {
         trace("DwarfHooksManager::enableHookAtAddress()");
+
         let dwarfHook = this.getHookByAddress(hookAddress);
         if (dwarfHook !== null) {
             dwarfHook.enable();
@@ -526,6 +505,7 @@ export class DwarfHooksManager {
      */
     public disableHookAtAddress = (hookAddress: NativePointer | string): boolean => {
         trace("DwarfHooksManager::disableHookAtAddress()");
+
         let dwarfHook = this.getHookByAddress(hookAddress);
         if (dwarfHook !== null) {
             dwarfHook.disable();
@@ -538,15 +518,15 @@ export class DwarfHooksManager {
 
         let dwarfHook = this.getHookById(hookID);
 
-        if(isDefined(dwarfHook)) {
+        if (isDefined(dwarfHook)) {
             try {
                 return dwarfHook.setCallback(userCallback);
-            } catch(e) {
+            } catch (e) {
                 logErr("DwarfHooksManager::replaceCallback()", e);
                 throw e;
             }
         }
-        throw new Error('DwarfHooksManager::replaceCallback() -> No Hook with id ' + hookID);
+        throw new Error("DwarfHooksManager::replaceCallback() -> No Hook with id " + hookID);
     };
 
     /**

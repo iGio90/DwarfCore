@@ -4,7 +4,7 @@
  * @internal
  */
 
-/**
+/*
     Dwarf - Copyright (C) 2018-2020 Giovanni Rocca (iGio90)
 
     This program is free software: you can redistribute it and/or modify
@@ -19,11 +19,10 @@
 
     You should have received a copy of the GNU General Public License
     along with this program.  If not, see <https://www.gnu.org/licenses/>
-**/
+*/
 
 import { DwarfHook } from "./dwarf_hook";
 import { DwarfHookType } from "../consts";
-import { DwarfJavaHelper } from "../java";
 
 export class ClassLoadHook extends DwarfHook {
     /**
@@ -32,12 +31,7 @@ export class ClassLoadHook extends DwarfHook {
      * @param  {DwarfHookType} bpType
      * @param  {NativePointer|string} bpAddress
      */
-    constructor(
-        className: string,
-        userCallback: DwarfCallback = "breakpoint",
-        isEnabled: boolean = true,
-        isSingleShot: boolean = false
-    ) {
+    constructor(className: string, userCallback: DwarfCallback = "breakpoint", isEnabled: boolean = true, isSingleShot: boolean = false) {
         trace("ClassLoadHook()");
 
         if (!Java.available) {

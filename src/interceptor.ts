@@ -4,7 +4,7 @@
  * @internal
  */
 
-/**
+/*
     Dwarf - Copyright (C) 2018-2020 Giovanni Rocca (iGio90)
 
     This program is free software: you can redistribute it and/or modify
@@ -19,7 +19,7 @@
 
     You should have received a copy of the GNU General Public License
     along with this program.  If not, see <https://www.gnu.org/licenses/>
-**/
+*/
 
 import { ThreadContext } from "./thread_context";
 
@@ -31,17 +31,17 @@ export class DwarfInterceptor {
 
         if (context !== null) {
             proxiedContext = new Proxy(context, {
-                get: function(object, prop) {
+                get: function (object, prop) {
                     return object[prop];
                 },
-                set: function(object, prop, value) {
+                set: function (object, prop, value) {
                     if (DEBUG) {
                         logDebug("[" + tid + "] setting context " + prop.toString() + ": " + value);
                     }
                     send("set_context_value:::" + prop.toString() + ":::" + value);
                     object[prop] = value;
                     return true;
-                }
+                },
             });
         }
 
@@ -71,7 +71,7 @@ export class DwarfInterceptor {
             }
             let replacement;
             if (typeof callbacksOrProbe === "function") {
-                replacement = function() {
+                replacement = function () {
                     DwarfInterceptor.onAttach(this.context);
                     const ret = callbacksOrProbe.apply(this, arguments);
                     DwarfInterceptor.onDetach();
@@ -80,12 +80,12 @@ export class DwarfInterceptor {
             } else if (typeof callbacksOrProbe === "object") {
                 if (isDefined(callbacksOrProbe["onEnter"])) {
                     replacement = {
-                        onEnter: function() {
+                        onEnter: function () {
                             DwarfInterceptor.onAttach(this.context);
                             const ret = (callbacksOrProbe as ScriptInvocationListenerCallbacks)["onEnter"].apply(this, arguments);
                             DwarfInterceptor.onDetach();
                             return ret;
-                        }
+                        },
                     };
 
                     if (isDefined(callbacksOrProbe["onLeave"])) {

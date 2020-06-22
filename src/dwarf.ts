@@ -55,6 +55,7 @@ export class DwarfCore {
     private static instanceRef: DwarfCore;
     private breakAtStart: boolean;
     private androidApiLevel: number;
+    private packagePath:string;
 
     //Singleton class
     private constructor() {
@@ -160,6 +161,12 @@ export class DwarfCore {
             this.androidApiLevel = this.getAndroidApiLevel();
         }
 
+        if (procName.indexOf('|') !== -1) {
+            let s = procName.split('|');
+            procName = s[0];
+            this.packagePath = s[1];
+        }
+
         this.processInfo = new DwarfProcessInfo(
             procName,
             wasSpawned,
@@ -246,7 +253,7 @@ export class DwarfCore {
                 }
             } //breakatinit
 
-            this.dwarfJavaHelper.initalize();
+            this.dwarfJavaHelper.initalize(this.packagePath);
             LogicJava.init();
         } //java.available
 

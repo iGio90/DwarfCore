@@ -1,4 +1,4 @@
-/**
+/*
     Dwarf - Copyright (C) 2018-2020 Giovanni Rocca (iGio90)
 
     This program is free software: you can redistribute it and/or modify
@@ -13,7 +13,7 @@
 
     You should have received a copy of the GNU General Public License
     along with this program.  If not, see <https://www.gnu.org/licenses/>
-**/
+*/
 
 import { DwarfHookType, DwarfHaltReason } from "../consts";
 import { DwarfCore } from "../dwarf";
@@ -75,9 +75,7 @@ export class DwarfHook {
 
         this.bpHits = 0;
         this.threadId = Process.getCurrentThreadId();
-        this.hookID = DwarfCore.getInstance()
-            .getHooksManager()
-            .getNextHookID();
+        this.hookID = DwarfHooksManager.getInstance().getNextHookID();
         this.bActive = false;
     }
 
@@ -88,6 +86,7 @@ export class DwarfHook {
      */
     public getHookId(): number {
         trace("DwarfHook::getHookId()");
+
         return this.hookID;
     }
 
@@ -100,6 +99,7 @@ export class DwarfHook {
      */
     public getType(): DwarfHookType {
         trace("DwarfHook::getType()");
+
         return this.hookType;
     }
 
@@ -110,6 +110,7 @@ export class DwarfHook {
      */
     public getAddress(): NativePointer | string {
         trace("DwarfHook::getAddress()");
+
         switch (this.hookType) {
             case DwarfHookType.MEMORY:
             case DwarfHookType.NATIVE:
@@ -132,6 +133,7 @@ export class DwarfHook {
      */
     public getHits(): number {
         trace("DwarfHook::getHits()");
+
         return this.bpHits;
     }
 
@@ -140,6 +142,7 @@ export class DwarfHook {
      */
     public enable(): void {
         trace("DwarfHook::enable()");
+
         this.bEnabled = true;
     }
 
@@ -148,20 +151,25 @@ export class DwarfHook {
      */
     public disable(): void {
         trace("DwarfHook::disable()");
+
         this.bEnabled = false;
     }
 
     public isEnabled(): boolean {
         trace("DwarfHook::isEnabled()");
+
         return this.bEnabled == true;
     }
 
     public isActive(): boolean {
         trace("DwarfHook::isActive()");
+
         return this.bActive == true;
     }
 
     public isAttached() {
+        trace("DwarfHook::isActive()");
+
         return this.bAttached;
     }
 
@@ -170,6 +178,7 @@ export class DwarfHook {
      */
     public isSingleShot(): boolean {
         trace("DwarfHook::isSingleShot()");
+
         return this.bSingleShot;
     }
 
@@ -178,19 +187,25 @@ export class DwarfHook {
      */
     public setSingleShot(singleShot: boolean = true) {
         trace("DwarfHook::setSingleShot()");
+
         this.bSingleShot = singleShot;
     }
 
     public resetHitsCounter() {
         trace("DwarfHook::resetHitsCounter()");
+
         this.bpHits = 0;
     }
 
     public getThreadId() {
+        trace("DwarfHook::getThreadId()");
+
         return this.threadId;
     }
 
     public setThreadId(threadId: number | string) {
+        trace("DwarfHook::setThreadId()");
+
         if (isString(threadId)) {
             threadId = parseInt(threadId as string, 10);
         }
@@ -201,16 +216,20 @@ export class DwarfHook {
     }
 
     public setActive(state: boolean) {
+        trace("DwarfHook::getThreadId()");
+
         this.bActive = state;
     }
 
     public remove(syncUi: boolean) {
         trace("DwarfHook::remove()");
+
         DwarfHooksManager.getInstance().update(true);
     }
 
     public setCallback(userCallback: DwarfCallback) {
         trace("DwarfHook::setCallback()");
+
         if (isDefined(userCallback)) {
             if (this.getType() === DwarfHookType.MEMORY && !isFunction(userCallback) && !isString(userCallback)) {
                 this.userCallback = "breakpoint";
@@ -225,6 +244,8 @@ export class DwarfHook {
     }
 
     public onEnterCallback(dwarfHook: DwarfHook, thisArg: any, funcArgs: InvocationArguments | IArguments) {
+        trace("DwarfHook::onEnterCallback()");
+
         const self = dwarfHook;
         if (!self.isEnabled() || !self.isAttached()) {
             return;
@@ -248,9 +269,7 @@ export class DwarfHook {
         } else if (self.userCallback.hasOwnProperty("onEnter") && isFunction(self.userCallback["onEnter"])) {
             let userReturn = 0;
             try {
-                userReturn = (self.userCallback as ScriptInvocationListenerCallbacks).onEnter.apply(thisArg, [
-                    funcArgs
-                ]);
+                userReturn = (self.userCallback as ScriptInvocationListenerCallbacks).onEnter.apply(thisArg, [funcArgs]);
                 if (isDefined(userReturn) && userReturn == 1) {
                     breakExecution = true;
                 }
@@ -268,30 +287,19 @@ export class DwarfHook {
                 for (let i in funcArgs) {
                     breakpointInfo.push({
                         value: funcArgs[i],
-                        type: thisArg.types[i]
+                        type: thisArg.types[i],
                     });
                 }
-                DwarfCore.getInstance().onBreakpoint(
-                    self.hookID,
-                    self.threadId,
-                    DwarfHaltReason.BREAKPOINT,
-                    self.hookAddress,
-                    breakpointInfo,
-                    thisArg
-                );
+                DwarfCore.getInstance().onBreakpoint(self.hookID, self.threadId, DwarfHaltReason.BREAKPOINT, self.hookAddress, breakpointInfo, thisArg);
             } else {
-                DwarfCore.getInstance().onBreakpoint(
-                    self.hookID,
-                    Process.getCurrentThreadId(),
-                    DwarfHaltReason.BREAKPOINT,
-                    self.hookAddress,
-                    thisArg.context
-                );
+                DwarfCore.getInstance().onBreakpoint(self.hookID, Process.getCurrentThreadId(), DwarfHaltReason.BREAKPOINT, self.hookAddress, thisArg.context);
             }
         }
     }
 
     public onLeaveCallback(dwarfHook: DwarfHook, thisArg: any, returnValue: InvocationReturnValue) {
+        trace("DwarfHook::onLeaveCallback()");
+
         const self = dwarfHook;
         if (!self.isEnabled()) {
             return;
@@ -301,17 +309,11 @@ export class DwarfHook {
             return;
         }
 
-        if (
-            isDefined(self.userCallback) &&
-            self.userCallback.hasOwnProperty("onLeave") &&
-            isFunction(self.userCallback["onLeave"])
-        ) {
+        if (isDefined(self.userCallback) && self.userCallback.hasOwnProperty("onLeave") && isFunction(self.userCallback["onLeave"])) {
             let userReturn = 0;
             let breakExecution = false;
             try {
-                userReturn = (self.userCallback as ScriptInvocationListenerCallbacks).onLeave.apply(thisArg, [
-                    returnValue
-                ]);
+                userReturn = (self.userCallback as ScriptInvocationListenerCallbacks).onLeave.apply(thisArg, [returnValue]);
                 if (isDefined(userReturn) && userReturn == 1) {
                     breakExecution = true;
                 }
@@ -321,18 +323,13 @@ export class DwarfHook {
             }
             if (breakExecution) {
                 if (self.hookType == DwarfHookType.JAVA) {
-                    let breakpointInfo = [{
-                        value: returnValue,
-                        type: thisArg.retType
-                    }];
-                    DwarfCore.getInstance().onBreakpoint(
-                        self.hookID,
-                        self.threadId,
-                        DwarfHaltReason.BREAKPOINT,
-                        self.hookAddress,
-                        breakpointInfo,
-                        thisArg
-                    );
+                    let breakpointInfo = [
+                        {
+                            value: returnValue,
+                            type: thisArg.retType,
+                        },
+                    ];
+                    DwarfCore.getInstance().onBreakpoint(self.hookID, self.threadId, DwarfHaltReason.BREAKPOINT, self.hookAddress, breakpointInfo, thisArg);
                 } else {
                     DwarfCore.getInstance().onBreakpoint(
                         self.hookID,

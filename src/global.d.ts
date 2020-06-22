@@ -72,7 +72,20 @@ type DwarfHookAddress = NativePointer | string | null;
 type DwarfCallback = ScriptInvocationListenerCallbacks | Function | string;
 
 declare interface StringSearchResult {
-    address:NativePointer;
-    length:number;
-    string:string;
+    address: NativePointer;
+    length: number;
+    string: string;
+}
+
+declare interface DwarfObserverLocation {
+    id: number;
+    name: string;
+    address: NativePointer;
+    size: number;
+    type: string;
+    mode: string;
+    handler: string | Function;
+    storedValue: any;
+    event: string;
+    fromPtr: NativePointer;
 }

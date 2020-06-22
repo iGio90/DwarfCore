@@ -97,7 +97,7 @@ export class ELF_File {
             throw new Error("Failed to open File: " + filePath);
         }
 
-        let headerBuffer: NativeReturnValue = dwarfFS.allocateRw(0x40);
+        let headerBuffer: NativePointer = dwarfFS.allocateRw(0x40);
         if (!isDefined(headerBuffer) || headerBuffer.isNull()) {
             dwarfFS.fclose(_file);
             throw new Error("Failed to allocate Memory!");

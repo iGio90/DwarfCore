@@ -4,7 +4,7 @@
  * @internal
  */
 
-/**
+/*
     Dwarf - Copyright (C) 2018-2020 Giovanni Rocca (iGio90)
 
     This program is free software: you can redistribute it and/or modify
@@ -19,9 +19,10 @@
 
     You should have received a copy of the GNU General Public License
     along with this program.  If not, see <https://www.gnu.org/licenses/>
-**/
+*/
 
 import { DwarfFile } from "./types/dwarf_file";
+import { arch } from "os";
 
 export class DwarfFS {
     protected _access: NativeFunction | null;
@@ -33,6 +34,7 @@ export class DwarfFS {
     protected _fputs: NativeFunction | null;
     protected _fread: NativeFunction | null;
     protected _fseek: NativeFunction | null;
+    protected _ftell:NativeFunction | null;
     protected _getline: NativeFunction | null;
     protected _pclose: NativeFunction | null;
     protected _popen: NativeFunction | null;
@@ -81,6 +83,7 @@ export class DwarfFS {
         this._getline = exportToFunction("getline", "int", ["pointer", "pointer", "pointer"]);
         this._pclose = exportToFunction("pclose", "int", ["pointer"]);
         this._popen = exportToFunction("popen", "pointer", ["pointer", "pointer"]);
+        this._ftell = exportToFunction("ftell", "long", ["pointer"]);
     }
 
     access = (filePath: string, mode: number): number => {
@@ -148,6 +151,24 @@ export class DwarfFS {
             return this._fseek(filePointer, offset, origin);
         }
     };
+
+    ftell = (filePointer:NativePointer) => {
+        if(this._ftell === null || this._ftell.isNull()) {
+            throw new Error("DwarfFS::fread not available!");
+        }
+        if (isDefined(filePointer) && !filePointer.isNull()) {
+            return this._ftell(filePointer);
+        }
+    }
+
+    fileno = (filePointer:NativePointer) => {
+        if(this._fileno === null || this._fileno.isNull()) {
+            throw new Error("DwarfFS::fileno not available!");
+        }
+        if (isDefined(filePointer) && !filePointer.isNull()) {
+            return this._fileno(filePointer);
+        }
+    }
 
     /**
      * Call native popen with filePath and perm
