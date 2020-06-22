@@ -32,72 +32,14 @@ export class DwarfZip {
 
     constructor(archivePath: string) {
         if (Process.platform === "linux" && Java.available) {
-            //https://android.googlesource.com/platform/system/core/+/refs/heads/marshmallow-release/libziparchive/zip_archive.cc
-            let libZipArchive = Process.findModuleByName("libziparchive.so");
-            if(libZipArchive === null) {
-                libZipArchive = Module.load("libziparchive.so");
-            }
-            if (libZipArchive) {
-                for (let moduleExportDetail of libZipArchive.enumerateExports()) {
-                    if (moduleExportDetail.name.indexOf("OpenArchive") !== -1) {
-                        if (moduleExportDetail.name.indexOf("OpenArchiveFd") === -1 && moduleExportDetail.name.indexOf("OpenArchiveInternal") === -1) {
-                            //int32_t OpenArchive(const char* fileName, ZipArchiveHandle* handle)
-                            this._nativeFunctions["openArchive"] = new NativeFunction(
-                                libZipArchive.getExportByName(moduleExportDetail.name),
-                                "int32",
-                                ["pointer", "pointer"]
-                            );
-                        }
-                    } else if (moduleExportDetail.name.indexOf("CloseArchive") !== -1) {
-                        //void CloseArchive(ZipArchiveHandle handle)
-                        this._nativeFunctions["closeArchive"] = new NativeFunction(
-                            libZipArchive.getExportByName(moduleExportDetail.name),
-                            "void",
-                            ["pointer"]
-                        );
-                    } else if (moduleExportDetail.name.indexOf("Next") !== -1) {
-                        //int32_t Next(void* cookie, ZipEntry* data, ZipEntryName* name)
-                        this._nativeFunctions["nextEntry"] = new NativeFunction(libZipArchive.getExportByName(moduleExportDetail.name), "int32", [
-                            "pointer",
-                            "pointer",
-                            "pointer",
-                        ]);
-                    } else if (moduleExportDetail.name.indexOf("ExtractEntryToFile") !== -1) {
-                        //int32_t ExtractEntryToFile(ZipArchiveHandle handle, ZipEntry* entry, int fd)
-                        this._nativeFunctions["extractEntryToFile"] = new NativeFunction(
-                            libZipArchive.getExportByName(moduleExportDetail.name),
-                            "int32",
-                            ["pointer", "pointer", "int"]
-                        );
-                    } else if (moduleExportDetail.name.indexOf("StartIteration") !== -1) {
-                        if (Dwarf.getAndroidApiLevel() <= 22) {
-                            //int32_t StartIteration(ZipArchiveHandle handle, void** cookie_ptr, const ZipEntryName* optional_prefix)
-                            this._nativeFunctions["startIteration"] = new NativeFunction(
-                                libZipArchive.getExportByName(moduleExportDetail.name),
-                                "int32",
-                                ["pointer", "pointer", "pointer"]
-                            );
-                        } else {
-                            //int32_t StartIteration(ZipArchiveHandle handle, void** cookie_ptr, const ZipEntryName* optional_prefix, const ZipEntryName* optional_suffix)
-                            this._nativeFunctions["startIteration"] = new NativeFunction(
-                                libZipArchive.getExportByName(moduleExportDetail.name),
-                                "int32",
-                                ["pointer", "pointer", "pointer", "pointer"]
-                            );
-                        }
-                    }
-                }
-            } else {
-                throw new Error('libziparchive.so missing!');
-            }
+            this._androidInit();
+        } else if (Process.platform === "windows") {
+            this._windowsInit();
+        } else {
+            throw new Error("Not implemented!");
         }
 
         //Check pointers
-        if (Process.platform === "linux" && Java.available) {
-            if(this._nativeFunctions.length !== 5) {
-                throw new Error("DwarfZip: Init failed! Missing Functions");
-            }
-        }
         this._nativeFunctions.forEach((nativeFunc) => {
             if (nativeFunc === null || nativeFunc.isNull()) {
                 throw new Error("DwarfZip: Init failed! Pointer === NULL");
@@ -119,6 +61,72 @@ export class DwarfZip {
             throw new Error("Invalid usage!");
         }
     }
+
+    _androidInit = () => {
+        //https://android.googlesource.com/platform/system/core/+/refs/heads/marshmallow-release/libziparchive/zip_archive.cc
+        let libZipArchive = Process.findModuleByName("libziparchive.so");
+        if (libZipArchive === null) {
+            libZipArchive = Module.load("libziparchive.so");
+        }
+        if (libZipArchive) {
+            for (let moduleExportDetail of libZipArchive.enumerateExports()) {
+                if (moduleExportDetail.name.indexOf("OpenArchive") !== -1) {
+                    if (moduleExportDetail.name.indexOf("OpenArchiveFd") === -1 && moduleExportDetail.name.indexOf("OpenArchiveInternal") === -1) {
+                        //int32_t OpenArchive(const char* fileName, ZipArchiveHandle* handle)
+                        this._nativeFunctions["openArchive"] = new NativeFunction(libZipArchive.getExportByName(moduleExportDetail.name), "int32", [
+                            "pointer",
+                            "pointer",
+                        ]);
+                    }
+                } else if (moduleExportDetail.name.indexOf("CloseArchive") !== -1) {
+                    //void CloseArchive(ZipArchiveHandle handle)
+                    this._nativeFunctions["closeArchive"] = new NativeFunction(libZipArchive.getExportByName(moduleExportDetail.name), "void", ["pointer"]);
+                } else if (moduleExportDetail.name.indexOf("Next") !== -1) {
+                    //int32_t Next(void* cookie, ZipEntry* data, ZipEntryName* name)
+                    this._nativeFunctions["nextEntry"] = new NativeFunction(libZipArchive.getExportByName(moduleExportDetail.name), "int32", [
+                        "pointer",
+                        "pointer",
+                        "pointer",
+                    ]);
+                } else if (moduleExportDetail.name.indexOf("ExtractEntryToFile") !== -1) {
+                    //int32_t ExtractEntryToFile(ZipArchiveHandle handle, ZipEntry* entry, int fd)
+                    this._nativeFunctions["extractEntryToFile"] = new NativeFunction(libZipArchive.getExportByName(moduleExportDetail.name), "int32", [
+                        "pointer",
+                        "pointer",
+                        "int",
+                    ]);
+                } else if (moduleExportDetail.name.indexOf("StartIteration") !== -1) {
+                    if (Dwarf.getAndroidApiLevel() <= 22) {
+                        //int32_t StartIteration(ZipArchiveHandle handle, void** cookie_ptr, const ZipEntryName* optional_prefix)
+                        this._nativeFunctions["startIteration"] = new NativeFunction(libZipArchive.getExportByName(moduleExportDetail.name), "int32", [
+                            "pointer",
+                            "pointer",
+                            "pointer",
+                        ]);
+                    } else {
+                        //int32_t StartIteration(ZipArchiveHandle handle, void** cookie_ptr, const ZipEntryName* optional_prefix, const ZipEntryName* optional_suffix)
+                        this._nativeFunctions["startIteration"] = new NativeFunction(libZipArchive.getExportByName(moduleExportDetail.name), "int32", [
+                            "pointer",
+                            "pointer",
+                            "pointer",
+                            "pointer",
+                        ]);
+                    }
+                }
+            }
+        } else {
+            throw new Error("libziparchive.so missing!");
+        }
+
+        //check
+        if (this._nativeFunctions.length !== 5) {
+            throw new Error("DwarfZip: Init failed! Missing Functions");
+        }
+    };
+
+    _windowsInit = () => {
+        throw new Error("Not implemented!");
+    };
 
     getContents = (): Array<string> => {
         const zipContents = new Array<string>();
