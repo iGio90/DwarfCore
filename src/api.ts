@@ -664,7 +664,7 @@ export class Api {
      * getELFHeader('libwhatever.so');
      * ```
      */
-    static getELFHeader(moduleName: string, isUICall?: boolean) {
+    static getELFHeader(moduleName: string, isUICall?: boolean): ELF_File | null {
         if (!Utils.isDefined(isUICall)) {
             isUICall = false;
         }
@@ -680,16 +680,18 @@ export class Api {
                         send({
                             elf_info: elfFile
                         });
-                    } else {
-                        return elfFile;
                     }
+                    return elfFile;
                 }
             } catch (error) {
                 console.log(error);
             }
         } else {
-            throw new Error("Api::getELFHeader() => Module not found!");
+            if (isUICall) {
+                throw new Error("Api::getELFHeader() => Module not found!");
+            }
         }
+        return null;
     }
 
     /**
