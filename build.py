@@ -36,7 +36,17 @@ def generate_types(file):
                 result.append(line)
         except:
             pass
-    return '\n'.join(result) + '\n'
+
+    # append exports headers
+    headers = []
+    additional = [
+        'elf_file.d.ts'
+    ]
+    for f in additional:
+        with open(os.sep.join(['dwarf-typings', f]), 'r') as ff:
+            headers.append(ff.read().replace('export declare', 'declare'))
+
+    return '\n'.join(headers) + '\n'.join(result)
 
 
 def apply_doc_markdown():
