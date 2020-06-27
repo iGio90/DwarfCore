@@ -169,7 +169,7 @@ export class FileSystem {
 
     static fseek(filePointer: NativePointer, offset: number | NativePointer, origin: number) {
         if (FileSystem._fseek === null || FileSystem._fseek.isNull()) {
-            throw new Error("DwarfFS::fread not available!");
+            throw new Error("DwarfFS::fseek not available!");
         }
         if (Utils.isDefined(filePointer) && !filePointer.isNull()) {
             return FileSystem._fseek(filePointer, offset, origin);
@@ -178,7 +178,7 @@ export class FileSystem {
 
     static ftell(filePointer: NativePointer) {
         if (FileSystem._ftell === null || FileSystem._ftell.isNull()) {
-            throw new Error("DwarfFS::fread not available!");
+            throw new Error("DwarfFS::ftell not available!");
         }
         if (Utils.isDefined(filePointer) && !filePointer.isNull()) {
             return FileSystem._ftell(filePointer);
