@@ -21,6 +21,7 @@ import { Dwarf } from "./dwarf";
 import { ThreadApi } from "./thread_api";
 import { Utils } from "./utils";
 import isDefined = Utils.isDefined;
+import { ELF_File } from "./elf_file";
 
 Date.prototype['getTwoDigitHour'] = function () {
     return (this.getHours() < 10) ? '0' + this.getHours() : this.getHours();
@@ -40,6 +41,7 @@ Date.prototype['getHourMinuteSecond'] = function () {
 
 
 let dwarf: Dwarf;
+global["ELF_File"] = ELF_File;
 
 rpc.exports = {
     api: function (tid, apiFunction, apiArguments) {

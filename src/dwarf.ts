@@ -23,6 +23,7 @@ import { LogicJava } from "./logic_java";
 import { LogicInitialization } from "./logic_initialization";
 import { LogicWatchpoint } from "./logic_watchpoint";
 import { Utils } from "./utils";
+import { FileSystem } from "./fs";
 
 export class Dwarf {
     static DEBUG: boolean;
@@ -54,6 +55,7 @@ export class Dwarf {
 
         LogicInitialization.init();
         DwarfInterceptor.init();
+        FileSystem.init();
 
         // register all api as global
         const exclusions = ['constructor', 'length', 'name', 'prototype'];

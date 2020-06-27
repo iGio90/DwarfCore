@@ -30,6 +30,7 @@ import {
     MEMORY_ACCESS_READ,
     MEMORY_ACCESS_WRITE
 } from "./watchpoint";
+import { ELF_File } from "./elf_file";
 
 export class Api {
     private static _internalMemoryScan(start, size, pattern) {
@@ -653,6 +654,40 @@ export class Api {
             return null;
         }
     }
+
+    /**
+     * Return elf headers of module
+     *
+     * ```javascript
+     * getELFHeader(); //returns elfheader of MainProcess
+     *
+     * getELFHeader('libwhatever.so');
+     * ```
+     */
+    //TODO: allow path use
+    public getELFHeader = (moduleName:string, isUICall:boolean=false) => {
+        if(!Utils.isString(moduleName)) {
+            throw new Error("Api::getELFHeader() => No moduleName given!");
+        }
+        const fridaModule = Process.findModuleByName(moduleName);
+        if (Utils.isDefined(fridaModule) && Utils.isString(fridaModule.path)) {
+            try {
+                var elfFile = new ELF_File(fridaModule.path);
+                if (Utils.isDefined(elfFile)) {
+                    if(isUICall) {
+                        send({ elf_info: elfFile });
+                    } else {
+                        return elfFile;
+                    }
+                }
+            } catch (error) {
+                console.log(error);
+            }
+        } else {
+            throw new Error("Api::getELFHeader() => Module not found!");
+        }
+    }
+
 
     /**
      * Hook all the methods for the given java class
