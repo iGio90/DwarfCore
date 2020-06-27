@@ -21,7 +21,7 @@ import { LogicBreakpoint } from "./logic_breakpoint";
 import { LogicJava } from "./logic_java";
 import { LogicObjC } from "./logic_objc";
 import { LogicInitialization } from "./logic_initialization";
-import { LogicStalker } from "./logic_stalker";
+import {LogicStalker, NativeTracerCallbacks} from "./logic_stalker";
 import { LogicWatchpoint } from "./logic_watchpoint";
 import { ThreadWrapper } from "./thread_wrapper";
 import { Utils } from "./utils";
@@ -1314,9 +1314,33 @@ export class Api {
      *         this.stop();
      *     }
      * });
+     *
+     *
+     * startNativeTracer({
+     *      onInstruction: function () {
+     *          console.log('onInstruction:', this.instruction.toString());
+     *      },
+     *      onCall: function () {
+     *          console.log('call:', this.instruction.toString());
+     *      },
+     *      onReturn: function () {
+     *          console.log('onReturn:', this.instruction.toString());
+     *      },
+     *      onJump: function () {
+     *          console.log('onJump:', this.instruction.toString());
+     *
+     *          console.log(JSON.stringify(this.context));
+     *          if (this.context.pc.toInt32() === 0xdeadbeef) {
+     *              this.stop();
+     *          }
+     *      },
+     *      onPrivilege: function () {
+     *          console.log('privilege call:', this.instruction.toString());
+     *      }
+     * })
      * ```
      */
-    static startNativeTracer(callback) {
+    static startNativeTracer(callback: Function | NativeTracerCallbacks) {
         const stalkerInfo = LogicStalker.stalk();
         if (stalkerInfo !== null) {
             stalkerInfo.currentMode = callback;

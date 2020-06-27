@@ -36,17 +36,7 @@ def generate_types(file):
                 result.append(line)
         except:
             pass
-
-    # append exports headers
-    headers = []
-    additional = [
-        'elf_file.d.ts'
-    ]
-    for f in additional:
-        with open(os.sep.join(['dwarf-typings', f]), 'r') as ff:
-            headers.append(ff.read().replace('export declare', 'declare'))
-
-    return '\n'.join(headers) + '\n'.join(result)
+    return '\n'.join(result)
 
 
 def apply_doc_markdown():
@@ -92,7 +82,28 @@ sidebar_label: Dwarf
 
 
 def build_types():
-    types = generate_types('src/api.ts')
+    types = ''
+
+    # append exports headers
+    with open(os.sep.join(['dwarf-typings', 'elf_file.d.ts']), 'r') as f:
+        types += f.read().replace('export declare', 'declare') + '\n'
+
+    export = False
+    with open(os.sep.join(['dwarf-typings', 'logic_stalker.d.ts']), 'r') as f:
+        for line in f.read().split('\n'):
+            if export:
+                types += line + '\n'
+                while ' ' in line:
+                    line = line.replace(' ', '')
+                if line == '}':
+                    export = False
+
+            if 'export interface' in line:
+                line = line.replace('export', 'declare')
+                export = True
+                types += line + '\n'
+
+    types += generate_types('src/api.ts')
 
     with open('dwarf-typings/index.d.ts', 'w') as f:
         f.write(types)

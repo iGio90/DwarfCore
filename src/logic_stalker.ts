@@ -21,6 +21,14 @@ import { LogicBreakpoint } from "./logic_breakpoint";
 import { StalkerInfo } from "./stalker_info";
 import { Utils } from "./utils";
 
+export interface NativeTracerCallbacks {
+    onInstruction?: Function;
+    onCall?: Function;
+    onJump?: Function;
+    onReturn?: Function;
+    onPrivilege?: Function;
+}
+
 export class LogicStalker {
     static stalkerInfoMap = {};
     static straceCallback: Function | null = null;
@@ -161,8 +169,34 @@ export class LogicStalker {
     }
 
     private static putCalloutIfNeeded(iterator, stalkerInfo: StalkerInfo, instruction: Instruction): void {
-        let putCallout = true;
-        // todo: add conditions
+        let putCallout = false;
+
+        if (typeof stalkerInfo.currentMode === 'object') {
+            let callbacks = stalkerInfo.currentMode as NativeTracerCallbacks;
+            if (Utils.isDefined(callbacks.onInstruction)) {
+                putCallout = true;
+            } else if (Utils.isDefined(callbacks.onCall)) {
+                if (instruction.groups.indexOf('call') >= 0 ||
+                    instruction.groups.indexOf('branch_relative') >= 0) {
+                    putCallout = true;
+                }
+            } else if (Utils.isDefined(callbacks.onJump)) {
+                if (instruction.groups.indexOf('jump') >= 0) {
+                    putCallout = true;
+                }
+            } else if (Utils.isDefined(callbacks.onReturn)) {
+                if (instruction.groups.indexOf('return') >= 0) {
+                    putCallout = true;
+                }
+            } else if (Utils.isDefined(callbacks.onPrivilege)) {
+                if (instruction.groups.indexOf('privilege') >= 0) {
+                    putCallout = true;
+                }
+            }
+        } else {
+            putCallout = true;
+        }
+
         if (putCallout) {
             if (Dwarf.DEBUG) {
                 Utils.logDebug('[' + Process.getCurrentThreadId() + '] stalk: ' + 'executing instruction',
@@ -175,7 +209,7 @@ export class LogicStalker {
 
     static stalkerCallout(context) {
         const tid = Process.getCurrentThreadId();
-        const stalkerInfo = LogicStalker.stalkerInfoMap[tid];
+        const stalkerInfo: StalkerInfo = LogicStalker.stalkerInfoMap[tid];
 
         if (!Utils.isDefined(stalkerInfo) || stalkerInfo.terminated) {
             return;
@@ -191,7 +225,7 @@ export class LogicStalker {
         if (!stalkerInfo.didFistJumpOut) {
             pc = stalkerInfo.initialContextAddress;
 
-            const lastInt = parseInt(stalkerInfo.lastContextAddress);
+            const lastInt = stalkerInfo.lastContextAddress.toInt32();
             if (lastInt > 0) {
                 const pcInt = parseInt(context.pc);
 
@@ -205,18 +239,42 @@ export class LogicStalker {
         let shouldBreak = false;
 
         if (stalkerInfo.currentMode !== null) {
+            const that = {
+                context: context,
+                instruction: insn,
+                stop: function () {
+                    stalkerInfo.terminated = true;
+                }
+            };
+
             if (typeof stalkerInfo.currentMode === 'function') {
                 shouldBreak = false;
 
-                const that = {
-                    context: context,
-                    instruction: insn,
-                    stop: function () {
-                        stalkerInfo.terminated = true;
-                    }
-                };
-
                 stalkerInfo.currentMode.apply(that);
+            } else if (typeof stalkerInfo.currentMode === 'object') {
+                shouldBreak = false;
+                let callbacks = stalkerInfo.currentMode as NativeTracerCallbacks;
+
+                if (Utils.isDefined(callbacks.onInstruction)) {
+                    callbacks.onInstruction.apply(that);
+                } else if (Utils.isDefined(callbacks.onCall)) {
+                    if (insn.groups.indexOf('call') >= 0 ||
+                        insn.groups.indexOf('branch_relative') >= 0) {
+                        callbacks.onCall.apply(that);
+                    }
+                } else if (Utils.isDefined(callbacks.onJump)) {
+                    if (insn.groups.indexOf('jump') >= 0) {
+                        callbacks.onJump.apply(that);
+                    }
+                } else if (Utils.isDefined(callbacks.onReturn)) {
+                    if (insn.groups.indexOf('return') >= 0) {
+                        callbacks.onReturn.apply(that);
+                    }
+                } else if (Utils.isDefined(callbacks.onPrivilege)) {
+                    if (insn.groups.indexOf('privilege') >= 0) {
+                        callbacks.onPrivilege.apply(that);
+                    }
+                }
             } else if (stalkerInfo.lastContextAddress !== null &&
                 stalkerInfo.lastCallJumpInstruction !== null) {
                 if (Dwarf.DEBUG) {
