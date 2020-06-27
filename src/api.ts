@@ -664,7 +664,7 @@ export class Api {
      * getELFHeader('libwhatever.so');
      * ```
      */
-    static getELFHeader = (moduleName:string, isUICall:boolean=false) => {
+    static getELFHeader(moduleName: string, isUICall: boolean|false) {
         if(!Utils.isString(moduleName)) {
             throw new Error("Api::getELFHeader() => No moduleName given!");
         }
