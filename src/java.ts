@@ -4,7 +4,7 @@
  * @internal
  */
 
-/**
+/*
     Dwarf - Copyright (C) 2018-2020 Giovanni Rocca (iGio90)
 
     This program is free software: you can redistribute it and/or modify
@@ -19,11 +19,12 @@
 
     You should have received a copy of the GNU General Public License
     along with this program.  If not, see <https://www.gnu.org/licenses/>
-**/
+*/
 
 import { DwarfHookType } from "./consts";
 import { JavaHook } from "./types/java_hook";
 import { DwarfHooksManager } from "./hooks_manager";
+import { DwarfCore } from "./dwarf";
 
 export class DwarfJavaHelper {
     private static instanceRef: DwarfJavaHelper;
@@ -66,7 +67,7 @@ export class DwarfJavaHelper {
         return Java.performNow(function() { fn(); });
     };*/
 
-    public initalize = () => {
+    public initalize = (packagePath?: string) => {
         if (this.initDone) {
             logDebug("DwarfJavaHelper => Init already done!");
         }
@@ -135,7 +136,7 @@ export class DwarfJavaHelper {
             };
         });
 
-        this.initClassCache();
+        this.initClassCache(packagePath);
         this.initDone = true;
     };
 
@@ -159,20 +160,20 @@ export class DwarfJavaHelper {
         this.classCache = new Array<string>();
     };
 
-    initClassCache = () => {
+    initClassCache = (packagePath?: string) => {
         trace("JavaHelper::initClassCache()");
         this.checkRequirements();
         this.invalidateClassCache();
 
         const self = this;
 
-        const dexClasses = self.enumerateDexClasses();
-        self.updateClassCache(function(loadedClasses) {
+        const dexClasses = self.enumerateDexClasses(packagePath);
+        self.updateClassCache(function (loadedClasses) {
             Dwarf.sync({ dexClasses: dexClasses, loadedClasses: loadedClasses });
         });
     };
 
-    updateClassCache = (fnCallback:Function) => {
+    updateClassCache = (fnCallback: Function) => {
         trace("JavaHelper::updateClassCache()");
         this.checkRequirements();
 
@@ -184,7 +185,7 @@ export class DwarfJavaHelper {
                         self.classCache.push(className);
                     },
                     onComplete: () => {
-                        if(isFunction(fnCallback)) {
+                        if (isFunction(fnCallback)) {
                             fnCallback(self.classCache);
                         }
                     },
@@ -193,7 +194,7 @@ export class DwarfJavaHelper {
                 logDebug("JavaHelper::updateClassCache() => Error: " + e);
             }
         });
-    }
+    };
 
     getApplicationContext = (): any => {
         trace("JavaHelper::getApplicationContext()");
@@ -222,7 +223,7 @@ export class DwarfJavaHelper {
                     parsedMethods.push(methodStr.substring(0, methodStr.indexOf(")") + 1));
                 }
             } catch (e) {
-                logErr("DwarfJavaHelper::getClassMethodsUi()", e);
+                logErr("DwarfJavaHelper::getClassMethodsUI()", e);
             }
         });
         return Dwarf.sync({ class_methods: parsedMethods });
@@ -284,21 +285,80 @@ export class DwarfJavaHelper {
         });
     };
 
-    enumerateDexClasses = () => {
+    enumerateDexClasses = (packagePath?: string) => {
         trace("DwarfJavaHelper::enumerateDexClasses()");
         const self = this;
 
         this.checkRequirements();
 
         const dexClasses = new Array<string>();
+        return dexClasses;
 
         Java.performNow(function () {
             try {
-                const appContext = self.getApplicationContext();
-                const apkPath = appContext.getPackageCodePath();
-                const DexFile = Java.use("dalvik.system.DexFile");
+                if (!isString(packagePath)) {
+                    const appContext = self.getApplicationContext();
+                    const apkPath = appContext.getPackageCodePath();
+                    packagePath = apkPath;
+                }
+                const ZipFile = Java.use("java.util.zip.ZipFile");
+                const FileOutputStream = Java.use("java.io.FileOutputStream");
+                const BufferedInputStream = Java.use("java.io.BufferedInputStream");
+                const BufferedOutputStream = Java.use("java.io.BufferedOutputStream");
+                const apkZip = ZipFile.$new(packagePath);
+                const zipEntries = apkZip.entries();
 
-                const dexFile = DexFile.$new(apkPath);
+                while (zipEntries.hasMoreElements()) {
+                    const zipEntry = zipEntries.nextElement().toString();
+                    if (zipEntry.indexOf(".dex") !== -1) {
+                        const inputStream = BufferedInputStream.$new(apkZip.getInputStream(apkZip.getEntry(zipEntry)), 1024);
+                        const outputStream = BufferedOutputStream.$new(
+                            FileOutputStream.$new("/data/data/" + DwarfCore.getInstance().getProcessInfo().getName() + "/" + zipEntry),
+                            1024
+                        );
+                        let read = 0;
+                        while (true) {
+                            const b = inputStream.read();
+                            if (b === -1) {
+                                break;
+                            }
+                            outputStream.write(b);
+                        }
+                        outputStream.flush();
+                        inputStream.close();
+                        outputStream.close();
+                        console.log(Java.openClassFile("/data/data/" + DwarfCore.getInstance().getProcessInfo().getName() + "/" + zipEntry).getClassNames());
+                    }
+                }
+
+                apkZip.close();
+
+                /*console.log(Java.openClassFile(packagePath).getClassNames());
+                const DexFile = Java.use("dalvik.system.DexFile");
+                const dexFile = DexFile.$new(packagePath);
+                const enumeration = dexFile.entries();
+
+                while (enumeration.hasMoreElements()) {
+                    const className = enumeration.nextElement();
+                    dexClasses.push(className.toString());
+                }
+                dexFile.$dispose();
+                DexFile.$dispose();*/
+            } catch (e) {
+                logErr("enumerateDexClasses() -> ", e);
+            }
+        });
+
+        Java.performNow(function () {
+            try {
+                if (!isString(packagePath)) {
+                    const appContext = self.getApplicationContext();
+                    const apkPath = appContext.getPackageCodePath();
+                    packagePath = apkPath;
+                }
+                console.log(Java.openClassFile(packagePath).getClassNames());
+                const DexFile = Java.use("dalvik.system.DexFile");
+                const dexFile = DexFile.$new(packagePath);
                 const enumeration = dexFile.entries();
 
                 while (enumeration.hasMoreElements()) {
@@ -429,7 +489,7 @@ export class DwarfJavaHelper {
     addHookToAttach = (javaHook: JavaHook) => {
         trace("DwarfJavaHelper::addHookToAttach()");
 
-        if ((javaHook.getType() === DwarfHookType.JAVA) && !javaHook.isAttached()) {
+        if (javaHook.getType() === DwarfHookType.JAVA && !javaHook.isAttached()) {
             this.hooksToAttach.push(javaHook);
         }
     };
