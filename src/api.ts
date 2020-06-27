@@ -664,8 +664,7 @@ export class Api {
      * getELFHeader('libwhatever.so');
      * ```
      */
-    //TODO: allow path use
-    public getELFHeader = (moduleName:string, isUICall:boolean=false) => {
+    static getELFHeader = (moduleName:string, isUICall:boolean=false) => {
         if(!Utils.isString(moduleName)) {
             throw new Error("Api::getELFHeader() => No moduleName given!");
         }
@@ -687,7 +686,6 @@ export class Api {
             throw new Error("Api::getELFHeader() => Module not found!");
         }
     }
-
 
     /**
      * Hook all the methods for the given java class

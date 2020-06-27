@@ -77,7 +77,7 @@ sidebar_label: Dwarf
                 continue
         lines.append(line)
 
-    with open('../../multi/reSecRet/secRet/docs/dwarf.md', 'w') as f:
+    with open('../../multi/reSecRet/docs/dwarf.md', 'w') as f:
         f.write(top + '\n'.join(lines))
 
 
