@@ -29,6 +29,7 @@ import { JavaHook } from "./types/java_hook";
 import { ObjcHook } from "./types/objc_hook";
 import { DwarfJavaHelper } from "./java";
 import { ModuleLoadHook } from "./types/module_load_hook";
+import { ELF_File } from "./types/elf_file";
 
 export class DwarfApi {
     private static instanceRef: DwarfApi;
@@ -595,6 +596,39 @@ export class DwarfApi {
         }
         return modules;
     };
+
+    /**
+     * Return elf headers of module
+     *
+     * ```javascript
+     * getELFHeader(); //returns elfheader of MainProcess
+     *
+     * getELFHeader('libwhatever.so');
+     * ```
+     */
+    //TODO: allow path use
+    public getELFHeader = (moduleName:string = Dwarf.getProcessInfo().name, isUICall:boolean=false) => {
+        if(!isString(moduleName)) {
+            throw new Error("DwarfApi::getELFHeader() => No moduleName given!");
+        }
+        const fridaModule = Process.findModuleByName(moduleName);
+        if (isDefined(fridaModule) && isString(fridaModule.path)) {
+            try {
+                var elfFile = new ELF_File(fridaModule.path);
+                if (isDefined(elfFile)) {
+                    if(isUICall) {
+                        Dwarf.sync({ elf_info: elfFile });
+                    } else {
+                        return elfFile;
+                    }
+                }
+            } catch (error) {
+                console.log(error);
+            }
+        } else {
+            throw new Error("DwarfApi::getELFHeader() => Module not found!");
+        }
+    }
 
     /**
      * Enumerate all information about the module (imports / exports / symbols)
