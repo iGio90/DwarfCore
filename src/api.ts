@@ -664,17 +664,22 @@ export class Api {
      * getELFHeader('libwhatever.so');
      * ```
      */
-    static getELFHeader(moduleName: string, isUICall: boolean|false) {
-        if(!Utils.isString(moduleName)) {
+    static getELFHeader(moduleName: string, isUICall?: boolean) {
+        if (!Utils.isDefined(isUICall)) {
+            isUICall = false;
+        }
+        if (!Utils.isString(moduleName)) {
             throw new Error("Api::getELFHeader() => No moduleName given!");
         }
         const fridaModule = Process.findModuleByName(moduleName);
         if (Utils.isDefined(fridaModule) && Utils.isString(fridaModule.path)) {
             try {
-                var elfFile = new ELF_File(fridaModule.path);
+                let elfFile = new ELF_File(fridaModule.path);
                 if (Utils.isDefined(elfFile)) {
-                    if(isUICall) {
-                        send({ elf_info: elfFile });
+                    if (isUICall) {
+                        send({
+                            elf_info: elfFile
+                        });
                     } else {
                         return elfFile;
                     }
