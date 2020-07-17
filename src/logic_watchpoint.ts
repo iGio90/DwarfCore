@@ -144,11 +144,11 @@ export class LogicWatchpoint {
     static putWatchpoint(address: NativePointer | string, flags: number = (MEMORY_ACCESS_READ | MEMORY_ACCESS_WRITE), callback?: Function): Watchpoint {
         let memPtr: NativePointer;
 
-        if (typeof address === 'string') {
+        //if (typeof address === 'string') {
             memPtr = ptr(address as string);
-        } else {
-            memPtr = address;
-        }
+        //} else {
+        //    memPtr = address;
+        //}
 
         if (memPtr.isNull()) {
             throw new Error('putWatchpoint: Invalid PointerValue!');
