@@ -168,7 +168,7 @@ export class Dwarf {
                             newCtx[reg]['symbol'] = symbol;
                         }
                         try {
-                            const inst = Instruction.parse(val);
+                            const inst = Instruction.parse(address_or_class);
                             newCtx[reg]['instruction'] = {
                                 'size': inst.size,
                                 'groups': inst.groups,

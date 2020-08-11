@@ -208,7 +208,7 @@ export class LogicBreakpoint {
             breakpoint.interceptor.detach();
             Interceptor['flush']();
 
-            LogicBreakpoint.breakpoint(LogicBreakpoint.REASON_BREAKPOINT, this.context.pc,
+            LogicBreakpoint.breakpoint(LogicBreakpoint.REASON_BREAKPOINT, breakpoint.target,
                 this.context, null, breakpoint.condition);
 
             if (typeof LogicBreakpoint.breakpoints[breakpoint.target.toString()] !== 'undefined') {
