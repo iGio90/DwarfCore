@@ -217,6 +217,7 @@ export class LogicJava {
         }
 
         handler.$dispose();
+        return true
     };
 
     static hookJavaMethod(targetClassMethod, implementation): boolean {
