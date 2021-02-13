@@ -33,6 +33,12 @@ export class DwarfJniTracer {
         for (let i = 0; i < this._listeners.length; i++) {
             this._listeners[i] = null;
         }
+
+        Dwarf.sync({
+            JNITracer: {
+                available: Object.keys(JNI_TEMPLATES),
+            },
+        });
     }
 
     private _getNativeFuncPtr = (index: number): NativePointer => {
