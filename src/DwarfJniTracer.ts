@@ -21,10 +21,13 @@
 import { JNI_Functions } from "./consts";
 
 export class DwarfJniTracer {
-    protected _vm_env = Java.vm.getEnv();
+    protected _vm_env;
     private _listeners: Array<InvocationListener>;
 
     constructor() {
+        if (!this._vm_env) {
+            this._vm_env = Java.vm.getEnv();
+        }
         this._listeners = new Array<InvocationListener>(JNI_Functions.GetObjectRefType);
         for (let i = 0; i < this._listeners.length; i++) {
             this._listeners[i] = null;
@@ -41,12 +44,26 @@ export class DwarfJniTracer {
             .readPointer();
     };
 
+    disableTracer = () => {
+        for (let i = 0; i < this._listeners.length; i++) {
+            if (this._listeners[i] !== null) {
+                this._listeners[i].detach();
+                this._listeners[i] = null;
+            }
+        }
+        Interceptor.flush();
+    };
+
     traceFunction = (fncIdx: JNI_Functions) => {
         if (fncIdx <= JNI_Functions.reserved3 || fncIdx > JNI_Functions.GetObjectRefType) {
             throw new Error("JNITracer: Invalid function!");
         }
 
-        Interceptor.attach(this._getNativeFuncPtr(fncIdx), {
+        if (this._listeners[fncIdx] !== null) {
+            throw new Error("JNITracer: already tracing");
+        }
+
+        this._listeners[fncIdx] = Interceptor.attach(this._getNativeFuncPtr(fncIdx), {
             onEnter: function (args) {
                 //TODO: define tpl
             },
