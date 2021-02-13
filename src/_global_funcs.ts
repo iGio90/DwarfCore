@@ -4,10 +4,8 @@
  * @internal
  */
 
-import { JNI_Functions } from "./consts";
-
 /**
-    Dwarf - Copyright (C) 2018-2020 Giovanni Rocca (iGio90)
+    Dwarf - Copyright (C) 2018-2021 Giovanni Rocca (iGio90)
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -22,6 +20,8 @@ import { JNI_Functions } from "./consts";
     You should have received a copy of the GNU General Public License
     along with this program.  If not, see <https://www.gnu.org/licenses/>
 **/
+
+import { JNI_Functions } from "./consts";
 
 global.timeStamp = function (): string {
     const date = new Date();
@@ -162,9 +162,9 @@ global.logErr = function (tag: string, err: Error): void {
 };
 
 global.trace = function (str: string): void {
-    //if (DEBUG) {
-    console.warn(timeStamp() + "[JS TRACE] -> " + str);
-    //}
+    if (TRACE) {
+        console.warn(timeStamp() + "[JS TRACE] -> " + str);
+    }
 };
 
 global.makeNativePointer = function (value: any): NativePointer {

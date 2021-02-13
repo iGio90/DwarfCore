@@ -22,15 +22,11 @@ import { JNI_Functions } from "./consts";
 import { JNI_TEMPLATES } from "./_jni_templates";
 
 export class DwarfJniTracer {
-    protected _vm_env;
     private _listeners: Array<InvocationListener>;
 
     constructor() {
         trace("DwarfJniTracer()");
 
-        if (!this._vm_env) {
-            this._vm_env = Java.vm.getEnv();
-        }
         this._listeners = new Array<InvocationListener>(JNI_Functions.GetObjectRefType);
         for (let i = 0; i < this._listeners.length; i++) {
             this._listeners[i] = null;
@@ -42,6 +38,14 @@ export class DwarfJniTracer {
             },
         });
     }
+
+    private _syncUI = () => {
+        Dwarf.sync({
+            JNITracer: {
+                enabled: this._listeners.map((val) => (val !== null ? 1 : 0)),
+            },
+        });
+    };
 
     traceFunction = (fncIdx: JNI_Functions, sync: boolean = true) => {
         trace("DwarfJniTracer::traceFunction()");
@@ -57,11 +61,7 @@ export class DwarfJniTracer {
         this._listeners[fncIdx] = Interceptor.attach(getJNIFuncPtr(fncIdx), Object.values(JNI_TEMPLATES)[fncIdx]);
 
         if (sync) {
-            Dwarf.sync({
-                JNITracer: {
-                    enabled: this._listeners.map((val) => (val !== null ? 1 : 0)),
-                },
-            });
+            this._syncUI();
         }
     };
 
@@ -76,11 +76,7 @@ export class DwarfJniTracer {
             this.traceFunction(funcs[i], false);
         }
 
-        Dwarf.sync({
-            JNITracer: {
-                enabled: this._listeners.map((val) => (val !== null ? 1 : 0)),
-            },
-        });
+        this._syncUI();
     };
 
     removeTrace = (fncIdx: JNI_Functions) => {
@@ -94,11 +90,8 @@ export class DwarfJniTracer {
             this._listeners[fncIdx] = null;
         }
 
-        Dwarf.sync({
-            JNITracer: {
-                enabled: this._listeners.map((val) => (val !== null ? 1 : 0)),
-            },
-        });
+        Interceptor.flush();
+        this._syncUI();
     };
 
     removeAll = () => {
@@ -110,12 +103,8 @@ export class DwarfJniTracer {
                 this._listeners[i] = null;
             }
         }
-        Interceptor.flush();
 
-        Dwarf.sync({
-            JNITracer: {
-                enabled: this._listeners.map((val) => (val !== null ? 1 : 0)),
-            },
-        });
+        Interceptor.flush();
+        this._syncUI();
     };
 }

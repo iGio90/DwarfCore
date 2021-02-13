@@ -5,7 +5,7 @@
  */
 
 /*
-    Dwarf - Copyright (C) 2018-2020 Giovanni Rocca (iGio90)
+    Dwarf - Copyright (C) 2018-2021 Giovanni Rocca (iGio90)
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -59,7 +59,9 @@ export class DwarfInterceptor {
 
     static init() {
         const clone = Object.assign({}, Interceptor);
-        clone.attach = function attach(
+        clone["realAttach"] = clone.attach;
+
+        clone.attach = function (
             target: NativePointerValue,
             callbacksOrProbe: InvocationListenerCallbacks | InstructionProbeCallback,
             data?: NativePointerValue
@@ -95,7 +97,10 @@ export class DwarfInterceptor {
                     replacement = callbacksOrProbe;
                 }
             }
-            return Interceptor["_attach"](target, replacement, data);
+            if (typeof replacement === "undefined") {
+                throw new Error("Error: replacement");
+            }
+            return clone["realAttach"](target, replacement, data);
         };
         global["Interceptor"] = clone;
     }

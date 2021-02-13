@@ -46,6 +46,7 @@ export class DwarfApi {
         }
     }
 
+    /** @internal */
     static getInstance() {
         if (!DwarfApi.instanceRef) {
             DwarfApi.instanceRef = new this();
@@ -607,8 +608,8 @@ export class DwarfApi {
      * ```
      */
     //TODO: allow path use
-    public getELFHeader = (moduleName:string = Dwarf.getProcessInfo().name, isUICall:boolean=false) => {
-        if(!isString(moduleName)) {
+    public getELFHeader = (moduleName: string = Dwarf.getProcessInfo().name) => {
+        if (!isString(moduleName)) {
             throw new Error("DwarfApi::getELFHeader() => No moduleName given!");
         }
         const fridaModule = Process.findModuleByName(moduleName);
@@ -616,11 +617,8 @@ export class DwarfApi {
             try {
                 var elfFile = new ELF_File(fridaModule.path);
                 if (isDefined(elfFile)) {
-                    if(isUICall) {
-                        Dwarf.sync({ elf_info: elfFile });
-                    } else {
-                        return elfFile;
-                    }
+                    Dwarf.sync({ elf_info: elfFile });
+                    return elfFile;
                 }
             } catch (error) {
                 console.log(error);
@@ -628,7 +626,7 @@ export class DwarfApi {
         } else {
             throw new Error("DwarfApi::getELFHeader() => Module not found!");
         }
-    }
+    };
 
     /**
      * Enumerate all information about the module (imports / exports / symbols)

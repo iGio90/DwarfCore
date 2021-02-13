@@ -16,15 +16,6 @@
         "src/**/*"
     ],
     "files": [
-        "./src/extfrida.d.ts",
         "./src/global.d.ts"
-      ],
-    "typedocOptions": {
-        "mode": "modules",
-        "name": "DwarfCore",
-        "readme": "./README.md",
-        "theme": "node_modules/eledoc/bin/default/", //TODO: create own dwark theme
-        "exclude": "./src/_copyright.ts",
-        "out": "dist/docs"
-    }
+    ]
 }

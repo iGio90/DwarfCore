@@ -1,11 +1,5 @@
-/**
- * @hidden
- * @ignore
- * @internal
- */
-
 /*
-    Dwarf - Copyright (C) 2018-2020 Giovanni Rocca (iGio90)
+    Dwarf - Copyright (C) 2018-2021 Giovanni Rocca (iGio90)
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -33,29 +27,13 @@ global.Dwarf = DwarfCore.getInstance();
 global["ELF_File"] = ELF_File;
 
 rpc.exports = {
-    api: function(tid: number, apiFunction, apiArguments) {
+    api: function (tid: number, apiFunction, apiArguments) {
         trace("RPC::API() -> " + apiFunction);
 
-        if (
-            !DwarfCore.getInstance()
-                .getApi()
-                .hasOwnProperty(apiFunction) &&
-            apiFunction !== "release"
-        ) {
+        if (!DwarfCore.getInstance().getApi().hasOwnProperty(apiFunction) && apiFunction !== "release") {
             throw new Error("Unknown ApiFunction!");
         }
-        logDebug(
-            "[" +
-                tid +
-                "] RPC-API: " +
-                apiFunction +
-                " | " +
-                "args: " +
-                apiArguments +
-                " (" +
-                Process.getCurrentThreadId() +
-                ")"
-        );
+        logDebug("[" + tid + "] RPC-API: " + apiFunction + " | " + "args: " + apiArguments + " (" + Process.getCurrentThreadId() + ")");
 
         if (typeof apiArguments === "undefined" || apiArguments === null) {
             apiArguments = [];
@@ -90,63 +68,47 @@ rpc.exports = {
                 }
             }
 
-            return DwarfCore.getInstance()
-                .getApi()
-                [apiFunction].apply(this, apiArguments);
+            return DwarfCore.getInstance().getApi()[apiFunction].apply(this, apiArguments);
         } catch (e) {
             logErr("Api()", e);
         }
     },
-    init: function(
-        proc_name,
-        spawned,
-        breakStart,
-        enableDebug,
-        enableTrace,
-        globalApiFuncs?: Array<string>
-    ) {
+    init: function (procName, wasSpawned, breakStart, enableDebug, enableTrace, hasUI, globalApiFuncs?: Array<string>) {
         //init dwarf
-        DwarfCore.getInstance().init(
-            proc_name,
-            spawned,
-            breakStart,
-            enableDebug,
-            enableTrace,
-            globalApiFuncs
-        );
+        DwarfCore.getInstance().init(procName, wasSpawned, breakStart, enableDebug, enableTrace, hasUI, globalApiFuncs);
     },
 
-    start: function() {
+    start: function () {
         DwarfCore.getInstance().start();
     },
-    stop: function() {
+    stop: function () {
         DwarfJavaHelper.getInstance().detach();
         DwarfHooksManager.getInstance()
             .getHooks()
-            .forEach(dwarfHook => {
+            .forEach((dwarfHook) => {
                 dwarfHook.remove(true);
             });
         MemoryAccessMonitor.disable();
     },
-    keywords: function() {
+    keywords: function () {
         const map = [];
-        Object.getOwnPropertyNames(global).forEach(function(name) {
+        Object.getOwnPropertyNames(global).forEach(function (name) {
             map.push(name);
 
             // second level
             if (isDefined(global[name])) {
-                Object.getOwnPropertyNames(global[name]).forEach(function(sec_name) {
+                Object.getOwnPropertyNames(global[name]).forEach(function (sec_name) {
                     map.push(sec_name);
                 });
             }
         });
         return uniqueBy(map);
     },
-    moduleinfo: function(moduleName: string) {
+    moduleinfo: function (moduleName: string) {
         if (Dwarf.modulesBlacklist.indexOf(moduleName) >= 0) {
             return "{}";
         }
-        return new Promise(resolve => {
+        return new Promise((resolve) => {
             let procModule = Process.findModuleByName(moduleName);
             if (isDefined(procModule)) {
                 let moduleInfo = Object.assign({ imports: [], exports: [], symbols: [] }, procModule);
@@ -156,17 +118,17 @@ rpc.exports = {
                 resolve(moduleInfo);
             }
             resolve({});
-        }).then(moduleInfo => {
+        }).then((moduleInfo) => {
             return moduleInfo;
         });
     },
-    fetchmem: function(address, length = 0) {
+    fetchmem: function (address, length = 0) {
         length = parseInt(length);
         var nativePointer = makeNativePointer(address);
         var memoryRange = Process.getRangeByAddress(nativePointer);
         if (isDefined(memoryRange)) {
             if (memoryRange && memoryRange.hasOwnProperty("protection") && memoryRange.protection.indexOf("r") === 0) {
-                Memory.protect(memoryRange.base, length, 'rwx');
+                Memory.protect(memoryRange.base, length, "rwx");
                 if (!length) {
                     memoryRange["data"] = ba2hex(memoryRange.base.readByteArray(memoryRange.size));
                 } else {
@@ -179,5 +141,5 @@ rpc.exports = {
         } else {
             return "Unable to find Memory!";
         }
-    }
+    },
 };

@@ -13,17 +13,17 @@
         "prepare": "python3 ./change_theme_fontsize.py && npm run build",
         "build": "npm run build_core && npm run build_docs && npm run build_types",
         "build_core": "frida-compile --no-sourcemap ./src/index.ts -o ./dist/core.js && python3 ./place_dwarf_license.py && python3 ./generate_dwarf_api.py && npm run copy",
-        "build_docs": "typedoc --options typedoc.json",
+        "build_docs": "typedoc",
         "build_types": "tsc -d --removeComments false --declarationDir ./dwarf-typings --emitDeclarationOnly",
         "watch": "frida-compile --no-sourcemap ./src/index.ts -o ./dist/core.js -w",
         "copy": "cp ./dist/core.js ../Dwarf/dwarf_debugger/core/scripts/core.js"
     },
     "devDependencies": {
-        "@types/frida-gum": "^14.2.2",
-        "@types/node": "^12.12.14",
+        "@types/frida-gum": "^16.2.0",
+        "@types/node": "^14.14.10",
         "eledoc": "^0.2.1",
-        "frida-compile": "^9.0.8",
-        "typedoc": "^0.15.3",
-        "typescript": "^3.7.2"
+        "frida-compile": "^10.0.0",
+        "typedoc": "^0.19.2",
+        "typescript": "^4.1.2"
     }
 }

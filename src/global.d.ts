@@ -1,5 +1,5 @@
 /**
-    Dwarf - Copyright (C) 2018-2020 Giovanni Rocca (iGio90)
+    Dwarf - Copyright (C) 2018-2021 Giovanni Rocca (iGio90)
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -18,6 +18,7 @@
 declare namespace NodeJS {
     interface Global {
         DEBUG: boolean;
+        TRACE: boolean;
         MAX_STACK_SIZE: number;
         timeStamp: Function;
         isNull: Function;
@@ -68,6 +69,7 @@ declare function getJNIFuncPtr(index: number): NativePointer;
 declare function checkNativePointer(ptrValue: NativePointer): boolean;
 declare var MAX_STACK_SIZE: number;
 declare var DEBUG: boolean;
+declare var TRACE: boolean;
 declare const Dwarf: any;
 
 type DwarfHookAddress = NativePointer | string | null;
