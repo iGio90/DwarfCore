@@ -4,6 +4,8 @@
  * @internal
  */
 
+import { JNI_Functions } from "./consts";
+
 /**
     Dwarf - Copyright (C) 2018-2020 Giovanni Rocca (iGio90)
 
@@ -21,42 +23,42 @@
     along with this program.  If not, see <https://www.gnu.org/licenses/>
 **/
 
-global.timeStamp = function(): string {
+global.timeStamp = function (): string {
     const date = new Date();
     const time = new Date(date.valueOf() - 6e4 * date.getTimezoneOffset()).toISOString().replace("Z", "");
     return "[" + time.substring(time.indexOf("T") + 1) + "] ";
 };
 
-global.isNull = function(value: any): boolean {
+global.isNull = function (value: any): boolean {
     return value === null;
 };
 
-global.isDefined = function(value: any): boolean {
+global.isDefined = function (value: any): boolean {
     return value !== undefined && value !== null && typeof value !== "undefined";
 };
 
-global.isNumber = function(value: any): boolean {
+global.isNumber = function (value: any): boolean {
     if (isDefined(value)) {
         return typeof value === "number" && !isNaN(value);
     }
     return false;
 };
 
-global.isString = function(value: any): boolean {
-    if (isDefined(value) && typeof value === 'string') {
-        return (value.length > 0);
+global.isString = function (value: any): boolean {
+    if (isDefined(value) && typeof value === "string") {
+        return value.length > 0;
     }
     return false;
 };
 
-global.isFunction = function(value: any): boolean {
+global.isFunction = function (value: any): boolean {
     if (isDefined(value)) {
         return typeof value === "function";
     }
     return false;
 };
 
-global.isValidFridaListener = function(value: any): boolean {
+global.isValidFridaListener = function (value: any): boolean {
     if (isDefined(value) && typeof value === "object") {
         if (value.hasOwnProperty("onEnter") || value.hasOwnProperty("onLeave")) {
             return true;
@@ -79,7 +81,7 @@ global.isValidFridaListener = function(value: any): boolean {
     return hexStr;
 }*/
 
-global.ba2hex = function(arrayBuffer: ArrayBuffer): string {
+global.ba2hex = function (arrayBuffer: ArrayBuffer): string {
     // 24,887 ops/s vs 427,496 ops/s
     //https://jsperf.com/convert-numeric-array-to-hex-string
     const byteArray = new Uint8Array(arrayBuffer);
@@ -101,19 +103,19 @@ global.ba2hex = function(arrayBuffer: ArrayBuffer): string {
     if (chars.length < MAX_STACK_SIZE) {
         return String.fromCharCode.apply(null, chars);
     } else {
-        return Array.from(chars, function(c) {
+        return Array.from(chars, function (c) {
             return String.fromCharCode(c);
         }).join("");
     }
 };
 
-global.hex2a = function(hex: string): Array<number> {
+global.hex2a = function (hex: string): Array<number> {
     let bytes = [];
     for (let c = 0; c < hex.length; c += 2) bytes.push(parseInt(hex.substr(c, 2), 16));
     return bytes;
 };
 
-global.dethumbify = function(pt: NativePointer): NativePointer {
+global.dethumbify = function (pt: NativePointer): NativePointer {
     if (Process.arch.indexOf("arm") !== -1) {
         if ((parseInt(pt.toString(), 16) & 1) === 1) {
             pt = pt.sub(1);
@@ -122,15 +124,15 @@ global.dethumbify = function(pt: NativePointer): NativePointer {
     return pt;
 };
 
-global.uniqueBy = function(array: Array<any>): Array<any> {
+global.uniqueBy = function (array: Array<any>): Array<any> {
     const seen: any = {};
-    return array.filter(function(item) {
+    return array.filter(function (item) {
         const k = JSON.stringify(item);
         return seen.hasOwnProperty(k) ? false : (seen[k] = true);
     });
 };
 
-global.logDebug = function(...data: Array<any>): void {
+global.logDebug = function (...data: Array<any>): void {
     if (!DEBUG || !data.length) {
         return;
     }
@@ -155,17 +157,17 @@ global.logDebug = function(...data: Array<any>): void {
     }
 };
 
-global.logErr = function(tag: string, err: Error): void {
+global.logErr = function (tag: string, err: Error): void {
     console.error(timeStamp() + "[JS ERROR] => " + tag + " -> " + err);
 };
 
-global.trace = function(str: string): void {
-    if (DEBUG) {
-        console.warn(timeStamp() + "[JS TRACE] -> " + str);
-    }
+global.trace = function (str: string): void {
+    //if (DEBUG) {
+    console.warn(timeStamp() + "[JS TRACE] -> " + str);
+    //}
 };
 
-global.makeNativePointer = function(value: any): NativePointer {
+global.makeNativePointer = function (value: any): NativePointer {
     if (!isDefined(value)) {
         throw new Error("Invalid Arguments!");
     }
@@ -186,7 +188,7 @@ global.makeNativePointer = function(value: any): NativePointer {
  * @param  {NativePointer} ptrValue
  * @returns boolean
  */
-global.checkNativePointer = function(ptrValue: NativePointer): boolean {
+global.checkNativePointer = function (ptrValue: NativePointer): boolean {
     if (!isDefined(ptrValue)) {
         return false;
     }
@@ -202,7 +204,7 @@ global.checkNativePointer = function(ptrValue: NativePointer): boolean {
 };
 
 //https://codeshare.frida.re/@oleavr/read-std-string/
-global.readStdString = function(arg: NativePointer): string | null {
+global.readStdString = function (arg: NativePointer): string | null {
     const isTiny = (arg.readU8() & 1) === 0;
     if (isTiny) {
         return arg.add(1).readUtf8String();
@@ -212,4 +214,20 @@ global.readStdString = function(arg: NativePointer): string | null {
         .add(2 * Process.pointerSize)
         .readPointer()
         .readUtf8String();
+};
+
+global.getJNIFuncPtr = function (index: number): NativePointer {
+    if (!Java.available) {
+        throw new Error("Java not available!");
+    }
+
+    if (index <= JNI_Functions.reserved3 || index > JNI_Functions.GetObjectRefType) {
+        throw new Error("Invalid FunctionIndex!");
+    }
+
+    return Java.vm
+        .getEnv()
+        .readPointer()
+        .add(index * Process.pointerSize)
+        .readPointer();
 };

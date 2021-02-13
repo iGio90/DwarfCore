@@ -38,6 +38,7 @@ declare namespace NodeJS {
         Dwarf: any;
         DwarfFile: any;
         readStdString: Function;
+        getJNIFuncPtr: Function;
     }
 }
 
@@ -49,7 +50,7 @@ declare function isString(value: any): boolean;
 declare function isFunction(value: any): boolean;
 declare function isValidFridaListener(value: any): boolean;
 declare function ba2hex(arrayBuffer: ArrayBuffer): string;
-declare function hex2a(hex: string): [];
+declare function hex2a(hex: string): Array<number>;
 declare function dethumbify(ptrValue: NativePointer): NativePointer;
 declare function uniqueBy(array: Array<any>): Array<any>;
 declare function logDebug(...data: Array<any>): void;
@@ -57,6 +58,7 @@ declare function trace(...data: Array<any>): void;
 declare function logErr(tag: string, err: Error): void;
 declare function makeNativePointer(value: any): NativePointer;
 declare function readStdString(str: any): string;
+declare function getJNIFuncPtr(index: number): NativePointer;
 /**
  * Checks if given ptrValue is NativePointer
  *

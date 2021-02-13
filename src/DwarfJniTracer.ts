@@ -26,6 +26,8 @@ export class DwarfJniTracer {
     private _listeners: Array<InvocationListener>;
 
     constructor() {
+        trace("DwarfJniTracer()");
+
         if (!this._vm_env) {
             this._vm_env = Java.vm.getEnv();
         }
@@ -41,27 +43,9 @@ export class DwarfJniTracer {
         });
     }
 
-    private _getNativeFuncPtr = (index: number): NativePointer => {
-        if (index <= JNI_Functions.reserved3 || index > JNI_Functions.GetObjectRefType) {
-            throw new Error("JNITracer: Invalid function!");
-        }
-        return this._vm_env.handle
-            .readPointer()
-            .add(index * Process.pointerSize)
-            .readPointer();
-    };
+    traceFunction = (fncIdx: JNI_Functions, sync: boolean = true) => {
+        trace("DwarfJniTracer::traceFunction()");
 
-    disableTracer = () => {
-        for (let i = 0; i < this._listeners.length; i++) {
-            if (this._listeners[i] !== null) {
-                this._listeners[i].detach();
-                this._listeners[i] = null;
-            }
-        }
-        Interceptor.flush();
-    };
-
-    traceFunction = (fncIdx: JNI_Functions) => {
         if (fncIdx <= JNI_Functions.reserved3 || fncIdx > JNI_Functions.GetObjectRefType) {
             throw new Error("JNITracer: Invalid function!");
         }
@@ -70,10 +54,38 @@ export class DwarfJniTracer {
             throw new Error("JNITracer: already tracing");
         }
 
-        this._listeners[fncIdx] = Interceptor.attach(this._getNativeFuncPtr(fncIdx), Object.values(JNI_TEMPLATES)[fncIdx]);
+        this._listeners[fncIdx] = Interceptor.attach(getJNIFuncPtr(fncIdx), Object.values(JNI_TEMPLATES)[fncIdx]);
+
+        if (sync) {
+            Dwarf.sync({
+                JNITracer: {
+                    enabled: this._listeners.map((val) => (val !== null ? 1 : 0)),
+                },
+            });
+        }
+    };
+
+    traceFunctions = (funcs: Array<JNI_Functions>) => {
+        trace("DwarfJniTracer::traceFunctions()");
+
+        if (typeof funcs === "number") {
+            return this.traceFunction(funcs);
+        }
+
+        for (let i = 0; i < funcs.length; i++) {
+            this.traceFunction(funcs[i], false);
+        }
+
+        Dwarf.sync({
+            JNITracer: {
+                enabled: this._listeners.map((val) => (val !== null ? 1 : 0)),
+            },
+        });
     };
 
     removeTrace = (fncIdx: JNI_Functions) => {
+        trace("DwarfJniTracer::removeTrace()");
+
         if (fncIdx <= JNI_Functions.reserved3 || fncIdx > JNI_Functions.GetObjectRefType) {
             throw new Error("JNITracer: Invalid function!");
         }
@@ -81,5 +93,29 @@ export class DwarfJniTracer {
             this._listeners[fncIdx].detach();
             this._listeners[fncIdx] = null;
         }
+
+        Dwarf.sync({
+            JNITracer: {
+                enabled: this._listeners.map((val) => (val !== null ? 1 : 0)),
+            },
+        });
+    };
+
+    removeAll = () => {
+        trace("DwarfJniTracer::removeAll()");
+
+        for (let i = 0; i < this._listeners.length; i++) {
+            if (this._listeners[i] !== null) {
+                this._listeners[i].detach();
+                this._listeners[i] = null;
+            }
+        }
+        Interceptor.flush();
+
+        Dwarf.sync({
+            JNITracer: {
+                enabled: this._listeners.map((val) => (val !== null ? 1 : 0)),
+            },
+        });
     };
 }
