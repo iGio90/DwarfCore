@@ -19,6 +19,7 @@
 //https://github.com/mapbox/jni.hpp/blob/master/test/openjdk/jni.h
 //https://docs.oracle.com/javase/8/docs/technotes/guides/jni/spec/functions.html
 import { JNI_Functions } from "./consts";
+import { JNI_TEMPLATES } from "./_jni_templates";
 
 export class DwarfJniTracer {
     protected _vm_env;
@@ -63,12 +64,7 @@ export class DwarfJniTracer {
             throw new Error("JNITracer: already tracing");
         }
 
-        this._listeners[fncIdx] = Interceptor.attach(this._getNativeFuncPtr(fncIdx), {
-            onEnter: function (args) {
-                //TODO: define tpl
-            },
-            onLeave: function (retval) {},
-        });
+        this._listeners[fncIdx] = Interceptor.attach(this._getNativeFuncPtr(fncIdx), Object.values(JNI_TEMPLATES)[fncIdx]);
     };
 
     removeTrace = (fncIdx: JNI_Functions) => {
