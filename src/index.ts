@@ -16,14 +16,14 @@
 */
 
 import "./_global_funcs";
+import "./_global_vars";
 
-import { DwarfCore } from "./dwarf";
+import { DwarfCore } from "./DwarfCore";
 import { ThreadApi } from "./thread_api";
 import { ELF_File } from "./types/elf_file";
 import { DwarfHooksManager } from "./hooks_manager";
 import { DwarfJavaHelper } from "./java";
 
-global.Dwarf = DwarfCore.getInstance();
 global["ELF_File"] = ELF_File;
 
 rpc.exports = {
@@ -40,32 +40,31 @@ rpc.exports = {
         }
 
         try {
-            if (Object.keys(Dwarf.threadContexts).length > 0) {
-                const threadContext = Dwarf.threadContexts[tid.toString()];
-                if (isDefined(threadContext)) {
-                    const threadApi = new ThreadApi(apiFunction, apiArguments);
-                    threadContext.apiQueue.push(threadApi);
-                    const start = Date.now();
-                    while (!threadApi.consumed) {
-                        Thread.sleep(0.5);
+            let context = DwarfCore.getInstance().getThreadContext(tid);
 
-                        //logDebug("[" + tid + "] RPC-API: " + apiFunction + " waiting for api result");
+            if (isDefined(context)) {
+                const threadApi = new ThreadApi(apiFunction, apiArguments);
+                context.apiQueue.push(threadApi);
+                const start = Date.now();
+                while (!threadApi.consumed) {
+                    Thread.sleep(0.5);
 
-                        if (Date.now() - start > 3 * 1000) {
-                            threadApi.result = "";
-                            break;
-                        }
+                    //logDebug("[" + tid + "] RPC-API: " + apiFunction + " waiting for api result");
+
+                    if (Date.now() - start > 3 * 1000) {
+                        threadApi.result = "";
+                        break;
                     }
-
-                    let ret = threadApi.result;
-                    if (!isDefined(ret)) {
-                        ret = "";
-                    }
-
-                    //logDebug("[" + tid + "] RPC-API: " + apiFunction + " api result: " + ret);
-
-                    return ret;
                 }
+
+                let ret = threadApi.result;
+                if (!isDefined(ret)) {
+                    ret = "";
+                }
+
+                //logDebug("[" + tid + "] RPC-API: " + apiFunction + " api result: " + ret);
+
+                return ret;
             }
 
             return DwarfCore.getInstance().getApi()[apiFunction].apply(this, apiArguments);
@@ -75,7 +74,8 @@ rpc.exports = {
     },
     init: function (procName, wasSpawned, breakStart, enableDebug, enableTrace, hasUI, globalApiFuncs?: Array<string>) {
         //init dwarf
-        DwarfCore.getInstance().init(procName, wasSpawned, breakStart, enableDebug, enableTrace, hasUI, globalApiFuncs);
+        global.Dwarf = DwarfCore.getInstance();
+        global.Dwarf.init(procName, wasSpawned, breakStart, enableDebug, enableTrace, hasUI, globalApiFuncs);
     },
 
     start: function () {
@@ -105,7 +105,7 @@ rpc.exports = {
         return uniqueBy(map);
     },
     moduleinfo: function (moduleName: string) {
-        if (Dwarf.modulesBlacklist.indexOf(moduleName) >= 0) {
+        if (DwarfCore.getInstance().isBlacklistedModule(moduleName)) {
             return "{}";
         }
         return new Promise((resolve) => {

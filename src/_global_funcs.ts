@@ -1,10 +1,4 @@
 /**
- * @hidden
- * @ignore
- * @internal
- */
-
-/**
     Dwarf - Copyright (C) 2018-2021 Giovanni Rocca (iGio90)
 
     This program is free software: you can redistribute it and/or modify

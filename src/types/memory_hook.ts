@@ -1,11 +1,5 @@
-/**
- * @hidden
- * @ignore
- * @internal
- */
-
-/**
-    Dwarf - Copyright (C) 2018-2020 Giovanni Rocca (iGio90)
+/*
+    Dwarf - Copyright (C) 2018-2021 Giovanni Rocca (iGio90)
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -19,10 +13,10 @@
 
     You should have received a copy of the GNU General Public License
     along with this program.  If not, see <https://www.gnu.org/licenses/>
-**/
+*/
 
 import { DwarfHook } from "./dwarf_hook";
-import { DwarfCore } from "../dwarf";
+import { DwarfCore } from "../DwarfCore";
 import { DwarfMemoryAccessType, DwarfHookType, DwarfHaltReason } from "../consts";
 
 export class MemoryHook extends DwarfHook {

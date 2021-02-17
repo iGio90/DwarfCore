@@ -1,4 +1,4 @@
-/**
+/*
     Dwarf - Copyright (C) 2018-2021 Giovanni Rocca (iGio90)
 
     This program is free software: you can redistribute it and/or modify
@@ -13,15 +13,15 @@
 
     You should have received a copy of the GNU General Public License
     along with this program.  If not, see <https://www.gnu.org/licenses/>
-**/
+*/
 
 import { LogicJava } from "./logic_java";
 import { DwarfInterceptor } from "./interceptor";
-import { DwarfApi } from "./api";
+import { DwarfApi } from "./DwarfApi";
 import { DwarfHooksManager } from "./hooks_manager";
 import { ThreadContext } from "./thread_context";
 import { ThreadApi } from "./thread_api";
-import { LogicStalker } from "./logic_stalker";
+//import { LogicStalker } from "./logic_stalker";
 import { DwarfHaltReason } from "./consts";
 import { DwarfProcessInfo } from "./types/dwarf_processinfo";
 import { DwarfFS } from "./DwarfFS";
@@ -30,12 +30,8 @@ import { DwarfJavaHelper } from "./java";
 import { DwarfStalker } from "./stalker";
 
 export class DwarfCore {
-    PROC_RESUMED = false;
-
-    threadContexts: { [index: string]: ThreadContext } = {};
-
-    modulesBlacklist: Array<string> = new Array<string>();
-
+    protected threadContexts: { [index: string]: ThreadContext } = {};
+    protected modulesBlacklist: Array<string> = new Array<string>();
     protected processInfo: DwarfProcessInfo | null;
 
     private dwarfApi: DwarfApi;
@@ -91,27 +87,27 @@ export class DwarfCore {
         if (!DwarfCore.instanceRef) {
             DwarfCore.instanceRef = new this();
         }
-        trace("Dwarf::getInstance()");
+        trace("DwarfCore::getInstance()");
         return DwarfCore.instanceRef;
     }
 
     getApi = (): DwarfApi => {
-        trace("Dwarf::getApi()");
+        trace("DwarfCore::getApi()");
         return this.dwarfApi;
     };
 
     getHooksManager = (): DwarfHooksManager => {
-        trace("Dwarf::getHooksManager()");
+        trace("DwarfCore::getHooksManager()");
         return this.dwarfHooksManager;
     };
 
     getFS = (): DwarfFS => {
-        trace("Dwarf::getFS()");
+        trace("DwarfCore::getFS()");
         return this.dwarfFS;
     };
 
     getJavaHelper = (): DwarfJavaHelper => {
-        trace("Dwarf::getJavaHelper()");
+        trace("DwarfCore::getJavaHelper()");
         if (this.dwarfJavaHelper === null) {
             throw new Error("JavaHelper not initialized!");
         }
@@ -119,8 +115,18 @@ export class DwarfCore {
     };
 
     getStalker = (): DwarfStalker => {
-        trace("Dwarf::getStalker()");
+        trace("DwarfCore::getStalker()");
         return this.dwarfStalker;
+    };
+
+    getObserver = (): DwarfObserver => {
+        trace("DwarfCore::getObserver()");
+        return this.dwarfObserver;
+    };
+
+    getProcessInfo = () => {
+        trace("DwarfCore::getProcessInfo()");
+        return this.processInfo;
     };
 
     enableDebug = (): void => {
@@ -280,7 +286,6 @@ export class DwarfCore {
             if (this.processInfo.wasSpawned && this.breakAtStart) {
                 //Inital breakpoint
                 const invocationListener = Interceptor.attach(this.dwarfApi.findExport("RtlUserThreadStart"), function () {
-                    trace("Creating startbreakpoint");
                     const invocationContext: InvocationContext = this;
                     let address = null;
                     if (Process.arch === "ia32") {
@@ -293,8 +298,11 @@ export class DwarfCore {
 
                     if (isDefined(address)) {
                         const initBreakpoint = DwarfCore.getInstance().getHooksManager().addNativeHook(address, "breakpoint", true, true);
-                        invocationListener.detach();
+                        if (!initBreakpoint || (initBreakpoint && !initBreakpoint.isAttached())) {
+                            logDebug("Failed to attach initBP!");
+                        }
                     }
+                    invocationListener.detach();
                 });
             } //breakatinit
         } //platform==windows
@@ -312,7 +320,7 @@ export class DwarfCore {
             return false;
         }*/
 
-        Dwarf.sync({ exception: exception });
+        this.sync({ exception: exception });
         let isHandled = false;
         const op = recv("exception", function (value) {
             isHandled = value.payload == 1;
@@ -331,7 +339,6 @@ export class DwarfCore {
 
     onBreakpoint = (breakpointId: number, threadId: number, haltReason: DwarfHaltReason, address_or_class, context, java_handle?, condition?: Function) => {
         trace("DwarfCore::onBreakpoint()");
-        //const tid = Process.getCurrentThreadId();
 
         if (!isDefined(threadId)) {
             threadId = Process.getCurrentThreadId();
@@ -366,7 +373,7 @@ export class DwarfCore {
                 logDebug("[" + threadId + "] sendInfos - preparing native backtrace");
 
                 breakpointData["backtrace"] = {
-                    bt: Dwarf.dwarfApi.backtrace(context),
+                    bt: DwarfCore.getInstance().getApi().backtrace(context),
                     type: "native",
                 };
 
@@ -380,7 +387,7 @@ export class DwarfCore {
 
                     logDebug("[" + threadId + "] getting register information:", reg, val);
 
-                    const ts = Dwarf.dwarfApi.getAddressTs(val);
+                    const ts = DwarfCore.getInstance().getApi().getAddressTs(val);
                     isValidPtr = ts[0] != -1;
                     newCtx[reg] = {
                         value: val,
@@ -414,40 +421,80 @@ export class DwarfCore {
                 logDebug("[" + threadId + "] sendInfos - preparing java backtrace");
 
                 breakpointData["backtrace"] = {
-                    bt: Dwarf.dwarfApi.javaBacktrace(),
+                    bt: DwarfCore.getInstance().getApi().javaBacktrace(),
                     type: "java",
                 };
             }
         }
 
-        let threadContext: ThreadContext = Dwarf.threadContexts[threadId.toString()];
+        let threadContext: ThreadContext = DwarfCore.getInstance().getThreadContext(threadId);
 
         if (!isDefined(threadContext) && isDefined(context)) {
             threadContext = new ThreadContext(threadId);
             threadContext.context = context;
-            Dwarf.threadContexts[threadId.toString()] = threadContext;
+            DwarfCore.getInstance().addThreadContext(threadId, threadContext);
         }
 
         if (isDefined(condition)) {
             if (!condition.call(threadContext)) {
-                delete Dwarf.threadContexts[threadId.toString()];
+                DwarfCore.getInstance().deleteThreadContext(threadId);
                 return;
             }
         }
 
         if (!isDefined(threadContext) || !threadContext.preventSleep) {
             logDebug("[" + threadId + "] break " + address_or_class + " - dispatching context info");
-            Dwarf.sync({
+            DwarfCore.getInstance().sync({
                 breakpoint: breakpointData,
                 threads: Process.enumerateThreads(),
+                dwarfHooks: DwarfCore.getInstance().getHooksManager().getHooks()
             });
 
             logDebug("[" + threadId + "] break " + address_or_class + " - sleeping context. goodnight!");
-            Dwarf.loopApi(threadId, threadContext);
+            DwarfCore.getInstance().loopApi(threadId, threadContext);
 
             logDebug("[" + threadId + "] ThreadContext has been released");
-            Dwarf.sync({ threads: [], breakpoint: {} });
+            DwarfCore.getInstance().sync({ threads: [], breakpoint: {} });
         }
+    };
+
+    addThreadContext = (threadId: number, context: ThreadContext) => {
+        trace("DwarfCore::addThreadContext()");
+
+        this.threadContexts[threadId.toString()] = context;
+    };
+
+    getThreadContext = (threadId: number): ThreadContext => {
+        trace("DwarfCore::getThreadContext()");
+
+        if (!this.threadContexts.hasOwnProperty(threadId.toString())) {
+            return null;
+        }
+        return this.threadContexts[threadId.toString()];
+    };
+
+    deleteThreadContext = (threadId: number): boolean => {
+        trace("DwarfCore::deleteThreadContext()");
+
+        if (!this.threadContexts.hasOwnProperty(threadId.toString())) {
+            return false;
+        }
+        delete this.threadContexts[threadId.toString()];
+        return true;
+    };
+
+    isBlacklistedModule = (module: Module | string): boolean => {
+        trace("DwarfCore::isBlacklistedModule()");
+
+        if (module.constructor.name === "Module") {
+            return this.modulesBlacklist.indexOf((module as Module).name) !== -1;
+        } else if (isString(module)) {
+            return this.modulesBlacklist.indexOf(module as string) !== -1;
+        } else {
+            throw new Error("Invalid Argument!");
+        }
+
+        return false;
     };
 
     loopApi = (threadId: number, that) => {
@@ -487,6 +534,13 @@ export class DwarfCore {
                 }
                 threadApi.consumed = true;
 
+                //TODO: fix stalker
+                if (threadApi.apiFunction === "release") {
+                    release = true;
+                    break;
+                }
+
+                /*
                 let stalkerInfo = LogicStalker.stalkerInfoMap[threadId];
                 if (threadApi.apiFunction === "_step") {
                     if (!isDefined(stalkerInfo)) {
@@ -501,39 +555,27 @@ export class DwarfCore {
 
                     release = true;
                     break;
-                }
+                }*/
             }
 
             if (!release) {
-                this.loopApi(threadId, that);
+                DwarfCore.getInstance().loopApi(threadId, that);
             }
         }
     };
 
-    getProcessInfo = () => {
-        return this.processInfo;
-    };
 
-    /** @internal */
     sync = (extraData = {}, rawData?: ArrayBuffer | number[]) => {
         if (!this.hasUI) {
             return;
         }
 
         trace("DwarfCore::sync()");
-        //let coreSyncMsg = { breakpoints: this.getHooksManager().getBreakpoints() };
+
         let coreSyncMsg = {};
         coreSyncMsg = Object.assign(coreSyncMsg, extraData);
 
         send(coreSyncMsg, rawData);
-        /*JSON.stringify(coreSyncMsg, function (key, val) {
-                if (isFunction(val)) {
-                    return val.toString().replace(/\'/g, '"');
-                } else {
-                    return val;
-                }
-            })
-        );*/
     };
 
     //from https://github.com/frida/frida-java-bridge/blob/master/lib/android.js

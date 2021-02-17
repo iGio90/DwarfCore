@@ -1,11 +1,5 @@
-/**
- * @hidden
- * @ignore
- * @internal
- */
-
-/**
-    Dwarf - Copyright (C) 2018-2020 Giovanni Rocca (iGio90)
+/*
+    Dwarf - Copyright (C) 2018-2021 Giovanni Rocca (iGio90)
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -19,15 +13,15 @@
 
     You should have received a copy of the GNU General Public License
     along with this program.  If not, see <https://www.gnu.org/licenses/>
-**/
+*/
 
 import { DwarfHook } from "./dwarf_hook";
 import { DwarfHookType } from "../consts";
-import { DwarfHooksManager } from "../hooks_manager";
 
 export class NativeHook extends DwarfHook {
     protected bpDebugSymbol: DebugSymbol;
     protected bpCondition: Function;
+    protected orgMem: string;
     protected invocationListener: InvocationListener;
 
     /**
@@ -36,12 +30,7 @@ export class NativeHook extends DwarfHook {
      * @param  {DwarfHookType} bpType
      * @param  {NativePointer|string} bpAddress
      */
-    constructor(
-        bpAddress: NativePointer | string,
-        userCallback: DwarfCallback = "breakpoint",
-        isSingleShot: boolean = false,
-        isEnabled: boolean = true
-    ) {
+    constructor(bpAddress: NativePointer | string, userCallback: DwarfCallback = "breakpoint", isSingleShot: boolean = false, isEnabled: boolean = true) {
         const nativePtr = makeNativePointer(bpAddress);
 
         if (nativePtr.isNull()) {
@@ -63,16 +52,17 @@ export class NativeHook extends DwarfHook {
 
         this.bAttached = false;
         this.bpDebugSymbol = DebugSymbol.fromAddress(nativePtr);
+        this.orgMem = ba2hex(nativePtr.readByteArray(Process.pointerSize * 2));
 
         const self = this;
         try {
             self.invocationListener = Interceptor.attach(nativePtr, {
-                onEnter: function(args) {
+                onEnter: function (args) {
                     self.onEnterCallback(self, this, args);
                 },
-                onLeave: function(returnVal) {
+                onLeave: function (returnVal) {
                     self.onLeaveCallback(self, this, returnVal);
-                }
+                },
             });
             self.bAttached = true;
         } catch (e) {
@@ -106,10 +96,11 @@ export class NativeHook extends DwarfHook {
             this.bActive = false;
             this.bAttached = false;
             this.bEnabled = false;
+            this.orgMem = "";
         }
     }
 
-    public remove(syncUi:boolean = true): void {
+    public remove(syncUi: boolean = true): void {
         trace("NativeHook::remove()");
 
         if (this.bAttached && isDefined(this.invocationListener)) {

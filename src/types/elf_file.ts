@@ -1,5 +1,5 @@
-/**
-    Dwarf - Copyright (C) 2018-2020 Giovanni Rocca (iGio90)
+/*
+    Dwarf - Copyright (C) 2018-2021 Giovanni Rocca (iGio90)
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -13,7 +13,7 @@
 
     You should have received a copy of the GNU General Public License
     along with this program.  If not, see <https://www.gnu.org/licenses/>
-**/
+*/
 
 /*
     http://man7.org/linux/man-pages/man5/elf.5.html
@@ -58,7 +58,7 @@
     } Elf32_Shdr;                   } Elf64_Shdr;
 */
 
-import { DwarfApi } from "./../api";
+import { DwarfApi } from "../DwarfApi";
 import { DwarfFS } from "./../DwarfFS";
 
 /**
@@ -67,9 +67,9 @@ import { DwarfFS } from "./../DwarfFS";
 export class ELF_File {
     is64Bit: boolean = false;
     endian: string = "little";
-    fileHeader: ELF_File.ELF_Header | null = null;
-    programHeaders: ELF_File.ELF_ProgamHeader[] = [];
-    sectionHeaders: ELF_File.ELF_SectionHeader[] = [];
+    fileHeader: ELF_File.Header | null = null;
+    programHeaders: ELF_File.ProgamHeader[] = [];
+    sectionHeaders: ELF_File.SectionHeader[] = [];
 
     /**
      * constructor
@@ -108,7 +108,7 @@ export class ELF_File {
             throw new Error("Failed to read from File!");
         }
 
-        this.fileHeader = new ELF_File.ELF_Header(headerBuffer);
+        this.fileHeader = new ELF_File.Header(headerBuffer);
         // check for 'ELF'
         if (this.fileHeader.e_ident[0] !== 0x7f || this.fileHeader.e_ident[1] !== 0x45 || this.fileHeader.e_ident[2] !== 0x4c || this.fileHeader.e_ident[3] !== 0x46) {
             dwarfFS.fclose(_file);
@@ -165,7 +165,7 @@ export class ELF_File {
         }
 
         for (let i = 0; i < this.fileHeader.e_phnum; i++) {
-            this.programHeaders.push(new ELF_File.ELF_ProgamHeader(progHeadersBuffer.add(this.fileHeader.e_phentsize * i), this.is64Bit));
+            this.programHeaders.push(new ELF_File.ProgamHeader(progHeadersBuffer.add(this.fileHeader.e_phentsize * i), this.is64Bit));
         }
 
         let strTableBuffer = dwarfFS.allocateRw(this.fileHeader.e_shentsize);
@@ -183,7 +183,7 @@ export class ELF_File {
             dwarfFS.fclose(_file);
             throw new Error("Failed to read from File!");
         }
-        let section = new ELF_File.ELF_SectionHeader(strTableBuffer, this.is64Bit);
+        let section = new ELF_File.SectionHeader(strTableBuffer, this.is64Bit);
 
         if (dwarfFS.fseek(_file, section.sh_offset, DwarfFS.SeekDirection.SEEK_SET) !== 0) {
             dwarfFS.fclose(_file);
@@ -232,7 +232,7 @@ export class ELF_File {
         }
 
         for (let i = 0; i < this.fileHeader.e_shnum; i++) {
-            section = new ELF_File.ELF_SectionHeader(sectionsBuffer.add(this.fileHeader.e_shentsize * i), this.is64Bit);
+            section = new ELF_File.SectionHeader(sectionsBuffer.add(this.fileHeader.e_shentsize * i), this.is64Bit);
             section.name = strSectionBuffer.add(section.sh_name).readCString() || "NULL";
 
             if (section.name === ".init_array") {
@@ -264,9 +264,8 @@ export class ELF_File {
         dwarfFS.fclose(_file);
     }
 }
-
 export namespace ELF_File {
-    export class ELF_Header {
+    export class Header {
         e_ident: number[] = [];
         e_type: number = 0;
         e_machine: number = 0;
@@ -291,7 +290,7 @@ export namespace ELF_File {
             //parse header
             if (isDefined(dataPtr) && !dataPtr.isNull()) {
                 this.e_ident = [];
-                for (let i = 0; i < ELF_Header.EI_NIDENT; i++) {
+                for (let i = 0; i < Header.EI_NIDENT; i++) {
                     this.e_ident.push(dataPtr.add(i).readU8());
                 }
 
@@ -370,7 +369,7 @@ export namespace ELF_File {
         };
     }
 
-    export namespace ELF_Header {
+    export namespace Header {
         /**
          * sizeof E_IDENT Array
          */
@@ -380,7 +379,7 @@ export namespace ELF_File {
     /**
      * ProgramHeader
      */
-    export class ELF_ProgamHeader {
+    export class ProgamHeader {
         p_type: number = 0;
         p_vaddr: number = 0;
         p_paddr: number = 0;
@@ -439,7 +438,7 @@ export namespace ELF_File {
 
         public toString = (): string => {
             let str: string[] = [];
-            str.push("p_type: 0x" + this.p_type.toString(16) + " - " + ELF_ProgamHeader.PT_TYPE_NAME[this.p_type]);
+            str.push("p_type: 0x" + this.p_type.toString(16) + " - " + ProgamHeader.PT_TYPE_NAME[this.p_type]);
             str.push("p_offset: 0x" + this.p_offset.toString(16));
             str.push("p_vaddr: 0x" + this.p_vaddr.toString(16));
             str.push("p_paddr: 0x" + this.p_paddr.toString(16));
@@ -451,7 +450,7 @@ export namespace ELF_File {
         };
     }
 
-    export namespace ELF_ProgamHeader {
+    export namespace ProgamHeader {
         export const PT_TYPE_NAME: object = {
             0: "NULL",
             1: "LOAD",
@@ -473,7 +472,7 @@ export namespace ELF_File {
     /**
      * SectionHeader
      */
-    export class ELF_SectionHeader {
+    export class SectionHeader {
         name: string | null = "";
         data: NativePointer[] = [];
         sh_name: number = 0;
@@ -542,7 +541,7 @@ export namespace ELF_File {
         public toString = (): string => {
             let str: string[] = [];
             str.push("sh_name: 0x" + this.sh_name.toString(16) + " - " + this.name);
-            str.push("sh_type: 0x" + this.sh_type.toString(16) + " - " + ELF_SectionHeader.SH_TYPE_NAME[this.sh_type]);
+            str.push("sh_type: 0x" + this.sh_type.toString(16) + " - " + SectionHeader.SH_TYPE_NAME[this.sh_type]);
             str.push("sh_flags: 0x" + this.sh_flags.toString(16));
             str.push("sh_addr: 0x" + this.sh_addr.toString(16));
             str.push("sh_offset: 0x" + this.sh_offset.toString(16));
@@ -555,7 +554,7 @@ export namespace ELF_File {
         };
     }
 
-    export namespace ELF_SectionHeader {
+    export namespace SectionHeader {
         export const SH_TYPE_NAME: Object = {
             0: "NULL",
             1: "PROGBITS",

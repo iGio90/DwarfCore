@@ -22,7 +22,7 @@
  **/
 
 import { DwarfHaltReason } from "./consts";
-import { DwarfCore } from "./dwarf";
+import { DwarfCore } from "./DwarfCore";
 
 export class LogicJava {
     static available = Java.available;
@@ -85,7 +85,7 @@ export class LogicJava {
     }
 
     static backtrace() {
-        return Java.use("android.util.Log").getStackTraceString(Java.use("java.lang.Exception").$new());
+        return Java.use("android.util.Log").getStackTraceString(Java.use("java.lang.Throwable").$new());
     }
 
     static getApplicationContext() {
@@ -228,11 +228,9 @@ export class LogicJava {
     }
 
     static init(breakAtStart: boolean = false) {
-        LogicJava.sdk = Dwarf.getAndroidApiLevel();
+        LogicJava.sdk = DwarfCore.getInstance().getAndroidApiLevel();
         Java.performNow(function() {
-            if (DEBUG) {
-                logDebug("[" + Process.getCurrentThreadId() + "] " + "initializing logicJava with sdk: " + LogicJava.sdk);
-            }
+            logDebug("[" + Process.getCurrentThreadId() + "] " + "initializing logicJava with sdk: " + LogicJava.sdk);
         });
     }
 
@@ -455,7 +453,7 @@ export class LogicJava {
             const classMethod = className + "." + method;
 
             if (uiCallback) {
-                Dwarf.loggedSend("java_trace:::enter:::" + classMethod + ":::" + JSON.stringify(arguments));
+                DwarfCore.getInstance().loggedSend("java_trace:::enter:::" + classMethod + ":::" + JSON.stringify(arguments));
             } else {
                 if (isDefined(callback["onEnter"])) {
                     callback["onEnter"](arguments);
@@ -471,7 +469,7 @@ export class LogicJava {
                 } else if (typeof traceRet === "undefined") {
                     traceRet = "";
                 }
-                Dwarf.loggedSend("java_trace:::leave:::" + classMethod + ":::" + traceRet);
+                DwarfCore.getInstance().loggedSend("java_trace:::leave:::" + classMethod + ":::" + traceRet);
             } else {
                 if (isDefined(callback["onLeave"])) {
                     let tempRet = callback["onLeave"](ret);

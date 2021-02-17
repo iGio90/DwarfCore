@@ -1,11 +1,5 @@
-/**
- * @hidden
- * @ignore
- * @internal
- */
-
-/**
-    Dwarf - Copyright (C) 2018-2020 Giovanni Rocca (iGio90)
+/*
+    Dwarf - Copyright (C) 2018-2021 Giovanni Rocca (iGio90)
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -19,11 +13,9 @@
 
     You should have received a copy of the GNU General Public License
     along with this program.  If not, see <https://www.gnu.org/licenses/>
-**/
+*/
 
-import { DwarfCore } from "./dwarf";
-import { DwarfHaltReason } from "./consts";
-
+import { DwarfCore } from "./DwarfCore";
 
 export class DwarfObserver {
     private static instanceRef: DwarfObserver;
@@ -393,7 +385,7 @@ export class DwarfObserver {
         this.allowedTypes.forEach((type) => {
             retSizes.push({ typeName: type, typeSize: this.getSizeForType(type) });
         });
-        Dwarf.sync({ observer_sizes: retSizes });
+        DwarfCore.getInstance().sync({ observer_sizes: retSizes });
     };
 
     /**

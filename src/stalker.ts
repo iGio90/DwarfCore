@@ -21,8 +21,9 @@
     along with this program.  If not, see <https://www.gnu.org/licenses/>
 */
 
-import { DwarfCore } from "./dwarf";
+import { DwarfCore } from "./DwarfCore";
 import { DwarfHaltReason } from "./consts";
+import { StalkerInfo } from "./stalker_info";
 
 export class DwarfStalker {
     private static instanceRef: DwarfStalker;
@@ -42,5 +43,19 @@ export class DwarfStalker {
         return DwarfStalker.instanceRef;
     }
 
-    stalk = () => {};
+    _hitPreventRelease = (threadId:number) => {
+        let context = DwarfCore.getInstance().getThreadContext(threadId);
+        if(isDefined(context)) {
+            context.preventSleep = true;
+        }
+    }
+
+    stalk = (threadId?:number) => {
+        if(!isDefined(threadId)) {
+            threadId = Process.getCurrentThreadId();
+        }
+        this._hitPreventRelease(threadId);
+
+
+    };
 }

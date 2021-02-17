@@ -1,5 +1,5 @@
-/**
-    Dwarf - Copyright (C) 2018-2020 Giovanni Rocca (iGio90)
+/*
+    Dwarf - Copyright (C) 2018-2021 Giovanni Rocca (iGio90)
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -13,14 +13,14 @@
 
     You should have received a copy of the GNU General Public License
     along with this program.  If not, see <https://www.gnu.org/licenses/>
-**/
+*/
 
 import { DwarfFS } from "./DwarfFS";
 import { LogicJava } from "./logic_java";
-import { LogicStalker } from "./logic_stalker";
+//import { LogicStalker } from "./logic_stalker";
 import { ThreadWrapper } from "./thread_wrapper";
 import { DwarfMemoryAccessType, DwarfHookType, DwarfDataDisplayType } from "./consts";
-import { DwarfCore } from "./dwarf";
+import { DwarfCore } from "./DwarfCore";
 import { MemoryHook } from "./types/memory_hook";
 import { DwarfHooksManager } from "./hooks_manager";
 import { DwarfObserver } from "./dwarf_observer";
@@ -31,10 +31,16 @@ import { DwarfJavaHelper } from "./java";
 import { ModuleLoadHook } from "./types/module_load_hook";
 import { ELF_File } from "./types/elf_file";
 
+
+/**
+ * @category Api
+ */
+
 export class DwarfApi {
     private static instanceRef: DwarfApi;
     private isPrintFunc: NativeFunction;
 
+    /** @internal */
     private constructor() {
         if (DwarfApi.instanceRef) {
             throw new Error("DwarfApi already exists! Use DwarfApi.getInstance()/Dwarf.getApi()");
@@ -69,7 +75,7 @@ export class DwarfApi {
         userCallback: DwarfCallback = "breakpoint",
         isSingleShot: boolean = false,
         isEnabled: boolean = true
-    ): NativeHook | MemoryHook | JavaHook | ModuleLoadHook => {
+    ): NativeHook | MemoryHook | JavaHook | ObjcHook | ModuleLoadHook => {
         trace("DwarfApi::addHook()");
 
         let bpType: DwarfHookType = 0;
@@ -358,7 +364,7 @@ export class DwarfApi {
      */
     public backtrace = (context?: CpuContext): DebugSymbol[] | null => {
         if (!isDefined(context)) {
-            context = Dwarf.threadContexts[Process.getCurrentThreadId()];
+            context = DwarfCore.getInstance().getThreadContext[Process.getCurrentThreadId()];
             if (!isDefined(context)) {
                 return null;
             }
@@ -419,7 +425,7 @@ export class DwarfApi {
             throw new Error("DwarfApi::enumerateExports() -> Module not found!");
         }
 
-        if (fridaModule && Dwarf.modulesBlacklist.indexOf(fridaModule.name) !== -1) {
+        if (fridaModule && DwarfCore.getInstance().isBlacklistedModule(fridaModule.name)) {
             throw new Error("DwarfApi::enumerateExports() -> Module is blacklisted!");
         }
 
@@ -456,7 +462,7 @@ export class DwarfApi {
             throw new Error("DwarfApi::enumerateImports() -> Module not found!");
         }
 
-        if (fridaModule && Dwarf.modulesBlacklist.indexOf(fridaModule.name) !== -1) {
+        if (fridaModule && DwarfCore.getInstance().isBlacklistedModule(fridaModule.name)) {
             throw new Error("DwarfApi::enumerateImports() -> Module is blacklisted!");
         }
 
@@ -493,7 +499,7 @@ export class DwarfApi {
             throw new Error("DwarfApi::enumerateSymbols() -> Module not found!");
         }
 
-        if (fridaModule && Dwarf.modulesBlacklist.indexOf(fridaModule.name) !== -1) {
+        if (fridaModule && DwarfCore.getInstance().isBlacklistedModule(fridaModule.name)) {
             throw new Error("DwarfApi::enumerateSymbols() -> Module is blacklisted!");
         }
 
@@ -532,7 +538,7 @@ export class DwarfApi {
             throw new Error("DwarfApi::enumerateModuleRanges() -> Module not found!");
         }
 
-        if (fridaModule && Dwarf.modulesBlacklist.indexOf(fridaModule.name) !== -1) {
+        if (fridaModule && DwarfCore.getInstance().isBlacklistedModule(fridaModule.name)) {
             throw new Error("DwarfApi::enumerateModuleRanges() -> Module is blacklisted!");
         }
 
@@ -564,7 +570,7 @@ export class DwarfApi {
                 }
 
                 if (parsedMethods.length > 0) {
-                    Dwarf.sync({ classInfo: { className: className, classMethods: uniqueBy(parsedMethods) } });
+                    DwarfCore.getInstance().sync({ classInfo: { className: className, classMethods: uniqueBy(parsedMethods) } });
                 }
             });
         }
@@ -576,7 +582,7 @@ export class DwarfApi {
     public enumerateObjCModules = (className: string): void => {
         const modules = Process.enumerateModules();
         const names = modules.map((m) => m.name);
-        Dwarf.loggedSend("enumerate_objc_modules:::" + JSON.stringify(names));
+        DwarfCore.getInstance().loggedSend("enumerate_objc_modules:::" + JSON.stringify(names));
     };
 
     /**
@@ -588,7 +594,7 @@ export class DwarfApi {
         const modules = Process.enumerateModules();
         if (fillInformation) {
             for (let i = 0; i < modules.length; i++) {
-                if (Dwarf.modulesBlacklist.indexOf(modules[i].name) !== -1) {
+                if (DwarfCore.getInstance().isBlacklistedModule(modules[i].name)) {
                     continue;
                 }
 
@@ -596,6 +602,15 @@ export class DwarfApi {
             }
         }
         return modules;
+    };
+
+    getAndroidSystemProperty = (name: string) => {
+        if (!Java.available) {
+            return;
+        }
+
+        //TODO: check buf alloc in core
+        return DwarfCore.getInstance().getAndroidSystemProperty(name);
     };
 
     /**
@@ -608,7 +623,7 @@ export class DwarfApi {
      * ```
      */
     //TODO: allow path use
-    public getELFHeader = (moduleName: string = Dwarf.getProcessInfo().name) => {
+    public getELFHeader = (moduleName: string = DwarfCore.getInstance().getProcessInfo().getName()) => {
         if (!isString(moduleName)) {
             throw new Error("DwarfApi::getELFHeader() => No moduleName given!");
         }
@@ -617,7 +632,7 @@ export class DwarfApi {
             try {
                 var elfFile = new ELF_File(fridaModule.path);
                 if (isDefined(elfFile)) {
-                    Dwarf.sync({ elf_info: elfFile });
+                    DwarfCore.getInstance().sync({ elf_info: elfFile });
                     return elfFile;
                 }
             } catch (error) {
@@ -650,7 +665,7 @@ export class DwarfApi {
             _module = fridaModule as Module;
         }
 
-        if (Dwarf.modulesBlacklist.indexOf(_module.name) >= 0) {
+        if (DwarfCore.getInstance().isBlacklistedModule(_module.name)) {
             console.error("Module " + _module.name + " is blacklisted");
             return _module;
         }
@@ -873,7 +888,7 @@ export class DwarfApi {
                                     address: startAddress.add(i),
                                 };
                                 if (isDefined(fromUi) && fromUi === true) {
-                                    Dwarf.sync({
+                                    DwarfCore.getInstance().sync({
                                         stringResult: result,
                                     });
                                 } else {
@@ -886,7 +901,7 @@ export class DwarfApi {
                                     address: startAddress.add(i),
                                 };
                                 if (isDefined(fromUi) && fromUi === true) {
-                                    Dwarf.sync({
+                                    DwarfCore.getInstance().sync({
                                         stringResult: result,
                                     });
                                 } else {
@@ -1033,9 +1048,10 @@ export class DwarfApi {
     };
 
     /**
-     * Hook the constructor of the given java class
+     * Helper for addJavaHook('class', 'method')
+     *
      * ```javascript
-     * hookJavaConstructor('android.app.Activity.onCreate', function() {
+     * hookJavaMethod('android.app.Activity.onCreate', function() {
      *     console.log('activity created');
      *     var savedInstanceState = arguments[0];
      *     if (savedInstanceState !== null) {
@@ -1046,10 +1062,17 @@ export class DwarfApi {
      * })
      * ```
      * @param targetClassMethod
-     * @param callback
+     * @param userCallback
+     * @param isEnabled
+     * @param isSingleShot
+     * 
+     * @returns {JavaHook}
      */
-    public hookJavaMethod = (targetClassMethod: string, callback: Function): boolean => {
-        return LogicJava.hookJavaMethod(targetClassMethod, callback);
+    public hookJavaMethod = (targetClassMethod: string, userCallback?: DwarfCallback, isEnabled?: boolean, isSingleShot?: boolean): JavaHook => {
+        let i = targetClassMethod.lastIndexOf(".");
+        let className = targetClassMethod.substr(0, i);
+        let methodName = targetClassMethod.substr(i + 1);
+        return this.addJavaHook(className, methodName, userCallback, isSingleShot, isEnabled);
     };
 
     /**
@@ -1254,7 +1277,7 @@ export class DwarfApi {
      * resume the execution of the given thread id
      */
     public releaseFromJs = (tid): void => {
-        Dwarf.loggedSend("release_js:::" + tid);
+        DwarfCore.getInstance().loggedSend("release_js:::" + tid);
     };
 
     /**
@@ -1269,15 +1292,6 @@ export class DwarfApi {
         }
 
         return false;
-    };
-
-    private resume = () => {
-        if (Dwarf.PROC_RESUMED) {
-            Dwarf.PROC_RESUMED = true;
-            Dwarf.loggedSend("resume:::0");
-        } else {
-            console.error("Process already resumed");
-        }
     };
 
     /**
@@ -1312,7 +1326,7 @@ export class DwarfApi {
      * ```
      *
      *
-     * @param  {DwarfDataDisplayType} dataType - default `DwarfDataDisplayType.TEXT`
+     * @param  {DwarfDataDisplayType} dataType - default `TEXT`
      * @param  {string} dataIdentifier - some identifier string
      * @param  {any} data - your data to display for ['hex', 'disasm'] use ArrayBuffer
      * @param  {number} base? optional as hex
@@ -1379,8 +1393,8 @@ export class DwarfApi {
             }
         } else if ((dataType === DwarfDataDisplayType.HEX || dataType === DwarfDataDisplayType.DISASM) && data.constructor.name === "ArrayBuffer") {
             if ((data as ArrayBuffer).byteLength) {
-                const ptr_size = Dwarf.processInfo.getPointerSize();
-                const arch = Dwarf.processInfo.getArchitecture();
+                const ptr_size = DwarfCore.getInstance().getProcessInfo().getPointerSize();
+                const arch = DwarfCore.getInstance().getProcessInfo().getArchitecture();
                 DwarfCore.getInstance().sync({
                     showData: {
                         type: dataType,
@@ -1418,7 +1432,9 @@ export class DwarfApi {
      * });
      * ```
      */
-    public startNativeTracer = (callback) => {
+
+    //TODO: add
+    /* public startNativeTracer = (callback) => {
         const stalkerInfo = LogicStalker.stalk();
         if (stalkerInfo !== null) {
             stalkerInfo.currentMode = callback;
@@ -1426,7 +1442,7 @@ export class DwarfApi {
         }
 
         return false;
-    };
+    };*/
 
     /**
      * Stop the java tracer
@@ -1438,18 +1454,19 @@ export class DwarfApi {
     /**
      * start strace
      */
-    public strace = (callback): boolean => {
+    //TODO: fix stalker
+    /*public strace = (callback): boolean => {
         return LogicStalker.strace(callback);
-    };
+    };*/
 
     public updateModules = () => {
         const modules = this.enumerateModules();
-        Dwarf.loggedSend("update_modules:::" + Process.getCurrentThreadId() + ":::" + JSON.stringify(modules));
+        DwarfCore.getInstance().loggedSend("update_modules:::" + Process.getCurrentThreadId() + ":::" + JSON.stringify(modules));
     };
 
     private updateRanges = () => {
         try {
-            Dwarf.loggedSend("update_ranges:::" + Process.getCurrentThreadId() + ":::" + JSON.stringify(Process.enumerateRanges("---")));
+            DwarfCore.getInstance().loggedSend("update_ranges:::" + Process.getCurrentThreadId() + ":::" + JSON.stringify(Process.enumerateRanges("---")));
         } catch (e) {
             logErr("updateRanges", e);
         }
@@ -1457,7 +1474,9 @@ export class DwarfApi {
 
     private updateSearchableRanges = () => {
         try {
-            Dwarf.loggedSend("update_searchable_ranges:::" + Process.getCurrentThreadId() + ":::" + JSON.stringify(Process.enumerateRanges("r--")));
+            DwarfCore.getInstance().loggedSend(
+                "update_searchable_ranges:::" + Process.getCurrentThreadId() + ":::" + JSON.stringify(Process.enumerateRanges("r--"))
+            );
         } catch (e) {
             logErr("updateSearchableRanges", e);
         }

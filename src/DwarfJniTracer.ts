@@ -19,6 +19,7 @@
 //https://github.com/mapbox/jni.hpp/blob/master/test/openjdk/jni.h
 //https://docs.oracle.com/javase/8/docs/technotes/guides/jni/spec/functions.html
 import { JNI_Functions } from "./consts";
+import { DwarfCore } from "./DwarfCore";
 import { JNI_TEMPLATES } from "./_jni_templates";
 
 export class DwarfJniTracer {
@@ -32,7 +33,7 @@ export class DwarfJniTracer {
             this._listeners[i] = null;
         }
 
-        Dwarf.sync({
+        DwarfCore.getInstance().sync({
             JNITracer: {
                 available: Object.keys(JNI_TEMPLATES),
             },
@@ -40,7 +41,7 @@ export class DwarfJniTracer {
     }
 
     private _syncUI = () => {
-        Dwarf.sync({
+        DwarfCore.getInstance().sync({
             JNITracer: {
                 enabled: this._listeners.map((val) => (val !== null ? 1 : 0)),
             },

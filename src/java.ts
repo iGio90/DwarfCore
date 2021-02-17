@@ -1,11 +1,5 @@
-/**
- * @hidden
- * @ignore
- * @internal
- */
-
 /*
-    Dwarf - Copyright (C) 2018-2020 Giovanni Rocca (iGio90)
+    Dwarf - Copyright (C) 2018-2021 Giovanni Rocca (iGio90)
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -24,8 +18,11 @@
 import { DwarfHookType } from "./consts";
 import { JavaHook } from "./types/java_hook";
 import { DwarfHooksManager } from "./hooks_manager";
-import { DwarfCore } from "./dwarf";
+import { DwarfCore } from "./DwarfCore";
 
+/**
+ * @internal
+ */
 export class DwarfJavaHelper {
     private static instanceRef: DwarfJavaHelper;
 
@@ -75,7 +72,7 @@ export class DwarfJavaHelper {
 
         this.checkRequirements();
 
-        this.sdk_version = Dwarf.getAndroidApiLevel();
+        this.sdk_version = DwarfCore.getInstance().getAndroidApiLevel();
 
         const self = this;
         Java.performNow(function () {
@@ -124,7 +121,7 @@ export class DwarfJavaHelper {
                     } catch (e) {}
 
                     //sync ui
-                    Dwarf.sync(syncMsg);
+                    DwarfCore.getInstance().sync(syncMsg);
 
                     return result;
                 } catch (e) {
@@ -169,7 +166,7 @@ export class DwarfJavaHelper {
 
         const dexClasses = self.enumerateDexClasses(packagePath);
         self.updateClassCache(function (loadedClasses) {
-            Dwarf.sync({ dexClasses: dexClasses, loadedClasses: loadedClasses });
+            DwarfCore.getInstance().sync({ dexClasses: dexClasses, loadedClasses: loadedClasses });
         });
     };
 
@@ -226,7 +223,7 @@ export class DwarfJavaHelper {
                 logErr("DwarfJavaHelper::getClassMethodsUI()", e);
             }
         });
-        return Dwarf.sync({ class_methods: parsedMethods });
+        return DwarfCore.getInstance().sync({ class_methods: parsedMethods });
     };
 
     getClassMethods = (className: string): Array<string> => {
@@ -276,7 +273,7 @@ export class DwarfJavaHelper {
                         self.classCache.push(className);
                     },
                     onComplete: () => {
-                        Dwarf.sync({ loadedJavaClasses: self.classCache });
+                        DwarfCore.getInstance().sync({ loadedJavaClasses: self.classCache });
                     },
                 });
             } catch (e) {

@@ -1,11 +1,5 @@
-/**
- * @hidden
- * @ignore
- * @internal
- */
-
 /*
-    Dwarf - Copyright (C) 2018-2020 Giovanni Rocca (iGio90)
+    Dwarf - Copyright (C) 2018-2021 Giovanni Rocca (iGio90)
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -22,7 +16,7 @@
 */
 
 //POC
-
+import { DwarfCore } from "./DwarfCore";
 //TODO: add other platforms
 //TODO: optimize android extract without (re)iteration
 //TODO: add errors if filecreation fails
@@ -96,7 +90,7 @@ export class DwarfZip {
                         "int",
                     ]);
                 } else if (moduleExportDetail.name.indexOf("StartIteration") !== -1) {
-                    if (Dwarf.getAndroidApiLevel() <= 22) {
+                    if (DwarfCore.getInstance().getAndroidApiLevel() <= 22) {
                         //int32_t StartIteration(ZipArchiveHandle handle, void** cookie_ptr, const ZipEntryName* optional_prefix)
                         this._nativeFunctions["startIteration"] = new NativeFunction(libZipArchive.getExportByName(moduleExportDetail.name), "int32", [
                             "pointer",
@@ -133,7 +127,7 @@ export class DwarfZip {
         if (Process.platform === "linux" && Java.available) {
             let cookie = Memory.alloc(Process.pointerSize);
             Memory.protect(cookie, Process.pointerSize, "rw-");
-            if (Dwarf.getAndroidApiLevel() <= 22) {
+            if (DwarfCore.getInstance().getAndroidApiLevel() <= 22) {
                 if (this._nativeFunctions["startIteration"](this["_archiveHandle"].readPointer(), cookie, NULL) === 0) {
                     var zipEntry = Memory.alloc(500); //TODO: calc real size
                     var zipName = Memory.alloc(Process.pointerSize + 3); // struct ZipEntryName { const char* name;  uint16_t name_length; };
@@ -170,7 +164,7 @@ export class DwarfZip {
         if (Process.platform === "linux" && Java.available) {
             let cookie = Memory.alloc(Process.pointerSize);
             Memory.protect(cookie, Process.pointerSize, "rw-");
-            if (Dwarf.getAndroidApiLevel() <= 22) {
+            if (DwarfCore.getInstance().getAndroidApiLevel() <= 22) {
                 if (this._nativeFunctions["startIteration"](this["_archiveHandle"].readPointer(), cookie, NULL) === 0) {
                     var zipEntry = Memory.alloc(500); //TODO: calc real size
                     var zipName = Memory.alloc(Process.pointerSize + 3); // struct ZipEntryName { const char* name;  uint16_t name_length; };
@@ -180,10 +174,10 @@ export class DwarfZip {
                         var nameLen = zipName.add(Process.pointerSize).readU16();
                         var entryName = zipName.readPointer().readUtf8String(nameLen);
                         if (entryName === zipPath) {
-                            const dwarfFile = Dwarf.getFS().fopen(diskPath, "w");
-                            const fd = Dwarf.getFS().fileno(dwarfFile);
+                            const dwarfFile = DwarfCore.getInstance().getFS().fopen(diskPath, "w");
+                            const fd = DwarfCore.getInstance().getFS().fileno(dwarfFile);
                             if (this._nativeFunctions["extractEntryToFile"](this["_archiveHandle"].readPointer(), zipEntry, fd) === 0) {
-                                Dwarf.getFS().fclose(dwarfFile);
+                                DwarfCore.getInstance().getFS().fclose(dwarfFile);
                             } else {
                                 throw new Error("Failed to extract!");
                             }
@@ -203,10 +197,10 @@ export class DwarfZip {
                         var nameLen = zipName.add(Process.pointerSize).readU16();
                         var entryName = zipName.readPointer().readUtf8String(nameLen);
                         if (entryName === zipPath) {
-                            const dwarfFile = Dwarf.getFS().fopen(diskPath, "w");
-                            const fd = Dwarf.getFS().fileno(dwarfFile);
+                            const dwarfFile = DwarfCore.getInstance().getFS().fopen(diskPath, "w");
+                            const fd = DwarfCore.getInstance().getFS().fileno(dwarfFile);
                             if (this._nativeFunctions["extractEntryToFile"](this["_archiveHandle"].readPointer(), zipEntry, fd) === 0) {
-                                Dwarf.getFS().fclose(dwarfFile);
+                                DwarfCore.getInstance().getFS().fclose(dwarfFile);
                             } else {
                                 throw new Error("Failed to extract!");
                             }

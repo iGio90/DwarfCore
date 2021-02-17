@@ -1,5 +1,5 @@
 /*
-    Dwarf - Copyright (C) 2018-2020 Giovanni Rocca (iGio90)
+    Dwarf - Copyright (C) 2018-2021 Giovanni Rocca (iGio90)
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -16,7 +16,7 @@
 */
 
 import { DwarfHookType, DwarfHaltReason } from "../consts";
-import { DwarfCore } from "../dwarf";
+import { DwarfCore } from "../DwarfCore";
 import { DwarfHooksManager } from "../hooks_manager";
 
 /**
@@ -203,6 +203,9 @@ export class DwarfHook {
         return this.threadId;
     }
 
+    /**
+     * @internal
+     */
     public setThreadId(threadId: number | string) {
         trace("DwarfHook::setThreadId()");
 
@@ -243,6 +246,9 @@ export class DwarfHook {
         }
     }
 
+    /**
+     * @internal
+     */
     public onEnterCallback(dwarfHook: DwarfHook, thisArg: any, funcArgs: InvocationArguments | IArguments) {
         trace("DwarfHook::onEnterCallback()");
 
@@ -282,7 +288,7 @@ export class DwarfHook {
         }
 
         if (breakExecution) {
-            if (self.hookType == DwarfHookType.JAVA) {
+            if (self.hookType === DwarfHookType.JAVA) {
                 let breakpointInfo = [];
                 for (let i in funcArgs) {
                     breakpointInfo.push({
@@ -292,11 +298,14 @@ export class DwarfHook {
                 }
                 DwarfCore.getInstance().onBreakpoint(self.hookID, self.threadId, DwarfHaltReason.BREAKPOINT, self.hookAddress, breakpointInfo, thisArg);
             } else {
-                DwarfCore.getInstance().onBreakpoint(self.hookID, Process.getCurrentThreadId(), DwarfHaltReason.BREAKPOINT, self.hookAddress, thisArg.context);
+                DwarfCore.getInstance().onBreakpoint(self.hookID, self.threadId, DwarfHaltReason.BREAKPOINT, self.hookAddress, thisArg.context);
             }
         }
     }
 
+    /**
+     * @internal
+     */
     public onLeaveCallback(dwarfHook: DwarfHook, thisArg: any, returnValue: InvocationReturnValue) {
         trace("DwarfHook::onLeaveCallback()");
 
@@ -350,7 +359,10 @@ export class DwarfHook {
         DwarfHooksManager.getInstance().update(true);
     }
 
-    /*public toJSON() {
+    /**
+     * @internal
+     */
+    public toJSON() {
         let jsonRet: { [index: string]: any } = {};
         for (const item in this) {
             if (item === "invocationListener") {
@@ -368,12 +380,12 @@ export class DwarfHook {
                         } else {
                             return val;
                         }
-                    });
+                    }, 4);
                 }
             } else {
                 jsonRet[item] = this[item];
             }
         }
         return jsonRet;
-    }*/
+    }
 }

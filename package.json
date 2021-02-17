@@ -10,20 +10,22 @@
         "url": "git://github.com/iGio90/DwarfCore.git"
     },
     "scripts": {
-        "prepare": "python3 ./change_theme_fontsize.py && npm run build",
+        "prepare": "npm run build",
         "build": "npm run build_core && npm run build_docs && npm run build_types",
         "build_core": "frida-compile --no-sourcemap ./src/index.ts -o ./dist/core.js && python3 ./place_dwarf_license.py && python3 ./generate_dwarf_api.py && npm run copy",
-        "build_docs": "typedoc",
+        "build_docs": "typedoc && npm run deploy_docs",
         "build_types": "tsc -d --removeComments false --declarationDir ./dwarf-typings --emitDeclarationOnly",
         "watch": "frida-compile --no-sourcemap ./src/index.ts -o ./dist/core.js -w",
-        "copy": "cp ./dist/core.js ../Dwarf/dwarf_debugger/core/scripts/core.js"
+        "copy": "cp ./dist/core.js ../Dwarf/dwarf_debugger/core/scripts/core.js",
+        "deploy_docs": "gh-pages -d ./dist/docs"
     },
     "devDependencies": {
-        "@types/frida-gum": "^16.2.0",
-        "@types/node": "^14.14.10",
+        "@types/frida-gum": "^16.4.1",
+        "@types/node": "^14.14.28",
         "eledoc": "^0.2.1",
         "frida-compile": "^10.0.0",
-        "typedoc": "^0.19.2",
-        "typescript": "^4.1.2"
+        "gh-pages": "^3.1.0",
+        "typedoc": "^0.20.25",
+        "typescript": "^4.1.5"
     }
 }

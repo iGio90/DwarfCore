@@ -1,9 +1,3 @@
-/**
- * @hidden
- * @ignore
- * @internal
- */
-
 /*
     Dwarf - Copyright (C) 2018-2021 Giovanni Rocca (iGio90)
 
@@ -21,8 +15,12 @@
     along with this program.  If not, see <https://www.gnu.org/licenses/>
 */
 
+import { DwarfCore } from "./DwarfCore";
 import { ThreadContext } from "./thread_context";
 
+/**
+ * @internal
+ */
 export class DwarfInterceptor {
     private static onAttach(context) {
         const tid = Process.getCurrentThreadId();
@@ -35,9 +33,8 @@ export class DwarfInterceptor {
                     return object[prop];
                 },
                 set: function (object, prop, value) {
-                    if (DEBUG) {
-                        logDebug("[" + tid + "] setting context " + prop.toString() + ": " + value);
-                    }
+                    logDebug("[" + tid + "] setting context " + prop.toString() + ": " + value);
+
                     send("set_context_value:::" + prop.toString() + ":::" + value);
                     object[prop] = value;
                     return true;
@@ -45,16 +42,16 @@ export class DwarfInterceptor {
             });
         }
 
+        //TODO: ???
         that["context"] = proxiedContext;
 
         const threadContext = new ThreadContext(tid);
         threadContext.context = context;
-        Dwarf.threadContexts[tid] = threadContext;
+        DwarfCore.getInstance().addThreadContext(tid, threadContext);
     }
 
     private static onDetach() {
-        const tid = Process.getCurrentThreadId();
-        delete Dwarf.threadContexts[tid];
+        DwarfCore.getInstance().deleteThreadContext(Process.getCurrentThreadId());
     }
 
     static init() {

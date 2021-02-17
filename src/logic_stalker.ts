@@ -25,17 +25,17 @@
 
 import { StalkerInfo } from "./stalker_info";
 import { DwarfHaltReason } from "./consts";
-import { DwarfCore } from "./dwarf";
+import { DwarfCore } from "./DwarfCore";
 
+/*
 export class LogicStalker {
     static stalkerInfoMap = {};
     static straceCallback: Function | null = null;
 
     static hitPreventRelease() {
-        const tid = Process.getCurrentThreadId();
-        const threadContext = Dwarf.threadContexts[tid];
-        if (isDefined(threadContext)) {
-            threadContext.preventSleep = true;
+        let context = Dwarf.getThreadContext(Process.getCurrentThreadId());
+        if(isDefined(context)) {
+            context.preventSleep = true;
         }
     }
 
@@ -59,7 +59,7 @@ export class LogicStalker {
 
         let stalkerInfo = LogicStalker.stalkerInfoMap[tid];
         if (!isDefined(stalkerInfo)) {
-            const context = Dwarf.threadContexts[tid];
+            const context = Dwarf.getThreadContext(tid);
             if (!isDefined(context)) {
                 console.log('cant start stalker outside a valid native context');
                 return null;
@@ -79,17 +79,14 @@ export class LogicStalker {
             let firstBlockCallout = false;
             let calloutHandled = false;
 
-            if (DEBUG) {
                 logDebug('[' + tid + '] stalk: ' + 'attaching stalker')
             }
-
             Stalker.follow(tid, {
                 transform: function (iterator) {
                     let instruction;
 
-                    if (DEBUG) {
                         logDebug('[' + tid + '] stalk: ' + 'transform begin')
-                    }
+                    
 
                     while ((instruction = iterator.next()) !== null) {
                         iterator.keep();
@@ -117,10 +114,10 @@ export class LogicStalker {
                                     continue;
                                 }
 
-                                if (DEBUG) {
+                                
                                     logDebug('[' + tid + '] stalk: ' + 'executing first basic block instructions',
                                         instruction.address.toString(), instruction.toString());
-                                }
+                                
 
                                 calloutHandled = true;
                                 firstBlockCallout = true;
@@ -136,14 +133,14 @@ export class LogicStalker {
                         }
                     }
 
-                    if (DEBUG) {
+                    
                         logDebug('[' + tid + '] stalk: ' + 'transform done')
-                    }
+                    
 
                     if (stalkerInfo.terminated) {
-                        if (DEBUG) {
+                        
                             logDebug('[' + tid + '] stopStep: ' + 'unfollowing tid');
-                        }
+                        
 
                         Stalker.flush();
                         Stalker.unfollow(tid);
@@ -170,10 +167,10 @@ export class LogicStalker {
         let putCallout = true;
         // todo: add conditions
         if (putCallout) {
-            if (DEBUG) {
+            
                 logDebug('[' + Process.getCurrentThreadId() + '] stalk: ' + 'executing instruction',
                     instruction.address.toString(), instruction.toString());
-            }
+            
 
             iterator.putCallout(LogicStalker.stalkerCallout);
         }
@@ -190,9 +187,9 @@ export class LogicStalker {
         let pc = context.pc;
         const insn = Instruction.parse(pc);
 
-        if (DEBUG) {
+        
             logDebug('[' + tid + '] stalkerCallout: ' + 'running callout', insn.address, insn.toString());
-        }
+        
 
         if (!stalkerInfo.didFistJumpOut) {
             pc = stalkerInfo.initialContextAddress;
@@ -225,9 +222,9 @@ export class LogicStalker {
                 stalkerInfo.currentMode.apply(that);
             } else if (stalkerInfo.lastContextAddress !== null &&
                 stalkerInfo.lastCallJumpInstruction !== null) {
-                if (DEBUG) {
+                
                     logDebug('[' + tid + '] stalkerCallout: ' + 'using mode ->', stalkerInfo.currentMode);
-                }
+                
                 // call and jumps doesn't receive callout
                 const isAddressBeforeJumpOrCall = parseInt(context.pc) === parseInt(
                     stalkerInfo.lastBlockInstruction.address);
@@ -254,9 +251,8 @@ export class LogicStalker {
 
             DwarfCore.getInstance().onBreakpoint(0, Process.getCurrentThreadId(), DwarfHaltReason.STEP, pc, stalkerInfo.context, null);
 
-            if (DEBUG) {
-                logDebug('[' + tid + '] callOut: ' + 'post onHook');
-            }
+                            logDebug('[' + tid + '] callOut: ' + 'post onHook');
+            
         }
 
         if (!stalkerInfo.didFistJumpOut) {
@@ -309,3 +305,4 @@ export class LogicStalker {
         LogicStalker.straceCallback.apply(that);
     }
 }
+*/

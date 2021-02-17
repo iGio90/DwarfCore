@@ -1,11 +1,5 @@
-/**
- * @hidden
- * @ignore
- * @internal
- */
-
-/**
-    Dwarf - Copyright (C) 2018-2020 Giovanni Rocca (iGio90)
+/*
+    Dwarf - Copyright (C) 2018-2021 Giovanni Rocca (iGio90)
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -19,11 +13,12 @@
 
     You should have received a copy of the GNU General Public License
     along with this program.  If not, see <https://www.gnu.org/licenses/>
-**/
+*/
 
 import { DwarfHook } from "./dwarf_hook";
 import { DwarfHookType } from "../consts";
 import { DwarfJavaHelper } from "../java";
+import { DwarfCore } from "../DwarfCore";
 
 export class JavaHook extends DwarfHook {
     protected warningShown: boolean;
@@ -92,7 +87,7 @@ export class JavaHook extends DwarfHook {
                 return;
             }
             try {
-                Dwarf.getJavaHelper().hookInJVM(className, methodName, function () {
+                DwarfCore.getInstance().getJavaHelper().hookInJVM(className, methodName, function () {
                     try {
                         let result = null;
                         self.onEnterCallback(self, this, arguments);

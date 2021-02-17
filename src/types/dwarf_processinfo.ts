@@ -1,5 +1,5 @@
-/**
-    Dwarf - Copyright (C) 2018-2020 Giovanni Rocca (iGio90)
+/*
+    Dwarf - Copyright (C) 2018-2021 Giovanni Rocca (iGio90)
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -13,7 +13,7 @@
 
     You should have received a copy of the GNU General Public License
     along with this program.  If not, see <https://www.gnu.org/licenses/>
-**/
+*/
 
 import { DwarfArch, DwarfBits, DwarfPlatform } from "../consts";
 
@@ -29,6 +29,9 @@ export class DwarfProcessInfo {
     protected objc_available: boolean;
     protected threadId: number;
 
+    /**
+     * @internal
+     */
     constructor(
         name: string = "",
         spawned: boolean = false,

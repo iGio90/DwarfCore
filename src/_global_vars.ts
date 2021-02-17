@@ -1,11 +1,5 @@
 /**
- * @hidden
- * @ignore
- * @internal
- */
-
-/**
-    Dwarf - Copyright (C) 2018-2020 Giovanni Rocca (iGio90)
+    Dwarf - Copyright (C) 2018-2021 Giovanni Rocca (iGio90)
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -21,7 +15,6 @@
     along with this program.  If not, see <https://www.gnu.org/licenses/>
 **/
 
-/// <reference path = "dwarf.ts" />
-
 global.DEBUG = false;
+global.TRACE = false;
 global.MAX_STACK_SIZE = 0;

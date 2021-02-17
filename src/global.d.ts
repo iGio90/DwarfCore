@@ -1,4 +1,4 @@
-/**
+/*
     Dwarf - Copyright (C) 2018-2021 Giovanni Rocca (iGio90)
 
     This program is free software: you can redistribute it and/or modify
@@ -13,8 +13,11 @@
 
     You should have received a copy of the GNU General Public License
     along with this program.  If not, see <https://www.gnu.org/licenses/>
-**/
+*/
 
+/**
+ * @internal
+ */
 declare namespace NodeJS {
     interface Global {
         DEBUG: boolean;
@@ -36,10 +39,9 @@ declare namespace NodeJS {
         makeNativePointer: Function;
         checkNativePointer: Function;
         trace: Function;
-        Dwarf: any;
-        DwarfFile: any;
         readStdString: Function;
         getJNIFuncPtr: Function;
+        Dwarf: any;
     }
 }
 
@@ -66,11 +68,23 @@ declare function getJNIFuncPtr(index: number): NativePointer;
  * @param  {NativePointer} ptrValue
  * @returns boolean
  */
+
 declare function checkNativePointer(ptrValue: NativePointer): boolean;
+
+/**
+ * @protected
+ */
 declare var MAX_STACK_SIZE: number;
+
+/**
+ * @protected
+ */
 declare var DEBUG: boolean;
+
+/**
+ * @protected
+ */
 declare var TRACE: boolean;
-declare const Dwarf: any;
 
 type DwarfHookAddress = NativePointer | string | null;
 type DwarfCallback = ScriptInvocationListenerCallbacks | Function | string;

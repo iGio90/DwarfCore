@@ -1,11 +1,5 @@
-/**
- * @hidden
- * @ignore
- * @internal
- */
-
 /*
-    Dwarf - Copyright (C) 2018-2020 Giovanni Rocca (iGio90)
+    Dwarf - Copyright (C) 2018-2021 Giovanni Rocca (iGio90)
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -25,12 +19,11 @@ import { DwarfHook } from "./types/dwarf_hook";
 import { NativeHook } from "./types/native_hook";
 import { JavaHook } from "./types/java_hook";
 import { MemoryHook } from "./types/memory_hook";
-import { DwarfCore } from "./dwarf";
+import { DwarfCore } from "./DwarfCore";
 import { DwarfHookType, DwarfMemoryAccessType } from "./consts";
 import { DwarfObserver } from "./dwarf_observer";
 import { ModuleLoadHook } from "./types/module_load_hook";
 import { ClassLoadHook } from "./types/class_load_hook";
-import { DwarfJavaHelper } from "./java";
 
 /**
  * DwarfHooksManager Singleton
@@ -143,7 +136,7 @@ export class DwarfHooksManager {
                         //changed in sdk 22, 23, 25 but we're only interested in path arg
                         //<=22 args = (void *JavaVMExt, std::string &path,...)
                         //>=23 args = (void *JavaVMExt, JNIEnv *env, std::string &path, ...)
-                        const argNum = Dwarf.getAndroidApiLevel() <= 22 ? 1 : 2;
+                        const argNum = DwarfCore.getInstance().getAndroidApiLevel() <= 22 ? 1 : 2;
                         Interceptor.attach(moduleExportDetail.address, {
                             onEnter: function (args) {
                                 const moduleName = readStdString(args[argNum]);
@@ -622,7 +615,7 @@ export class DwarfHooksManager {
                 }
             }
         }
-        Dwarf.sync({ module_loaded: { name: moduleName } });
+        DwarfCore.getInstance().sync({ module_loaded: { name: moduleName } });
     };
 
     /**

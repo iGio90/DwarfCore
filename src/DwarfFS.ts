@@ -15,9 +15,6 @@
     along with this program.  If not, see <https://www.gnu.org/licenses/>
 */
 
-import { DwarfFile } from "./types/dwarf_file";
-import { arch } from "os";
-
 export class DwarfFS {
     protected _access: NativeFunction | null;
     protected _fclose: NativeFunction | null;
@@ -39,8 +36,6 @@ export class DwarfFS {
     static getInstance() {
         if (!DwarfFS.instanceRef) {
             DwarfFS.instanceRef = new this();
-            //move DwarfFile to global
-            global.DwarfFile = DwarfFile;
         }
         return DwarfFS.instanceRef;
     }
@@ -107,14 +102,14 @@ export class DwarfFS {
     /**
      * Call native fopen with filePath and perm
      */
-    fopen = (filePath: string, perm: string): NativeReturnValue => {
+    fopen = (filePath: string, perm: string): NativePointer => {
         if (this._fopen === null) {
             throw new Error("DwarfFS::fopen not available!");
         }
 
         const filePathPtr = Memory.allocUtf8String(filePath);
         const p = Memory.allocUtf8String(perm);
-        return this._fopen(filePathPtr, p);
+        return this._fopen(filePathPtr, p) as NativePointer;
     };
 
     fclose = (filePointer: NativePointer) => {
