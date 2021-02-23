@@ -1,25 +1,19 @@
-/**
- * @hidden
- * @ignore
- * @internal
- */
+/*
+    Dwarf - Copyright (C) 2018-2021 Giovanni Rocca (iGio90)
 
-/**
- Dwarf - Copyright (C) 2019 Giovanni Rocca (iGio90)
+    This program is free software: you can redistribute it and/or modify
+    it under the terms of the GNU General Public License as published by
+    the Free Software Foundation, either version 3 of the License, or
+    (at your option) any later version.
 
- This program is free software: you can redistribute it and/or modify
- it under the terms of the GNU General Public License as published by
- the Free Software Foundation, either version 3 of the License, or
- (at your option) any later version.
+    This program is distributed in the hope that it will be useful,
+    but WITHOUT ANY WARRANTY; without even the implied warranty of
+    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+    GNU General Public License for more details.
 
- This program is distributed in the hope that it will be useful,
- but WITHOUT ANY WARRANTY; without even the implied warranty of
- MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- GNU General Public License for more details.
-
- You should have received a copy of the GNU General Public License
- along with this program.  If not, see <https://www.gnu.org/licenses/>
- **/
+    You should have received a copy of the GNU General Public License
+    along with this program.  If not, see <https://www.gnu.org/licenses/>
+*/
 
 import { DwarfHaltReason } from "./consts";
 import { DwarfCore } from "./DwarfCore";
@@ -31,9 +25,9 @@ export class LogicJava {
     static javaClassLoaderCallbacks = {};
     static javaContexts = {};
     static javaHandles = {};
+    static sdk = 0;
     static tracedClasses = [];
     static tracing = false;
-    static sdk = 0;
 
     private static applyTracerImplementation(attach, callback?) {
         Java.performNow(() => {
@@ -41,13 +35,13 @@ export class LogicJava {
                 try {
                     const clazz = Java.use(className);
 
-                    const overloadCount = clazz["$init"].overloads.length;
+                    const overloadCount = clazz.$init.overloads.length;
                     if (overloadCount > 0) {
                         for (let i = 0; i < overloadCount; i++) {
                             if (attach) {
-                                clazz["$init"].overloads[i].implementation = LogicJava.traceImplementation(callback, className, "$init");
+                                clazz.$init.overloads[i].implementation = LogicJava.traceImplementation(callback, className, "$init");
                             } else {
-                                clazz["$init"].overloads[i].implementation = null;
+                                clazz.$init.overloads[i].implementation = null;
                             }
                         }
                     }
@@ -64,9 +58,9 @@ export class LogicJava {
                     });
                     methods = uniqueBy(parsedMethods);
                     methods.forEach(method => {
-                        const overloadCount = clazz[method].overloads.length;
-                        if (overloadCount > 0) {
-                            for (let i = 0; i < overloadCount; i++) {
+                        const oLen = clazz[method].overloads.length;
+                        if (oLen > 0) {
+                            for (let i = 0; i < oLen; i++) {
                                 if (attach) {
                                     clazz[method].overloads[i].implementation = LogicJava.traceImplementation(callback, className, method);
                                 } else {
@@ -149,7 +143,7 @@ export class LogicJava {
         return true;
     }
 
-    static hookClassLoaderClassInitialization(clazz: string, callback?: Function): boolean {
+    static hookClassLoaderClassInitialization(clazz: string, callback?: fArgReturn): boolean {
         if (!isString(clazz) || isDefined(LogicJava.javaClassLoaderCallbacks[clazz])) {
             return false;
         }
@@ -168,7 +162,9 @@ export class LogicJava {
                 className = className + "." + method;
                 method = "$init";
                 handler = Java.use(className);
-            } catch (err) {}
+            } catch (err) {
+                logErr("hookInJVM", err);
+            }
 
             logErr("LogicJava.hook", err);
             if (handler === null) {
@@ -244,7 +240,7 @@ export class LogicJava {
             } else {
                 if (typeof args[i] === "object") {
                     value = JSON.stringify(args[i]);
-                    if (types[i]["className"] === "[B") {
+                    if (types[i].className === "[B") {
                         value += " (" + Java.use("java.lang.String").$new(args[i]) + ")";
                     }
                 } else {
@@ -253,12 +249,13 @@ export class LogicJava {
             }
             newArgs[i] = {
                 arg: value,
-                name: types[i]["name"],
+                name: types[i].name,
                 handle: args[i],
-                className: types[i]["className"]
+                className: types[i].className
             };
         }
 
+        // @ts-ignore
         DwarfCore.getInstance().onBreakpoint(0, Process.getCurrentThreadId(), DwarfHaltReason.BREAKPOINT, classMethod, newArgs, this, condition);
     }
 
@@ -274,9 +271,9 @@ export class LogicJava {
                 return null;
             }
         } else if (typeof what === "object") {
-            if (typeof what["handle_class"] !== "undefined") {
-                const cl = Java.use(what["handle_class"]);
-                handle = what["handle"];
+            if (typeof what.handle_class !== "undefined") {
+                const cl = Java.use(what.handle_class);
+                handle = what.handle;
                 if (typeof handle === "string") {
                     handle = LogicJava.javaHandles[handle];
                     if (typeof handle === "undefined") {
@@ -284,9 +281,9 @@ export class LogicJava {
                     }
                 } else if (typeof handle === "object") {
                     try {
-                        handle = Java.cast(ptr(handle["$handle"]), cl);
+                        handle = Java.cast(ptr(handle.$handle), cl);
                     } catch (e) {
-                        logErr("jvmExplorer" + " | " + handle["$handle"], e);
+                        logErr("jvmExplorer" + " | " + handle.$handle, e);
                         return null;
                     }
                 } else {
@@ -317,26 +314,28 @@ export class LogicJava {
             return null;
         }
         let clazz = "";
-        if (typeof handle["$className"] !== "undefined") {
-            clazz = handle["$className"];
+        if (typeof handle.$className !== "undefined") {
+            clazz = handle.$className;
         }
         const ret = {
             class: clazz,
             data: {}
         };
+        // tslint:disable-next-line: forin
         for (const o in ol) {
             const name = ol[o];
             try {
                 const overloads = [];
                 let t = typeof handle[name];
                 let value = "";
-                let sub_handle = null;
-                let sub_handle_class = "";
+                let subHandle = null;
+                let subHandleClass = "";
 
                 if (t === "function") {
                     if (typeof handle[name].overloads !== "undefined") {
                         const overloadCount = handle[name].overloads.length;
                         if (overloadCount > 0) {
+                            // tslint:disable-next-line: forin
                             for (const i in handle[name].overloads) {
                                 overloads.push({
                                     args: handle[name].overloads[i].argumentTypes,
@@ -347,58 +346,58 @@ export class LogicJava {
                     }
                 } else if (t === "object") {
                     if (handle[name] !== null) {
-                        sub_handle_class = handle[name]["$className"];
+                        subHandleClass = handle[name].$className;
                     }
 
-                    if (typeof handle[name]["$handle"] !== "undefined" && handle[name]["$handle"] !== null) {
-                        value = handle[name]["$handle"];
-                        sub_handle = handle[name]["$handle"];
+                    if (typeof handle[name].$handle !== "undefined" && handle[name].$handle !== null) {
+                        value = handle[name].$handle;
+                        subHandle = handle[name].$handle;
                     } else {
-                        if (handle[name] !== null && handle[name]["value"] !== null) {
-                            sub_handle_class = handle[name]["value"]["$className"];
+                        if (handle[name] !== null && handle[name].value !== null) {
+                            subHandleClass = handle[name].value.$className;
                         }
 
-                        if (handle[name] !== null && handle[name]["value"] !== null && typeof handle[name]["value"] === "object") {
-                            if (typeof handle[name]["fieldReturnType"] !== "undefined") {
-                                sub_handle = handle[name]["value"];
-                                if (typeof sub_handle["$handle"] !== "undefined") {
-                                    const pt = sub_handle["$handle"];
-                                    LogicJava.javaHandles[pt] = sub_handle;
-                                    sub_handle = pt;
-                                    value = handle[name]["fieldReturnType"]["className"];
-                                    sub_handle_class = value;
+                        if (handle[name] !== null && handle[name].value !== null && typeof handle[name].value === "object") {
+                            if (typeof handle[name].fieldReturnType !== "undefined") {
+                                subHandle = handle[name].value;
+                                if (typeof subHandle.$handle !== "undefined") {
+                                    const pt = subHandle.$handle;
+                                    LogicJava.javaHandles[pt] = subHandle;
+                                    subHandle = pt;
+                                    value = handle[name].fieldReturnType.className;
+                                    subHandleClass = value;
                                 } else {
-                                    t = handle[name]["fieldReturnType"]["type"];
-                                    sub_handle_class = handle[name]["fieldReturnType"]["className"];
+                                    t = handle[name].fieldReturnType.type;
+                                    subHandleClass = handle[name].fieldReturnType.className;
 
-                                    if (handle[name]["fieldReturnType"]["type"] !== "pointer") {
-                                        value = sub_handle_class;
+                                    if (handle[name].fieldReturnType.type !== "pointer") {
+                                        value = subHandleClass;
                                     } else {
-                                        if (handle[name]["value"] !== null) {
-                                            value = handle[name]["value"].toString();
+                                        if (handle[name].value !== null) {
+                                            value = handle[name].value.toString();
                                             t = typeof value;
                                         }
                                     }
                                 }
-                            } else if (handle[name]["value"] !== null) {
-                                value = handle[name]["value"].toString();
+                            } else if (handle[name].value !== null) {
+                                value = handle[name].value.toString();
                                 t = typeof value;
                             }
-                        } else if (handle[name]["value"] !== null) {
-                            t = typeof handle[name]["value"];
-                            value = handle[name]["value"].toString();
+                        } else if (handle[name].value !== null) {
+                            t = typeof handle[name].value;
+                            value = handle[name].value.toString();
                         }
                     }
                 } else {
                     value = handle[name];
                 }
 
-                ret["data"][name] = {
-                    value: value,
-                    handle: sub_handle,
-                    handle_class: sub_handle_class,
+                ret.data[name] = {
+                    value,
+                    handle: subHandle,
+                    handle_class: subHandleClass,
                     type: t,
-                    overloads: overloads
+                    overloads
                 };
             } catch (e) {
                 logErr("jvmExplorer-2", e);
@@ -416,9 +415,9 @@ export class LogicJava {
             const Intent = Java.use("android.content.Intent");
             const ctx = LogicJava.getApplicationContext();
             const intent = ctx.getPackageManager().getLaunchIntentForPackage(ctx.getPackageName());
-            intent.addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP["value"]);
-            intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK["value"]);
-            intent.addFlags(Intent.FLAG_ACTIVITY_CLEAR_TASK["value"]);
+            intent.addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP.value);
+            intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK.value);
+            intent.addFlags(Intent.FLAG_ACTIVITY_CLEAR_TASK.value);
             ctx.startActivity(intent);
         });
         return true;
@@ -455,8 +454,8 @@ export class LogicJava {
             if (uiCallback) {
                 DwarfCore.getInstance().loggedSend("java_trace:::enter:::" + classMethod + ":::" + JSON.stringify(arguments));
             } else {
-                if (isDefined(callback["onEnter"])) {
-                    callback["onEnter"](arguments);
+                if (isDefined(callback.onEnter)) {
+                    callback.onEnter(arguments);
                 }
             }
 
@@ -471,8 +470,8 @@ export class LogicJava {
                 }
                 DwarfCore.getInstance().loggedSend("java_trace:::leave:::" + classMethod + ":::" + traceRet);
             } else {
-                if (isDefined(callback["onLeave"])) {
-                    let tempRet = callback["onLeave"](ret);
+                if (isDefined(callback.onLeave)) {
+                    const tempRet = callback.onLeave(ret);
                     if (typeof tempRet !== "undefined") {
                         ret = tempRet;
                     }

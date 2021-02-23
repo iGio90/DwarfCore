@@ -1,4 +1,4 @@
-/**
+/*
     Dwarf - Copyright (C) 2018-2020 Giovanni Rocca (iGio90)
 
     This program is free software: you can redistribute it and/or modify
@@ -13,18 +13,16 @@
 
     You should have received a copy of the GNU General Public License
     along with this program.  If not, see <https://www.gnu.org/licenses/>
-**/
+*/
 
 import { DwarfCore } from "./DwarfCore";
 
 export class ThreadWrapper {
+    static handler: NativePointer = NULL;
+    static handlerFunction: fArgReturn | null = null;
     static onCreateCallback = null;
-
     static pthreadCreateAddress: NativePointer | null = null;
     static pthreadCreateImplementation: NativeFunction;
-
-    static handler: NativePointer = NULL;
-    static handlerFunction: Function | null = null;
 
     private static init() {
         // attempt to retrieve pthread_create
@@ -74,7 +72,7 @@ export class ThreadWrapper {
         return Thread.backtrace(context, backtracer);
     }
 
-    static new(fn: Function) {
+    static new(fn: fArgReturn) {
         // check if pthread_create is defined
         if (ThreadWrapper.pthreadCreateAddress !== null) {
             return 1;
@@ -86,6 +84,7 @@ export class ThreadWrapper {
         }
 
         // alocate space for struct pthread_t
+        // tslint:disable-next-line: variable-name
         const pthread_t = Memory.alloc(Process.pointerSize);
         // set necessary permissions
         Memory.protect(pthread_t, Process.pointerSize, "rwx");

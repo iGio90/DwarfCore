@@ -1,0 +1,51 @@
+{
+    "defaultSeverity": "error",
+    "extends": [
+        "tslint:recommended"
+    ],
+    "jsRules": {},
+    "rules": {
+        "no-console": false,
+        "only-arrow-functions": false,
+        "no-namespace": [
+            true,
+            "allow-declarations"
+        ],
+        "member-ordering": [
+            true,
+            {
+                "alphabetize": true,
+                "order": [
+                    "public-static-field",
+                    "private-static-field",
+                    "public-instance-field",
+                    "private-instance-field",
+                    "public-constructor",
+                    "private-constructor",
+                    "public-instance-method",
+                    "protected-instance-method",
+                    "private-instance-method"
+                ]
+            }
+        ],
+        "completed-docs": [
+            true,
+            {
+                "enums": {
+                    "visibilities": "exported"
+                },
+                "functions": {
+                    "visibilities": "exported"
+                },
+                "methods": {
+                    "locations": "instance",
+                    "privacies": "public"
+                },
+                "classes": {
+                    "visibilities": "exported"
+                }
+            }
+        ]
+    },
+    "rulesDirectory": []
+}

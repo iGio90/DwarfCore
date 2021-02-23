@@ -1,10 +1,4 @@
-/**
- * @hidden
- * @ignore
- * @internal
- */
-
-/**
+/*
     Dwarf - Copyright (C) 2018-2020 Giovanni Rocca (iGio90)
 
     This program is free software: you can redistribute it and/or modify
@@ -19,7 +13,7 @@
 
     You should have received a copy of the GNU General Public License
     along with this program.  If not, see <https://www.gnu.org/licenses/>
-**/
+*/
 
 
 
@@ -86,7 +80,7 @@ export class LogicStalker {
                     let instruction;
 
                         logDebug('[' + tid + '] stalk: ' + 'transform begin')
-                    
+
 
                     while ((instruction = iterator.next()) !== null) {
                         iterator.keep();
@@ -114,10 +108,10 @@ export class LogicStalker {
                                     continue;
                                 }
 
-                                
+
                                     logDebug('[' + tid + '] stalk: ' + 'executing first basic block instructions',
                                         instruction.address.toString(), instruction.toString());
-                                
+
 
                                 calloutHandled = true;
                                 firstBlockCallout = true;
@@ -133,14 +127,14 @@ export class LogicStalker {
                         }
                     }
 
-                    
+
                         logDebug('[' + tid + '] stalk: ' + 'transform done')
-                    
+
 
                     if (stalkerInfo.terminated) {
-                        
+
                             logDebug('[' + tid + '] stopStep: ' + 'unfollowing tid');
-                        
+
 
                         Stalker.flush();
                         Stalker.unfollow(tid);
@@ -167,10 +161,10 @@ export class LogicStalker {
         let putCallout = true;
         // todo: add conditions
         if (putCallout) {
-            
+
                 logDebug('[' + Process.getCurrentThreadId() + '] stalk: ' + 'executing instruction',
                     instruction.address.toString(), instruction.toString());
-            
+
 
             iterator.putCallout(LogicStalker.stalkerCallout);
         }
@@ -187,9 +181,9 @@ export class LogicStalker {
         let pc = context.pc;
         const insn = Instruction.parse(pc);
 
-        
+
             logDebug('[' + tid + '] stalkerCallout: ' + 'running callout', insn.address, insn.toString());
-        
+
 
         if (!stalkerInfo.didFistJumpOut) {
             pc = stalkerInfo.initialContextAddress;
@@ -222,9 +216,9 @@ export class LogicStalker {
                 stalkerInfo.currentMode.apply(that);
             } else if (stalkerInfo.lastContextAddress !== null &&
                 stalkerInfo.lastCallJumpInstruction !== null) {
-                
+
                     logDebug('[' + tid + '] stalkerCallout: ' + 'using mode ->', stalkerInfo.currentMode);
-                
+
                 // call and jumps doesn't receive callout
                 const isAddressBeforeJumpOrCall = parseInt(context.pc) === parseInt(
                     stalkerInfo.lastBlockInstruction.address);
@@ -252,7 +246,7 @@ export class LogicStalker {
             DwarfCore.getInstance().onBreakpoint(0, Process.getCurrentThreadId(), DwarfHaltReason.STEP, pc, stalkerInfo.context, null);
 
                             logDebug('[' + tid + '] callOut: ' + 'post onHook');
-            
+
         }
 
         if (!stalkerInfo.didFistJumpOut) {

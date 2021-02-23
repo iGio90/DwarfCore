@@ -35,7 +35,7 @@ export class DwarfStalker {
         trace("DwarfStalker()");
     }
 
-    //Singleton
+    /** @internal */
     static getInstance() {
         if (!DwarfStalker.instanceRef) {
             DwarfStalker.instanceRef = new DwarfStalker();
@@ -44,7 +44,7 @@ export class DwarfStalker {
     }
 
     _hitPreventRelease = (threadId:number) => {
-        let context = DwarfCore.getInstance().getThreadContext(threadId);
+        const context = DwarfCore.getInstance().getThreadContext(threadId);
         if(isDefined(context)) {
             context.preventSleep = true;
         }

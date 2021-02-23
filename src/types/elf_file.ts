@@ -64,12 +64,12 @@ import { DwarfFS } from "./../DwarfFS";
 /**
  * ELF Fileparser
  */
-export class ELF_File {
-    is64Bit: boolean = false;
+export class ELFFile {
     endian: string = "little";
-    fileHeader: ELF_File.Header | null = null;
-    programHeaders: ELF_File.ProgamHeader[] = [];
-    sectionHeaders: ELF_File.SectionHeader[] = [];
+    fileHeader: ELFFile.Header | null = null;
+    is64Bit: boolean = false;
+    programHeaders: ELFFile.ProgamHeader[] = [];
+    sectionHeaders: ELFFile.SectionHeader[] = [];
 
     /**
      * constructor
@@ -92,23 +92,23 @@ export class ELF_File {
             throw new Error("DwarfFs missing!");
         }
 
-        let _file: NativePointer = dwarfFS.fopen(filePath, "r") as NativePointer;
+        const _file: NativePointer = dwarfFS.fopen(filePath, "r") as NativePointer;
         if (!isDefined(_file) || _file.isNull()) {
             throw new Error("Failed to open File: " + filePath);
         }
 
-        let headerBuffer: NativePointer = dwarfFS.allocateRw(0x40);
+        const headerBuffer: NativePointer = dwarfFS.allocateRw(0x40);
         if (!isDefined(headerBuffer) || headerBuffer.isNull()) {
             dwarfFS.fclose(_file);
             throw new Error("Failed to allocate Memory!");
         }
 
-        if (dwarfFS.fread(headerBuffer, 1, 0x40, _file) != 0x40) {
+        if (dwarfFS.fread(headerBuffer, 1, 0x40, _file) !== 0x40) {
             dwarfFS.fclose(_file);
             throw new Error("Failed to read from File!");
         }
 
-        this.fileHeader = new ELF_File.Header(headerBuffer);
+        this.fileHeader = new ELFFile.Header(headerBuffer);
         // check for 'ELF'
         if (this.fileHeader.e_ident[0] !== 0x7f || this.fileHeader.e_ident[1] !== 0x45 || this.fileHeader.e_ident[2] !== 0x4c || this.fileHeader.e_ident[3] !== 0x46) {
             dwarfFS.fclose(_file);
@@ -121,13 +121,13 @@ export class ELF_File {
             throw new Error("No valid ELF File!");
         }
 
-        //E_VERSION must be 1 == EV_CURRENT
+        // E_VERSION must be 1 == EV_CURRENT
         if (this.fileHeader.e_version !== 1) {
             dwarfFS.fclose(_file);
             throw new Error("No valid ELF File!");
         }
 
-        //EI_CLASS
+        // EI_CLASS
         if (this.fileHeader.e_ident[4] === 0) {
             dwarfFS.fclose(_file);
             throw new Error("No valid ELF File!");
@@ -137,7 +137,7 @@ export class ELF_File {
             this.is64Bit = true;
         }
 
-        //EI_DATA 1=LSB, 2=MSB
+        // EI_DATA 1=LSB, 2=MSB
         if (this.fileHeader.e_ident[5] === 0) {
             dwarfFS.fclose(_file);
             throw new Error("No valid ELF File!");
@@ -147,8 +147,8 @@ export class ELF_File {
             this.endian = "big";
         }
 
-        //get progheaders
-        let progHeadersBuffer = dwarfFS.allocateRw(this.fileHeader.e_phnum * this.fileHeader.e_phentsize);
+        // get progheaders
+        const progHeadersBuffer = dwarfFS.allocateRw(this.fileHeader.e_phnum * this.fileHeader.e_phentsize);
         if (!isDefined(progHeadersBuffer) || progHeadersBuffer.isNull()) {
             dwarfFS.fclose(_file);
             throw new Error("Failed to allocate Memory!");
@@ -159,22 +159,22 @@ export class ELF_File {
             throw new Error("Failed to read from File!");
         }
 
-        if (dwarfFS.fread(progHeadersBuffer, 1, this.fileHeader.e_phentsize * this.fileHeader.e_phnum, _file) != this.fileHeader.e_phentsize * this.fileHeader.e_phnum) {
+        if (dwarfFS.fread(progHeadersBuffer, 1, this.fileHeader.e_phentsize * this.fileHeader.e_phnum, _file) !== this.fileHeader.e_phentsize * this.fileHeader.e_phnum) {
             dwarfFS.fclose(_file);
             throw new Error("Failed to read from File!");
         }
 
         for (let i = 0; i < this.fileHeader.e_phnum; i++) {
-            this.programHeaders.push(new ELF_File.ProgamHeader(progHeadersBuffer.add(this.fileHeader.e_phentsize * i), this.is64Bit));
+            this.programHeaders.push(new ELFFile.ProgamHeader(progHeadersBuffer.add(this.fileHeader.e_phentsize * i), this.is64Bit));
         }
 
-        let strTableBuffer = dwarfFS.allocateRw(this.fileHeader.e_shentsize);
+        const strTableBuffer = dwarfFS.allocateRw(this.fileHeader.e_shentsize);
         if (!isDefined(strTableBuffer) || strTableBuffer.isNull()) {
             dwarfFS.fclose(_file);
             throw new Error("Failed to allocate Memory!");
         }
 
-        //get strtable
+        // get strtable
         if (dwarfFS.fseek(_file, this.fileHeader.e_shoff + this.fileHeader.e_shentsize * this.fileHeader.e_shstrndx, DwarfFS.SeekDirection.SEEK_SET) !== 0) {
             dwarfFS.fclose(_file);
             throw new Error("Failed to read from File!");
@@ -183,14 +183,14 @@ export class ELF_File {
             dwarfFS.fclose(_file);
             throw new Error("Failed to read from File!");
         }
-        let section = new ELF_File.SectionHeader(strTableBuffer, this.is64Bit);
+        let section = new ELFFile.SectionHeader(strTableBuffer, this.is64Bit);
 
         if (dwarfFS.fseek(_file, section.sh_offset, DwarfFS.SeekDirection.SEEK_SET) !== 0) {
             dwarfFS.fclose(_file);
             throw new Error("Failed to read from File!");
         }
 
-        let strSectionBuffer = dwarfFS.allocateRw(section.sh_size);
+        const strSectionBuffer = dwarfFS.allocateRw(section.sh_size);
         if (!isDefined(strSectionBuffer) || strSectionBuffer.isNull()) {
             dwarfFS.fclose(_file);
             throw new Error("Failed to allocate Memory!");
@@ -201,21 +201,21 @@ export class ELF_File {
             throw new Error("Failed to read from File!");
         }
 
-        let string_table: (string | null)[] = [];
+        const stringTable: (string | null)[] = [];
         let pos = 0;
         while (pos < section.sh_size) {
-            let str: string | null = strSectionBuffer.add(pos).readCString() || "NULL";
+            const str: string | null = strSectionBuffer.add(pos).readCString() || "NULL";
             if (isDefined(str) && str !== null && str.length > 0) {
-                string_table[pos] = str;
+                stringTable[pos] = str;
                 pos += str.length + 1;
             } else {
-                string_table[pos] = "";
+                stringTable[pos] = "";
                 pos += 1;
             }
         }
 
-        //get sesctions
-        let sectionsBuffer = dwarfFS.allocateRw(this.fileHeader.e_shentsize * this.fileHeader.e_shnum);
+        // get sesctions
+        const sectionsBuffer = dwarfFS.allocateRw(this.fileHeader.e_shentsize * this.fileHeader.e_shnum);
         if (!isDefined(sectionsBuffer) || sectionsBuffer.isNull()) {
             dwarfFS.fclose(_file);
             throw new Error("Failed to allocate Memory!");
@@ -232,11 +232,11 @@ export class ELF_File {
         }
 
         for (let i = 0; i < this.fileHeader.e_shnum; i++) {
-            section = new ELF_File.SectionHeader(sectionsBuffer.add(this.fileHeader.e_shentsize * i), this.is64Bit);
+            section = new ELFFile.SectionHeader(sectionsBuffer.add(this.fileHeader.e_shentsize * i), this.is64Bit);
             section.name = strSectionBuffer.add(section.sh_name).readCString() || "NULL";
 
             if (section.name === ".init_array") {
-                let initArrayBuffer = dwarfFS.allocateRw(section.sh_size);
+                const initArrayBuffer = dwarfFS.allocateRw(section.sh_size);
 
                 if (!isDefined(initArrayBuffer) || initArrayBuffer.isNull()) {
                     dwarfFS.fclose(_file);
@@ -264,22 +264,26 @@ export class ELF_File {
         dwarfFS.fclose(_file);
     }
 }
-export namespace ELF_File {
+// tslint:disable-next-line: no-namespace
+export namespace ELFFile {
+    // tslint:disable-next-line: max-classes-per-file
     export class Header {
-        e_ident: number[] = [];
-        e_type: number = 0;
-        e_machine: number = 0;
-        e_version: number = 0;
-        e_entry: number = 0;
-        e_phoff: number = 0;
-        e_shoff: number = 0;
-        e_flags: number = 0;
-        e_ehsize: number = 0;
-        e_phentsize: number = 0;
-        e_phnum: number = 0;
-        e_shentsize: number = 0;
-        e_shnum: number = 0;
-        e_shstrndx: number = 0;
+        // tslint:disable variable-name member-ordering
+        e_ident: number[];
+        e_type: number;
+        e_machine: number;
+        e_version: number;
+        e_entry: number;
+        e_phoff: number;
+        e_shoff: number;
+        e_flags: number;
+        e_ehsize: number;
+        e_phentsize: number;
+        e_phnum: number;
+        e_shentsize: number;
+        e_shnum: number;
+        e_shstrndx: number;
+        // tslint:enable variable-name member-ordering
 
         /**
          * constructor
@@ -287,7 +291,7 @@ export namespace ELF_File {
          * @param dataPtr NativePointer
          */
         constructor(dataPtr: NativePointer) {
-            //parse header
+            // parse header
             if (isDefined(dataPtr) && !dataPtr.isNull()) {
                 this.e_ident = [];
                 for (let i = 0; i < Header.EI_NIDENT; i++) {
@@ -306,7 +310,7 @@ export namespace ELF_File {
                     this.e_shoff = dataPtr.add(0x20).readU32();
                     pos = 0x24;
                 } else if (this.e_ident[4] === 2) {
-                    //ELFCLASS64
+                    // ELFCLASS64
                     this.e_entry = dataPtr
                         .add(0x18)
                         .readU64()
@@ -350,7 +354,7 @@ export namespace ELF_File {
         }
 
         public toString = (): string => {
-            let str: string[] = [];
+            const str: string[] = [];
             str.push("e_ident: " + this.e_ident.toString());
             str.push("e_type: 0x" + this.e_type.toString(16));
             str.push("e_machine: 0x" + this.e_machine.toString(16));
@@ -379,7 +383,9 @@ export namespace ELF_File {
     /**
      * ProgramHeader
      */
+    // tslint:disable-next-line: max-classes-per-file
     export class ProgamHeader {
+        // tslint:disable variable-name member-ordering
         p_type: number = 0;
         p_vaddr: number = 0;
         p_paddr: number = 0;
@@ -388,6 +394,7 @@ export namespace ELF_File {
         p_offset: number = 0;
         p_flags: number = 0;
         p_align: number = 0;
+        // tslint:enable variable-name member-ordering
 
         /**
          * constructor
@@ -437,7 +444,7 @@ export namespace ELF_File {
         }
 
         public toString = (): string => {
-            let str: string[] = [];
+            const str: string[] = [];
             str.push("p_type: 0x" + this.p_type.toString(16) + " - " + ProgamHeader.PT_TYPE_NAME[this.p_type]);
             str.push("p_offset: 0x" + this.p_offset.toString(16));
             str.push("p_vaddr: 0x" + this.p_vaddr.toString(16));
@@ -472,7 +479,9 @@ export namespace ELF_File {
     /**
      * SectionHeader
      */
+    // tslint:disable-next-line: max-classes-per-file
     export class SectionHeader {
+        // tslint:disable variable-name member-ordering
         name: string | null = "";
         data: NativePointer[] = [];
         sh_name: number = 0;
@@ -485,6 +494,7 @@ export namespace ELF_File {
         sh_info: number = 0;
         sh_addralign: number = 0;
         sh_entsize: number = 0;
+        // tslint:enable variable-name member-ordering
 
         /**
          * constructor
@@ -539,7 +549,7 @@ export namespace ELF_File {
         }
 
         public toString = (): string => {
-            let str: string[] = [];
+            const str: string[] = [];
             str.push("sh_name: 0x" + this.sh_name.toString(16) + " - " + this.name);
             str.push("sh_type: 0x" + this.sh_type.toString(16) + " - " + SectionHeader.SH_TYPE_NAME[this.sh_type]);
             str.push("sh_flags: 0x" + this.sh_flags.toString(16));
@@ -555,7 +565,7 @@ export namespace ELF_File {
     }
 
     export namespace SectionHeader {
-        export const SH_TYPE_NAME: Object = {
+        export const SH_TYPE_NAME: object = {
             0: "NULL",
             1: "PROGBITS",
             2: "SYMTAB",

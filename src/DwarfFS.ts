@@ -15,6 +15,8 @@
     along with this program.  If not, see <https://www.gnu.org/licenses/>
 */
 
+import { DwarfApi } from "./DwarfApi";
+
 export class DwarfFS {
     protected _access: NativeFunction | null;
     protected _fclose: NativeFunction | null;
@@ -25,14 +27,14 @@ export class DwarfFS {
     protected _fputs: NativeFunction | null;
     protected _fread: NativeFunction | null;
     protected _fseek: NativeFunction | null;
-    protected _ftell:NativeFunction | null;
+    protected _ftell: NativeFunction | null;
     protected _getline: NativeFunction | null;
     protected _pclose: NativeFunction | null;
     protected _popen: NativeFunction | null;
 
     private static instanceRef: DwarfFS;
 
-    //Singleton
+    /** @internal */
     static getInstance() {
         if (!DwarfFS.instanceRef) {
             DwarfFS.instanceRef = new this();
@@ -40,6 +42,7 @@ export class DwarfFS {
         return DwarfFS.instanceRef;
     }
 
+    /** @internal */
     private constructor() {
         if (DwarfFS.instanceRef) {
             throw new Error("DwarfFS already exists! Use DwarfFS.getInstance()/Dwarf.getFS()");
@@ -92,11 +95,22 @@ export class DwarfFS {
         return pt;
     };
 
-    /**
-     * Allocate and write the given string in the heap
-     */
-    allocateString = (what: string): NativePointer => {
-        return Memory.allocUtf8String(what);
+    fclose = (filePointer: NativePointer) => {
+        if (this._fclose === null || this._fclose.isNull()) {
+            throw new Error("DwarfFS::fclose not available!");
+        }
+        if (isDefined(filePointer) && !filePointer.isNull()) {
+            return this._fclose(filePointer);
+        }
+    };
+
+    fileno = (filePointer: NativePointer) => {
+        if (this._fileno === null || this._fileno.isNull()) {
+            throw new Error("DwarfFS::fileno not available!");
+        }
+        if (isDefined(filePointer) && !filePointer.isNull()) {
+            return this._fileno(filePointer);
+        }
     };
 
     /**
@@ -110,15 +124,6 @@ export class DwarfFS {
         const filePathPtr = Memory.allocUtf8String(filePath);
         const p = Memory.allocUtf8String(perm);
         return this._fopen(filePathPtr, p) as NativePointer;
-    };
-
-    fclose = (filePointer: NativePointer) => {
-        if (this._fclose === null || this._fclose.isNull()) {
-            throw new Error("DwarfFS::fclose not available!");
-        }
-        if (isDefined(filePointer) && !filePointer.isNull()) {
-            return this._fclose(filePointer);
-        }
     };
 
     fread = (ptr: NativePointer, size: number, count: number, filePointer: NativePointer) => {
@@ -141,23 +146,14 @@ export class DwarfFS {
         }
     };
 
-    ftell = (filePointer:NativePointer) => {
-        if(this._ftell === null || this._ftell.isNull()) {
+    ftell = (filePointer: NativePointer) => {
+        if (this._ftell === null || this._ftell.isNull()) {
             throw new Error("DwarfFS::fread not available!");
         }
         if (isDefined(filePointer) && !filePointer.isNull()) {
             return this._ftell(filePointer);
         }
-    }
-
-    fileno = (filePointer:NativePointer) => {
-        if(this._fileno === null || this._fileno.isNull()) {
-            throw new Error("DwarfFS::fileno not available!");
-        }
-        if (isDefined(filePointer) && !filePointer.isNull()) {
-            return this._fileno(filePointer);
-        }
-    }
+    };
 
     /**
      * Call native popen with filePath and perm
@@ -200,7 +196,7 @@ export class DwarfFS {
 
         let ret = "";
         if (fp !== null) {
-            const buf = this.allocateRw(1024);
+            const buf = DwarfApi.getInstance().allocRW(1024);
             while (this._fgets(buf, 1024, fp) > 0) {
                 ret += buf.readUtf8String();
             }
@@ -225,7 +221,7 @@ export class DwarfFS {
     };
 }
 
-export namespace DwarfFS {
+export declare namespace DwarfFS {
     export const enum SeekDirection {
         /**
          * Beginning of file
@@ -238,6 +234,6 @@ export namespace DwarfFS {
         /**
          * End of file
          */
-        SEEK_END
+        SEEK_END,
     }
 }

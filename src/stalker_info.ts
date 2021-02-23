@@ -1,10 +1,4 @@
-/**
- * @hidden
- * @ignore
- * @internal
- */
-
-/**
+/*
     Dwarf - Copyright (C) 2019 Giovanni Rocca (iGio90)
 
     This program is free software: you can redistribute it and/or modify
@@ -19,19 +13,19 @@
 
     You should have received a copy of the GNU General Public License
     along with this program.  If not, see <https://www.gnu.org/licenses/>
-**/
+*/
 
 
 export class StalkerInfo {
-    tid: number;
     context = null;
-    initialContextAddress = NULL;
-    lastContextAddress = NULL;
-    didFistJumpOut = false;
-    terminated = false;
     currentMode = null;
+    didFistJumpOut = false;
+    initialContextAddress = NULL;
     lastBlockInstruction = null;
     lastCallJumpInstruction = null;
+    lastContextAddress = NULL;
+    terminated = false;
+    tid: number;
 
     constructor(tid) {
         this.tid = tid;

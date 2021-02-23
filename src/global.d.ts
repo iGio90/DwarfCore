@@ -42,8 +42,15 @@ declare namespace NodeJS {
         readStdString: Function;
         getJNIFuncPtr: Function;
         Dwarf: any;
+        ELFFile: any;
+        FridaInterceptor:typeof Interceptor;
     }
 }
+
+declare type fEmptyVoid = () => void;
+declare type fEmptyReturn = () => any;
+declare type fArgVoid = (...args: any[]) => void;
+declare type fArgReturn = (...args: any[]) => any;
 
 declare function timeStamp(): string;
 declare function isNull(value: any): boolean;
@@ -81,13 +88,16 @@ declare var MAX_STACK_SIZE: number;
  */
 declare var DEBUG: boolean;
 
+
+declare var FridaInterceptor:typeof Interceptor;
+
 /**
  * @protected
  */
 declare var TRACE: boolean;
 
-type DwarfHookAddress = NativePointer | string | null;
-type DwarfCallback = ScriptInvocationListenerCallbacks | Function | string;
+declare type DwarfHookAddress = NativePointer | string | null;
+declare type DwarfCallback = ScriptInvocationListenerCallbacks | fArgReturn | string;
 
 declare interface StringSearchResult {
     address: NativePointer;
@@ -106,4 +116,14 @@ declare interface DwarfObserverLocation {
     storedValue: any;
     event: string;
     fromPtr: NativePointer;
+}
+
+declare interface DwarfModule extends Module {
+    imports:ModuleImportDetails[];
+    exports:ModuleExportDetails[];
+    symbols:ModuleSymbolDetails[];
+}
+
+declare interface NativeBreakpointInfo {
+
 }

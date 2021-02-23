@@ -17,24 +17,32 @@
 
 import { DwarfHookType } from "./consts";
 import { JavaHook } from "./types/java_hook";
-import { DwarfHooksManager } from "./hooks_manager";
+import { DwarfHooksManager } from "./DwarfHooksManager";
 import { DwarfCore } from "./DwarfCore";
 
 /**
  * @internal
  */
 export class DwarfJavaHelper {
-    private static instanceRef: DwarfJavaHelper;
 
-    protected classCache: Array<string>;
-    protected javaClassLoaderCallbacks: {
-        [index: string]: ScriptInvocationListenerCallbacks | Function | string;
-    };
-    protected oldOverloads: { [index: string]: Function | Array<Function> };
-    protected sdk_version: number;
+    protected classCache: string[];
+    protected excludedClasses: string[];
+
+    // Singleton
+    static getInstance() {
+        if (!DwarfJavaHelper.instanceRef) {
+            DwarfJavaHelper.instanceRef = new DwarfJavaHelper();
+        }
+        return DwarfJavaHelper.instanceRef;
+    }
+    protected hooksToAttach: JavaHook[];
     protected initDone: boolean;
-    protected hooksToAttach: Array<JavaHook>;
-    protected excludedClasses: Array<string>;
+    /*protected javaClassLoaderCallbacks: {
+        [index: string]: ScriptInvocationListenerCallbacks | fArgReturn | string;
+    };*/
+    protected oldOverloads: { [index: string]: fArgReturn | fArgReturn[] };
+    protected sdkVersion: number;
+    private static instanceRef: DwarfJavaHelper;
 
     private constructor() {
         if (DwarfJavaHelper.instanceRef) {
@@ -43,98 +51,27 @@ export class DwarfJavaHelper {
         trace("DwarfJavaHelper()");
 
         this.classCache = new Array<string>();
-        this.sdk_version = 0;
-        this.javaClassLoaderCallbacks = {};
+        this.sdkVersion = 0;
+        // this.javaClassLoaderCallbacks = {};
         this.oldOverloads = {};
         this.hooksToAttach = new Array<JavaHook>();
         this.initDone = false;
         this.excludedClasses = ["android.", "com.android", "java.lang", "java.io"];
     }
 
-    //Singleton
-    static getInstance() {
-        if (!DwarfJavaHelper.instanceRef) {
-            DwarfJavaHelper.instanceRef = new DwarfJavaHelper();
+    addHookToAttach = (javaHook: JavaHook) => {
+        trace("DwarfJavaHelper::addHookToAttach()");
+
+        if (javaHook.getType() === DwarfHookType.JAVA && !javaHook.isAttached()) {
+            this.hooksToAttach.push(javaHook);
         }
-        return DwarfJavaHelper.instanceRef;
-    }
+    };
 
-    /*public javaPerform = (fn: () => void) => {
-        logDebug("Using performnow");
-        return Java.performNow(function() { fn(); });
-    };*/
-
-    public initalize = (packagePath?: string) => {
-        if (this.initDone) {
-            logDebug("DwarfJavaHelper => Init already done!");
+    // add other stuff when needed
+    checkRequirements = () => {
+        if (!Java.available) {
+            throw new Error("JavaHelper not available!");
         }
-        trace("DwarfJavaHelper::initialize()");
-
-        this.checkRequirements();
-
-        this.sdk_version = DwarfCore.getInstance().getAndroidApiLevel();
-
-        const self = this;
-        Java.performNow(function () {
-            //class loader
-            const ClassLoader = Java.use("java.lang.ClassLoader");
-
-            ClassLoader.loadClass.overload("java.lang.String", "boolean").implementation = function (className: string, resolve: boolean) {
-                try {
-                    let syncMsg = {};
-
-                    if (self.classCache.indexOf(className) === -1) {
-                        self.classCache.push(className);
-                    }
-
-                    syncMsg = Object.assign(syncMsg, {
-                        javaClassLoaded: className,
-                    });
-
-                    //handle classLoadHooks enter
-                    const dwarfHook = DwarfHooksManager.getInstance().getHookByAddress(className, true, DwarfHookType.CLASS_LOAD);
-
-                    if (isDefined(dwarfHook)) {
-                        dwarfHook.onEnterCallback(dwarfHook, this, arguments);
-                    }
-
-                    //load class
-                    let result = this.loadClass(className, resolve);
-
-                    //handle classLoadHooks leave
-                    if (isDefined(dwarfHook)) {
-                        dwarfHook.onLeaveCallback(dwarfHook, this, result);
-                    }
-
-                    try {
-                        if (self.hooksToAttach.length > 0) {
-                            self.hooksToAttach.forEach((javaHook) => {
-                                if (!javaHook.isAttached()) {
-                                    javaHook.setup();
-                                    syncMsg = Object.assign(syncMsg, {
-                                        dwarfHooks: DwarfHooksManager.getInstance().getHooks(),
-                                    });
-                                }
-                            });
-                            self.hooksToAttach = self.hooksToAttach.filter((dwarfHook) => !dwarfHook.isAttached());
-                        }
-                    } catch (e) {}
-
-                    //sync ui
-                    DwarfCore.getInstance().sync(syncMsg);
-
-                    return result;
-                } catch (e) {
-                    if (e.message.indexOf("java.lang.ClassNotFoundException") !== -1) {
-                        throw e;
-                    }
-                    logDebug(e);
-                }
-            };
-        });
-
-        this.initClassCache(packagePath);
-        this.initDone = true;
     };
 
     detach = () => {
@@ -142,143 +79,6 @@ export class DwarfJavaHelper {
         Java.performNow(function () {
             const ClassLoader = Java.use("java.lang.ClassLoader");
             ClassLoader.loadClass.overload("java.lang.String", "boolean").implementation = null;
-        });
-    };
-
-    //add other stuff when needed
-    checkRequirements = () => {
-        if (!Java.available) {
-            throw new Error("JavaHelper not available!");
-        }
-    };
-
-    invalidateClassCache = () => {
-        trace("JavaHelper::invalidateClassCache()");
-        this.classCache = new Array<string>();
-    };
-
-    initClassCache = (packagePath?: string) => {
-        trace("JavaHelper::initClassCache()");
-        this.checkRequirements();
-        this.invalidateClassCache();
-
-        const self = this;
-
-        const dexClasses = self.enumerateDexClasses(packagePath);
-        self.updateClassCache(function (loadedClasses) {
-            DwarfCore.getInstance().sync({ dexClasses: dexClasses, loadedClasses: loadedClasses });
-        });
-    };
-
-    updateClassCache = (fnCallback: Function) => {
-        trace("JavaHelper::updateClassCache()");
-        this.checkRequirements();
-
-        const self = this;
-        Java.performNow(function () {
-            try {
-                Java.enumerateLoadedClasses({
-                    onMatch: (className) => {
-                        self.classCache.push(className);
-                    },
-                    onComplete: () => {
-                        if (isFunction(fnCallback)) {
-                            fnCallback(self.classCache);
-                        }
-                    },
-                });
-            } catch (e) {
-                logDebug("JavaHelper::updateClassCache() => Error: " + e);
-            }
-        });
-    };
-
-    getApplicationContext = (): any => {
-        trace("JavaHelper::getApplicationContext()");
-
-        this.checkRequirements();
-
-        const ActivityThread = Java.use("android.app.ActivityThread");
-        return ActivityThread.currentApplication().getApplicationContext();
-    };
-
-    getClassMethodsUI = (className: string) => {
-        trace("DwarfJavaHelper::getClassMethodsUI()");
-
-        this.checkRequirements();
-
-        const parsedMethods: Array<string> = new Array<string>();
-
-        Java.performNow(() => {
-            try {
-                const clazz = Java.use(className);
-                const methods: Array<Java.Method> = clazz.class.getDeclaredMethods();
-                clazz.$dispose();
-
-                for (const method of methods) {
-                    let methodStr = method.toString().replace(className + ".", "");
-                    parsedMethods.push(methodStr.substring(0, methodStr.indexOf(")") + 1));
-                }
-            } catch (e) {
-                logErr("DwarfJavaHelper::getClassMethodsUI()", e);
-            }
-        });
-        return DwarfCore.getInstance().sync({ class_methods: parsedMethods });
-    };
-
-    getClassMethods = (className: string): Array<string> => {
-        trace("DwarfJavaHelper::getClassMethods()");
-
-        this.checkRequirements();
-
-        const parsedMethods: Array<string> = new Array<string>();
-
-        Java.performNow(() => {
-            try {
-                const clazz = Java.use(className);
-                const methods: Array<Java.Method> = clazz.class.getDeclaredMethods();
-                clazz.$dispose();
-
-                for (const method of methods) {
-                    const methodName = method.toString().replace(className + ".", "TOKEN");
-                    const regexMatch = methodName.match(/\sTOKEN(.*)\(/);
-
-                    if (regexMatch && regexMatch.length >= 2) {
-                        parsedMethods.push(regexMatch[1]);
-                    }
-                }
-            } catch (e) {
-                logErr("DwarfJavaHelper::getClassMethods()", e);
-            }
-        });
-        if (parsedMethods.length > 0) {
-            return uniqueBy(parsedMethods);
-        } else {
-            return new Array();
-        }
-    };
-
-    enumerateLoadedClassesUI = () => {
-        trace("JavaHelper::enumerateLoadedClassesUI()");
-
-        this.checkRequirements();
-        this.invalidateClassCache();
-
-        const self = this;
-
-        Java.performNow(function () {
-            try {
-                Java.enumerateLoadedClasses({
-                    onMatch: (className) => {
-                        self.classCache.push(className);
-                    },
-                    onComplete: () => {
-                        DwarfCore.getInstance().sync({ loadedJavaClasses: self.classCache });
-                    },
-                });
-            } catch (e) {
-                logDebug("JavaHelper::enumerateLoadedClassesUI() => Error: " + e);
-            }
         });
     };
 
@@ -313,7 +113,7 @@ export class DwarfJavaHelper {
                             FileOutputStream.$new("/data/data/" + DwarfCore.getInstance().getProcessInfo().getName() + "/" + zipEntry),
                             1024
                         );
-                        let read = 0;
+                        const read = 0;
                         while (true) {
                             const b = inputStream.read();
                             if (b === -1) {
@@ -371,7 +171,96 @@ export class DwarfJavaHelper {
         return dexClasses;
     };
 
-    hookInJVM = (className: string, methodName: string = "$init", implementation: Function) => {
+    enumerateLoadedClassesUI = () => {
+        trace("JavaHelper::enumerateLoadedClassesUI()");
+
+        this.checkRequirements();
+        this.invalidateClassCache();
+
+        const self = this;
+
+        Java.performNow(function () {
+            try {
+                Java.enumerateLoadedClasses({
+                    onMatch: (className) => {
+                        self.classCache.push(className);
+                    },
+                    onComplete: () => {
+                        DwarfCore.getInstance().sync({ loadedJavaClasses: self.classCache });
+                    },
+                });
+            } catch (e) {
+                logDebug("JavaHelper::enumerateLoadedClassesUI() => Error: " + e);
+            }
+        });
+    };
+
+    getApplicationContext = (): any => {
+        trace("JavaHelper::getApplicationContext()");
+
+        this.checkRequirements();
+
+        const ActivityThread = Java.use("android.app.ActivityThread");
+        return ActivityThread.currentApplication().getApplicationContext();
+    };
+
+    getClassMethods = (className: string): string[] => {
+        trace("DwarfJavaHelper::getClassMethods()");
+
+        this.checkRequirements();
+
+        const parsedMethods: string[] = new Array<string>();
+
+        Java.performNow(() => {
+            try {
+                const clazz = Java.use(className);
+                const methods: Java.Method[] = clazz.class.getDeclaredMethods();
+                clazz.$dispose();
+
+                for (const method of methods) {
+                    const methodName = method.toString().replace(className + ".", "TOKEN");
+                    const regexMatch = methodName.match(/\sTOKEN(.*)\(/);
+
+                    if (regexMatch && regexMatch.length >= 2) {
+                        parsedMethods.push(regexMatch[1]);
+                    }
+                }
+            } catch (e) {
+                logErr("DwarfJavaHelper::getClassMethods()", e);
+            }
+        });
+        if (parsedMethods.length > 0) {
+            return uniqueBy(parsedMethods);
+        } else {
+            return new Array();
+        }
+    };
+
+    getClassMethodsUI = (className: string) => {
+        trace("DwarfJavaHelper::getClassMethodsUI()");
+
+        this.checkRequirements();
+
+        const parsedMethods: string[] = new Array<string>();
+
+        Java.performNow(() => {
+            try {
+                const clazz = Java.use(className);
+                const methods: Java.Method[] = clazz.class.getDeclaredMethods();
+                clazz.$dispose();
+
+                for (const method of methods) {
+                    const methodStr = method.toString().replace(className + ".", "");
+                    parsedMethods.push(methodStr.substring(0, methodStr.indexOf(")") + 1));
+                }
+            } catch (e) {
+                logErr("DwarfJavaHelper::getClassMethodsUI()", e);
+            }
+        });
+        return DwarfCore.getInstance().sync({ class_methods: parsedMethods });
+    };
+
+    hookInJVM = (className: string, methodName: string = "$init", implementation: fArgReturn) => {
         trace("DwarfJavaHelper::hookInJVM()");
 
         this.checkRequirements();
@@ -396,13 +285,12 @@ export class DwarfJavaHelper {
                 if (isDefined(javaWrapper) && isDefined(javaWrapper[methodName])) {
                     try {
                         const overloads = javaWrapper[methodName].overloads;
-                        for (let i in overloads) {
-                            const overload = overloads[i];
-                            let parameters = [];
-                            let returnType = undefined;
+                        for(const overload of overloads) {
+                            const parameters = [];
+                            let returnType;
                             if (overload.hasOwnProperty("argumentTypes")) {
-                                for (let j in overload.argumentTypes) {
-                                    parameters.push(overload.argumentTypes[j].className);
+                                for (const arg of overload.argumentTypes) {
+                                    parameters.push(arg.className);
                                 }
                             }
                             if (overload.hasOwnProperty("returnType")) {
@@ -411,7 +299,7 @@ export class DwarfJavaHelper {
                             overload.implementation = function () {
                                 this.types = parameters;
                                 this.retType = returnType;
-                                var args = [].slice.call(arguments);
+                                const args = [].slice.call(arguments);
                                 return implementation.apply(this, args);
                             };
                         }
@@ -426,6 +314,110 @@ export class DwarfJavaHelper {
                 throw new Error("DwarfJavaHelper::hookInJVM() => Unable to find class: " + className);
             }
         });
+    };
+
+    /*public javaPerform = (fn: () => void) => {
+        logDebug("Using performnow");
+        return Java.performNow(function() { fn(); });
+    };*/
+
+    public initalize = (packagePath?: string) => {
+        if (this.initDone) {
+            logDebug("DwarfJavaHelper => Init already done!");
+        }
+        trace("DwarfJavaHelper::initialize()");
+
+        this.checkRequirements();
+
+        this.sdkVersion = DwarfCore.getInstance().getAndroidApiLevel();
+
+        const self = this;
+        Java.performNow(function () {
+            // class loader
+            const ClassLoader = Java.use("java.lang.ClassLoader");
+
+            ClassLoader.loadClass.overload("java.lang.String", "boolean").implementation = function (className: string, resolve: boolean) {
+                try {
+                    let syncMsg = {};
+
+                    if (self.classCache.indexOf(className) === -1) {
+                        self.classCache.push(className);
+                    }
+
+                    syncMsg = Object.assign(syncMsg, {
+                        javaClassLoaded: className,
+                    });
+
+                    // handle classLoadHooks enter
+                    const dwarfHook = DwarfHooksManager.getInstance().getHookByAddress(className, true, DwarfHookType.CLASS_LOAD);
+
+                    if (isDefined(dwarfHook)) {
+                        dwarfHook.onEnterCallback(dwarfHook, this, arguments);
+                    }
+
+                    // load class
+                    const result = this.loadClass(className, resolve);
+
+                    // handle classLoadHooks leave
+                    if (isDefined(dwarfHook)) {
+                        dwarfHook.onLeaveCallback(dwarfHook, this, result);
+                    }
+
+                    try {
+                        if (self.hooksToAttach.length > 0) {
+                            self.hooksToAttach.forEach((javaHook) => {
+                                if (!javaHook.isAttached()) {
+                                    javaHook.setup();
+                                    syncMsg = Object.assign(syncMsg, {
+                                        dwarfHooks: DwarfHooksManager.getInstance().getHooks(),
+                                    });
+                                }
+                            });
+                            self.hooksToAttach = self.hooksToAttach.filter((hook) => !hook.isAttached());
+                        }
+                    } catch (e) {
+                        logErr("ClassLoader::loadClass", e);
+                    }
+
+                    // sync ui
+                    DwarfCore.getInstance().sync(syncMsg);
+
+                    return result;
+                } catch (e) {
+                    if (e.message.indexOf("java.lang.ClassNotFoundException") !== -1) {
+                        throw e;
+                    }
+                    logDebug(e);
+                }
+            };
+        });
+
+        this.initClassCache(packagePath);
+        this.initDone = true;
+    };
+
+    initClassCache = (packagePath?: string) => {
+        trace("JavaHelper::initClassCache()");
+        this.checkRequirements();
+        this.invalidateClassCache();
+
+        const self = this;
+
+        const dexClasses = self.enumerateDexClasses(packagePath);
+        self.updateClassCache(function (loadedClasses) {
+            DwarfCore.getInstance().sync({ dexClasses, loadedClasses });
+        });
+    };
+
+    invalidateClassCache = () => {
+        trace("JavaHelper::invalidateClassCache()");
+        this.classCache = new Array<string>();
+    };
+
+    public jvmExplore = (what?: any) => {
+        if (!isDefined(what)) {
+            // TODO: implement
+        }
     };
 
     restoreInJVM = (className: string, methodName: string) => {
@@ -451,7 +443,7 @@ export class DwarfJavaHelper {
                     try {
                         const overloadCount = javaWrapper[methodName].overloads.length;
                         if (overloadCount > 0) {
-                            for (var i = 0; i < overloadCount; i++) {
+                            for (let i = 0; i < overloadCount; i++) {
                                 javaWrapper[methodName].overloads[i].implementation = null;
                                 if (self.oldOverloads.hasOwnProperty(className + "." + methodName)) {
                                     if (i < self.oldOverloads[className + "." + methodName].length) {
@@ -483,19 +475,6 @@ export class DwarfJavaHelper {
         });
     };
 
-    addHookToAttach = (javaHook: JavaHook) => {
-        trace("DwarfJavaHelper::addHookToAttach()");
-
-        if (javaHook.getType() === DwarfHookType.JAVA && !javaHook.isAttached()) {
-            this.hooksToAttach.push(javaHook);
-        }
-    };
-
-    public jvmExplore = (what?: any) => {
-        if (!isDefined(what)) {
-        }
-    };
-
     traceHandler = () => {
         /*let result = null;
         self.onEnterCallback(self, this, arguments);
@@ -504,5 +483,28 @@ export class DwarfJavaHelper {
 
         self.onLeaveCallback(self, this, result);
         return result;*/
+    };
+
+    updateClassCache = (fnCallback: fArgVoid) => {
+        trace("JavaHelper::updateClassCache()");
+        this.checkRequirements();
+
+        const self = this;
+        Java.performNow(function () {
+            try {
+                Java.enumerateLoadedClasses({
+                    onMatch: (className) => {
+                        self.classCache.push(className);
+                    },
+                    onComplete: () => {
+                        if (isFunction(fnCallback)) {
+                            fnCallback(self.classCache);
+                        }
+                    },
+                });
+            } catch (e) {
+                logDebug("JavaHelper::updateClassCache() => Error: " + e);
+            }
+        });
     };
 }

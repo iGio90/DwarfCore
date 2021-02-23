@@ -17,11 +17,13 @@
 
 import { DwarfCore } from "./DwarfCore";
 
-//based on
-//https://github.com/mapbox/jni.hpp/blob/master/test/openjdk/jni.h
-//https://docs.oracle.com/javase/8/docs/technotes/guides/jni/spec/functions.html
+/*
+    based on
+    https://github.com/mapbox/jni.hpp/blob/master/test/openjdk/jni.h
+    https://docs.oracle.com/javase/8/docs/technotes/guides/jni/spec/functions.html
+*/
 
-//TODO: autoparse header
+// TODO: autoparse header
 
 export const JNI_TEMPLATES = {
     reserved0: {},
@@ -30,7 +32,7 @@ export const JNI_TEMPLATES = {
     reserved3: {},
 
     GetVersion: {
-        onEnter: function (args) {
+        onEnter (args) {
             DwarfCore.getInstance().sync({
                 JNITracer: {
                     func: "jint GetVersion(JNIEnv*)",
@@ -38,7 +40,7 @@ export const JNI_TEMPLATES = {
                 },
             });
         },
-        onLeave: function (retval) {
+        onLeave (retval) {
             DwarfCore.getInstance().sync({
                 JNITracer: {
                     func: "jint GetVersion(JNIEnv*)",
@@ -49,7 +51,7 @@ export const JNI_TEMPLATES = {
     },
 
     DefineClass: {
-        onEnter: function (args) {
+        onEnter (args) {
             DwarfCore.getInstance().sync({
                 JNITracer: {
                     func: "jclass DefineClass(JNIEnv *env, const char *name, jobject loader, const jbyte *buf, jsize len)",
@@ -57,7 +59,7 @@ export const JNI_TEMPLATES = {
                 },
             });
         },
-        onLeave: function (retval) {
+        onLeave (retval) {
             DwarfCore.getInstance().sync({
                 JNITracer: {
                     func: "jclass DefineClass(JNIEnv *env, const char *name, jobject loader, const jbyte *buf, jsize len)",
@@ -68,7 +70,7 @@ export const JNI_TEMPLATES = {
     },
 
     findClass: {
-        onEnter: function (args) {
+        onEnter (args) {
             DwarfCore.getInstance().sync({
                 JNITracer: {
                     func: "jclass FindClass(JNIEnv*, const char*)",
@@ -76,7 +78,7 @@ export const JNI_TEMPLATES = {
                 },
             });
         },
-        onLeave: function (retval) {
+        onLeave (retval) {
             DwarfCore.getInstance().sync({
                 JNITracer: {
                     func: "jclass FindClass(JNIEnv*, const char*)",

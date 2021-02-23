@@ -1,4 +1,4 @@
-/**
+/*
     Dwarf - Copyright (C) 2018-2021 Giovanni Rocca (iGio90)
 
     This program is free software: you can redistribute it and/or modify
@@ -13,7 +13,7 @@
 
     You should have received a copy of the GNU General Public License
     along with this program.  If not, see <https://www.gnu.org/licenses/>
-**/
+*/
 
 import { JNI_Functions } from "./consts";
 
@@ -77,7 +77,7 @@ global.isValidFridaListener = function (value: any): boolean {
 
 global.ba2hex = function (arrayBuffer: ArrayBuffer): string {
     // 24,887 ops/s vs 427,496 ops/s
-    //https://jsperf.com/convert-numeric-array-to-hex-string
+    // https://jsperf.com/convert-numeric-array-to-hex-string
     const byteArray = new Uint8Array(arrayBuffer);
     if (!isDefined(byteArray)) {
         return "";
@@ -87,9 +87,12 @@ global.ba2hex = function (arrayBuffer: ArrayBuffer): string {
     const digit = "0".charCodeAt(0);
 
     let p = 0;
+    // tslint:disable-next-line: prefer-for-of
     for (let i = 0; i < byteArray.length; i++) {
+        // tslint:disable-next-line: no-bitwise
         let nibble = byteArray[i] >>> 4;
         chars[p++] = nibble > 9 ? nibble + alpha : nibble + digit;
+        // tslint:disable-next-line: no-bitwise
         nibble = byteArray[i] & 0xf;
         chars[p++] = nibble > 9 ? nibble + alpha : nibble + digit;
     }
@@ -103,14 +106,15 @@ global.ba2hex = function (arrayBuffer: ArrayBuffer): string {
     }
 };
 
-global.hex2a = function (hex: string): Array<number> {
-    let bytes = [];
+global.hex2a = function (hex: string): number[] {
+    const bytes = [];
     for (let c = 0; c < hex.length; c += 2) bytes.push(parseInt(hex.substr(c, 2), 16));
     return bytes;
 };
 
 global.dethumbify = function (pt: NativePointer): NativePointer {
     if (Process.arch.indexOf("arm") !== -1) {
+        // tslint:disable-next-line: no-bitwise
         if ((parseInt(pt.toString(), 16) & 1) === 1) {
             pt = pt.sub(1);
         }
@@ -118,7 +122,7 @@ global.dethumbify = function (pt: NativePointer): NativePointer {
     return pt;
 };
 
-global.uniqueBy = function (array: Array<any>): Array<any> {
+global.uniqueBy = function (array: any[]): any[] {
     const seen: any = {};
     return array.filter(function (item) {
         const k = JSON.stringify(item);
@@ -126,7 +130,7 @@ global.uniqueBy = function (array: Array<any>): Array<any> {
     });
 };
 
-global.logDebug = function (...data: Array<any>): void {
+global.logDebug = function (...data: any[]): void {
     if (!DEBUG || !data.length) {
         return;
     }
@@ -197,8 +201,9 @@ global.checkNativePointer = function (ptrValue: NativePointer): boolean {
     return true;
 };
 
-//https://codeshare.frida.re/@oleavr/read-std-string/
+// https://codeshare.frida.re/@oleavr/read-std-string/
 global.readStdString = function (arg: NativePointer): string | null {
+    // tslint:disable-next-line: no-bitwise
     const isTiny = (arg.readU8() & 1) === 0;
     if (isTiny) {
         return arg.add(1).readUtf8String();

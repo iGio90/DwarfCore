@@ -15,6 +15,7 @@
     along with this program.  If not, see <https://www.gnu.org/licenses/>
 */
 
-global.DEBUG = false;
-global.TRACE = false;
-global.MAX_STACK_SIZE = 0;
+export declare class DwarfZipArchive {
+    constructor(archivePath:string);
+    extract(zipEntry: string, pathOnDisk:string);
+}

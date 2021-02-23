@@ -18,15 +18,15 @@
 import { DwarfArch, DwarfBits, DwarfPlatform } from "../consts";
 
 export class DwarfProcessInfo {
-    protected name: string;
-    protected spawned: boolean;
-    protected pid: number;
     protected architecture: DwarfArch;
+    protected javaAvailable: boolean;
+    protected name: string;
+    protected objcAvailable: boolean;
+    protected pageSize: number;
+    protected pid: number;
     protected platform: DwarfPlatform;
-    protected page_size: number;
-    protected pointer_size: number;
-    protected java_available: boolean;
-    protected objc_available: boolean;
+    protected pointerSize: number;
+    protected spawned: boolean;
     protected threadId: number;
 
     /**
@@ -39,8 +39,8 @@ export class DwarfProcessInfo {
         tid: number = 0,
         architecture = "",
         platform = "",
-        page_size: number = 0,
-        pointer_size: number = 0,
+        pageSize: number = 0,
+        pointerSize: number = 0,
         java: boolean = false,
         objc: boolean = false
     ) {
@@ -105,56 +105,56 @@ export class DwarfProcessInfo {
             throw new Error("Unknown platform!");
         }
 
-        this.page_size = page_size;
-        this.pointer_size = pointer_size;
-        this.java_available = java;
-        this.objc_available = objc;
-    }
-
-    public getName(): string {
-        return this.name;
-    }
-
-    public wasSpawned(): boolean {
-        return this.spawned;
-    }
-
-    public getPID(): number {
-        return this.pid;
-    }
-
-    public getTID(): number {
-        return this.threadId;
+        this.pageSize = pageSize;
+        this.pointerSize = pointerSize;
+        this.javaAvailable = java;
+        this.objcAvailable = objc;
     }
 
     public getArchitecture(): DwarfArch {
         return this.architecture;
     }
 
-    public getPlatform(): DwarfPlatform {
-        return this.platform;
-    }
-
-    public getPageSize(): number {
-        return this.page_size;
-    }
-
-    public getPointerSize(): number {
-        return this.pointer_size;
-    }
-
     public getBits(): DwarfBits {
-        if (this.architecture == DwarfArch.ARCH_ARM64 || this.architecture == DwarfArch.ARCH_X64) {
+        if (this.architecture === DwarfArch.ARCH_ARM64 || this.architecture === DwarfArch.ARCH_X64) {
             return DwarfBits.BITS_64;
         }
         return DwarfBits.BITS_32;
     }
 
+    public getName(): string {
+        return this.name;
+    }
+
+    public getPageSize(): number {
+        return this.pageSize;
+    }
+
+    public getPID(): number {
+        return this.pid;
+    }
+
+    public getPlatform(): DwarfPlatform {
+        return this.platform;
+    }
+
+    public getPointerSize(): number {
+        return this.pointerSize;
+    }
+
+    public getTID(): number {
+        return this.threadId;
+    }
+
     public isJavaAvailable(): boolean {
-        return this.java_available;
+        return this.javaAvailable;
     }
 
     public isObjCAvailable(): boolean {
-        return this.objc_available;
+        return this.objcAvailable;
+    }
+
+    public wasSpawned(): boolean {
+        return this.spawned;
     }
 }

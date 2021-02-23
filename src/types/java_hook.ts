@@ -53,7 +53,7 @@ export class JavaHook extends DwarfHook {
         this.bAttached = false;
         this.warningShown = false;
 
-        //try to attach or add to classLoaderHook wich calls setup when class is loaded
+        // try to attach or add to classLoaderHook wich calls setup when class is loaded
         Java.performNow(() => {
             try {
                 const testWrapper = Java.use(className);
@@ -64,10 +64,22 @@ export class JavaHook extends DwarfHook {
                     this.warningShown = true;
                 }
             } catch (e) {
-                //this is used in classloader wich setups the bp later when class is loaded
+                // this is used in classloader wich setups the bp later when class is loaded
                 DwarfJavaHelper.getInstance().addHookToAttach(this);
             }
         });
+    }
+
+    public remove(syncUi: boolean = true): void {
+        trace("JavaHook::remove()");
+
+        if (this.bAttached) {
+            const hookAddress = this.hookAddress as string;
+            const className = hookAddress.substring(0, hookAddress.lastIndexOf("."));
+            const methodName = hookAddress.substring(hookAddress.lastIndexOf(".") + 1);
+            DwarfJavaHelper.getInstance().restoreInJVM(className, methodName);
+        }
+        return super.remove(syncUi);
     }
 
     public setup(): void {
@@ -105,17 +117,5 @@ export class JavaHook extends DwarfHook {
                 self.bAttached = false;
             }
         });
-    }
-
-    public remove(syncUi: boolean = true): void {
-        trace("JavaHook::remove()");
-
-        if (this.bAttached) {
-            const hookAddress = this.hookAddress as string;
-            const className = hookAddress.substring(0, hookAddress.lastIndexOf("."));
-            const methodName = hookAddress.substring(hookAddress.lastIndexOf(".") + 1);
-            DwarfJavaHelper.getInstance().restoreInJVM(className, methodName);
-        }
-        return super.remove(syncUi);
     }
 }

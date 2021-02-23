@@ -18,10 +18,10 @@
 import { DwarfCore } from "./DwarfCore";
 import { ThreadContext } from "./thread_context";
 
-/**
- * @internal
- */
-export class DwarfInterceptor {
+/** @internal */
+
+/*export class DwarfInterceptor {
+
     private static onAttach(context) {
         const tid = Process.getCurrentThreadId();
         const that = {};
@@ -29,21 +29,21 @@ export class DwarfInterceptor {
 
         if (context !== null) {
             proxiedContext = new Proxy(context, {
-                get: function (object, prop) {
-                    return object[prop];
+                get (target, prop, receiver) {
+                    return Reflect.get(target, prop, receiver);
                 },
-                set: function (object, prop, value) {
+                set (target, prop, value, receiver) {
                     logDebug("[" + tid + "] setting context " + prop.toString() + ": " + value);
 
-                    send("set_context_value:::" + prop.toString() + ":::" + value);
-                    object[prop] = value;
+                    DwarfCore.getInstance().sync({context:})
+                    target[prop] = value;
                     return true;
                 },
             });
         }
 
-        //TODO: ???
-        that["context"] = proxiedContext;
+        // TODO: ???
+        // that["context"] = proxiedContext;
 
         const threadContext = new ThreadContext(tid);
         threadContext.context = context;
@@ -55,8 +55,8 @@ export class DwarfInterceptor {
     }
 
     static init() {
-        const clone = Object.assign({}, Interceptor);
-        clone["realAttach"] = clone.attach;
+        const clone = Object.assign({ realAttach: null }, Interceptor);
+        clone.realAttach = clone.attach;
 
         clone.attach = function (
             target: NativePointerValue,
@@ -77,18 +77,18 @@ export class DwarfInterceptor {
                     return ret;
                 };
             } else if (typeof callbacksOrProbe === "object") {
-                if (isDefined(callbacksOrProbe["onEnter"])) {
+                if (isDefined(callbacksOrProbe.onEnter)) {
                     replacement = {
-                        onEnter: function () {
+                        onEnter () {
                             DwarfInterceptor.onAttach(this.context);
-                            const ret = (callbacksOrProbe as ScriptInvocationListenerCallbacks)["onEnter"].apply(this, arguments);
+                            const ret = (callbacksOrProbe as ScriptInvocationListenerCallbacks).onEnter.apply(this, arguments);
                             DwarfInterceptor.onDetach();
                             return ret;
                         },
                     };
 
-                    if (isDefined(callbacksOrProbe["onLeave"])) {
-                        replacement["onLeave"] = callbacksOrProbe["onLeave"];
+                    if (isDefined(callbacksOrProbe.onLeave)) {
+                        replacement.onLeave = callbacksOrProbe.onLeave;
                     }
                 } else {
                     replacement = callbacksOrProbe;
@@ -97,8 +97,9 @@ export class DwarfInterceptor {
             if (typeof replacement === "undefined") {
                 throw new Error("Error: replacement");
             }
-            return clone["realAttach"](target, replacement, data);
+            return clone.realAttach(target, replacement, data);
         };
-        global["Interceptor"] = clone;
+        global.Interceptor = clone;
     }
 }
+*/

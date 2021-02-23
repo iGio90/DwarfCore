@@ -19,6 +19,7 @@ import { DwarfHook } from "./dwarf_hook";
 import { DwarfHookType } from "../consts";
 
 export class ClassLoadHook extends DwarfHook {
+
     /**
      * Creates an instance of DwarfHook.
      *

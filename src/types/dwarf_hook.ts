@@ -17,29 +17,29 @@
 
 import { DwarfHookType, DwarfHaltReason } from "../consts";
 import { DwarfCore } from "../DwarfCore";
-import { DwarfHooksManager } from "../hooks_manager";
+import { DwarfHooksManager } from "../DwarfHooksManager";
 
 /**
  * DwarfHook
  */
 export class DwarfHook {
-    protected threadId: number;
-    protected hookID: number;
-    protected bpHits: number;
-    protected bEnabled: boolean;
-    protected hookType: DwarfHookType;
-    protected hookAddress: NativePointer | string;
-    protected bSingleShot: boolean;
     protected bActive: boolean;
     protected bAttached: boolean;
-    protected userCallback: ScriptInvocationListenerCallbacks | Function | string;
+    protected bEnabled: boolean;
+    protected bpHits: number;
+    protected bSingleShot: boolean;
+    protected hookAddress: NativePointer | string;
+    protected hookID: number;
+    protected hookType: DwarfHookType;
+    protected threadId: number;
+    protected userCallback: ScriptInvocationListenerCallbacks | fArgReturn | string;
 
     /**
      * Creates an instance of DwarfHook.
      *
      * @param  {DwarfHookType} dwarfHookType
      * @param  {NativePointer|string} hookAddress
-     * @param  {ScriptInvocationListenerCallbacks|Function|string='breakpoint'} userCallback
+     * @param  {DwarfCallback} userCallback
      * @param  {boolean=true} isEnabled
      * @param  {boolean=false} isSingleShot
      */
@@ -80,27 +80,21 @@ export class DwarfHook {
     }
 
     /**
-     * Gets id of Hook
-     *
-     * @returns number
+     * Disables dwarf breakpoint
      */
-    public getHookId(): number {
-        trace("DwarfHook::getHookId()");
+    public disable(): void {
+        trace("DwarfHook::disable()");
 
-        return this.hookID;
+        this.bEnabled = false;
     }
 
     /**
-     * Gets type of Hook
-     *
-     * (see consts.ts)
-     *
-     * @returns DwarfHookType
+     * Enables dwarf breakpoint
      */
-    public getType(): DwarfHookType {
-        trace("DwarfHook::getType()");
+    public enable(): void {
+        trace("DwarfHook::enable()");
 
-        return this.hookType;
+        this.bEnabled = true;
     }
 
     /**
@@ -138,39 +132,51 @@ export class DwarfHook {
     }
 
     /**
-     * Enables dwarf breakpoint
+     * Gets id of Hook
+     *
+     * @returns number
      */
-    public enable(): void {
-        trace("DwarfHook::enable()");
+    public getHookId(): number {
+        trace("DwarfHook::getHookId()");
 
-        this.bEnabled = true;
+        return this.hookID;
+    }
+
+    public getThreadId() {
+        trace("DwarfHook::getThreadId()");
+
+        return this.threadId;
     }
 
     /**
-     * Disables dwarf breakpoint
+     * Gets type of Hook
+     *
+     * (see consts.ts)
+     *
+     * @returns DwarfHookType
      */
-    public disable(): void {
-        trace("DwarfHook::disable()");
+    public getType(): DwarfHookType {
+        trace("DwarfHook::getType()");
 
-        this.bEnabled = false;
-    }
-
-    public isEnabled(): boolean {
-        trace("DwarfHook::isEnabled()");
-
-        return this.bEnabled == true;
+        return this.hookType;
     }
 
     public isActive(): boolean {
         trace("DwarfHook::isActive()");
 
-        return this.bActive == true;
+        return this.bActive === true;
     }
 
     public isAttached() {
         trace("DwarfHook::isActive()");
 
         return this.bAttached;
+    }
+
+    public isEnabled(): boolean {
+        trace("DwarfHook::isEnabled()");
+
+        return this.bEnabled === true;
     }
 
     /**
@@ -182,73 +188,7 @@ export class DwarfHook {
         return this.bSingleShot;
     }
 
-    /**
-     * @param  {boolean=true} singleShot
-     */
-    public setSingleShot(singleShot: boolean = true) {
-        trace("DwarfHook::setSingleShot()");
-
-        this.bSingleShot = singleShot;
-    }
-
-    public resetHitsCounter() {
-        trace("DwarfHook::resetHitsCounter()");
-
-        this.bpHits = 0;
-    }
-
-    public getThreadId() {
-        trace("DwarfHook::getThreadId()");
-
-        return this.threadId;
-    }
-
-    /**
-     * @internal
-     */
-    public setThreadId(threadId: number | string) {
-        trace("DwarfHook::setThreadId()");
-
-        if (isString(threadId)) {
-            threadId = parseInt(threadId as string, 10);
-        }
-
-        if (isNumber(threadId)) {
-            this.threadId = threadId as number;
-        }
-    }
-
-    public setActive(state: boolean) {
-        trace("DwarfHook::getThreadId()");
-
-        this.bActive = state;
-    }
-
-    public remove(syncUi: boolean) {
-        trace("DwarfHook::remove()");
-
-        DwarfHooksManager.getInstance().update(true);
-    }
-
-    public setCallback(userCallback: DwarfCallback) {
-        trace("DwarfHook::setCallback()");
-
-        if (isDefined(userCallback)) {
-            if (this.getType() === DwarfHookType.MEMORY && !isFunction(userCallback) && !isString(userCallback)) {
-                this.userCallback = "breakpoint";
-            } else {
-                this.userCallback = userCallback;
-            }
-            DwarfHooksManager.getInstance().update(true);
-        } else {
-            this.userCallback = "breakpoint";
-            DwarfHooksManager.getInstance().update(true);
-        }
-    }
-
-    /**
-     * @internal
-     */
+    /** @internal */
     public onEnterCallback(dwarfHook: DwarfHook, thisArg: any, funcArgs: InvocationArguments | IArguments) {
         trace("DwarfHook::onEnterCallback()");
 
@@ -264,19 +204,19 @@ export class DwarfHook {
         if (isFunction(self.userCallback)) {
             let userReturn = 0;
             try {
-                userReturn = (self.userCallback as Function).apply(thisArg, [funcArgs]);
-                if (isDefined(userReturn) && userReturn == 1) {
+                userReturn = (self.userCallback as fArgReturn).apply(thisArg, [funcArgs]);
+                if (isDefined(userReturn) && userReturn === 1) {
                     breakExecution = true;
                 }
             } catch (e) {
                 logErr("DwarfHook::onEnterCallback() => userFunction() -> ", e);
                 breakExecution = true;
             }
-        } else if (self.userCallback.hasOwnProperty("onEnter") && isFunction(self.userCallback["onEnter"])) {
+        } else if (self.userCallback.hasOwnProperty("onEnter") && isFunction((self.userCallback as ScriptInvocationListenerCallbacks).onEnter)) {
             let userReturn = 0;
             try {
                 userReturn = (self.userCallback as ScriptInvocationListenerCallbacks).onEnter.apply(thisArg, [funcArgs]);
-                if (isDefined(userReturn) && userReturn == 1) {
+                if (isDefined(userReturn) && userReturn === 1) {
                     breakExecution = true;
                 }
             } catch (e) {
@@ -289,13 +229,14 @@ export class DwarfHook {
 
         if (breakExecution) {
             if (self.hookType === DwarfHookType.JAVA) {
-                let breakpointInfo = [];
-                for (let i in funcArgs) {
+                const breakpointInfo = [];
+                for (let i; i < funcArgs.length; i++) {
                     breakpointInfo.push({
                         value: funcArgs[i],
                         type: thisArg.types[i],
                     });
                 }
+                // @ts-ignore
                 DwarfCore.getInstance().onBreakpoint(self.hookID, self.threadId, DwarfHaltReason.BREAKPOINT, self.hookAddress, breakpointInfo, thisArg);
             } else {
                 DwarfCore.getInstance().onBreakpoint(self.hookID, self.threadId, DwarfHaltReason.BREAKPOINT, self.hookAddress, thisArg.context);
@@ -303,9 +244,7 @@ export class DwarfHook {
         }
     }
 
-    /**
-     * @internal
-     */
+    /** @internal */
     public onLeaveCallback(dwarfHook: DwarfHook, thisArg: any, returnValue: InvocationReturnValue) {
         trace("DwarfHook::onLeaveCallback()");
 
@@ -318,12 +257,12 @@ export class DwarfHook {
             return;
         }
 
-        if (isDefined(self.userCallback) && self.userCallback.hasOwnProperty("onLeave") && isFunction(self.userCallback["onLeave"])) {
+        if (isDefined(self.userCallback) && self.userCallback.hasOwnProperty("onLeave") && isFunction((self.userCallback as ScriptInvocationListenerCallbacks).onLeave)) {
             let userReturn = 0;
             let breakExecution = false;
             try {
                 userReturn = (self.userCallback as ScriptInvocationListenerCallbacks).onLeave.apply(thisArg, [returnValue]);
-                if (isDefined(userReturn) && userReturn == 1) {
+                if (isDefined(userReturn) && userReturn === 1) {
                     breakExecution = true;
                 }
             } catch (e) {
@@ -331,13 +270,14 @@ export class DwarfHook {
                 breakExecution = true;
             }
             if (breakExecution) {
-                if (self.hookType == DwarfHookType.JAVA) {
-                    let breakpointInfo = [
+                if (self.hookType === DwarfHookType.JAVA) {
+                    const breakpointInfo = [
                         {
                             value: returnValue,
                             type: thisArg.retType,
                         },
                     ];
+                    // @ts-ignore
                     DwarfCore.getInstance().onBreakpoint(self.hookID, self.threadId, DwarfHaltReason.BREAKPOINT, self.hookAddress, breakpointInfo, thisArg);
                 } else {
                     DwarfCore.getInstance().onBreakpoint(
@@ -359,11 +299,65 @@ export class DwarfHook {
         DwarfHooksManager.getInstance().update(true);
     }
 
+    public remove(syncUi: boolean) {
+        trace("DwarfHook::remove()");
+
+        DwarfHooksManager.getInstance().update(true);
+    }
+
+    public resetHitsCounter() {
+        trace("DwarfHook::resetHitsCounter()");
+
+        this.bpHits = 0;
+    }
+
+    public setActive(state: boolean) {
+        trace("DwarfHook::getThreadId()");
+
+        this.bActive = state;
+    }
+
+    public setCallback(userCallback: DwarfCallback) {
+        trace("DwarfHook::setCallback()");
+
+        if (isDefined(userCallback)) {
+            if (this.getType() === DwarfHookType.MEMORY && !isFunction(userCallback) && !isString(userCallback)) {
+                this.userCallback = "breakpoint";
+            } else {
+                this.userCallback = userCallback;
+            }
+            DwarfHooksManager.getInstance().update(true);
+        } else {
+            this.userCallback = "breakpoint";
+            DwarfHooksManager.getInstance().update(true);
+        }
+    }
+
     /**
-     * @internal
+     * @param  {boolean=true} singleShot
      */
+    public setSingleShot(singleShot: boolean = true) {
+        trace("DwarfHook::setSingleShot()");
+
+        this.bSingleShot = singleShot;
+    }
+
+    /** @internal */
+    public setThreadId(threadId: number | string) {
+        trace("DwarfHook::setThreadId()");
+
+        if (isString(threadId)) {
+            threadId = parseInt(threadId as string, 10);
+        }
+
+        if (isNumber(threadId)) {
+            this.threadId = threadId as number;
+        }
+    }
+
+    /** @internal */
     public toJSON() {
-        let jsonRet: { [index: string]: any } = {};
+        const jsonRet: { [index: string]: any } = {};
         for (const item in this) {
             if (item === "invocationListener") {
                 continue;

@@ -15,14 +15,22 @@
     along with this program.  If not, see <https://www.gnu.org/licenses/>
 */
 
+import { DwarfHaltReason } from "./consts";
 import { DwarfCore } from "./DwarfCore";
 
 export class DwarfObserver {
-    private static instanceRef: DwarfObserver;
-    protected observeLocations: Array<DwarfObserverLocation>;
-    protected allowedTypes: Array<string>;
-    protected allowedModes: Array<string>;
+    protected allowedModes: string[];
+    protected allowedTypes: string[];
+
+    static getInstance() {
+        if (!DwarfObserver.instanceRef) {
+            DwarfObserver.instanceRef = new this();
+        }
+        return DwarfObserver.instanceRef;
+    }
     protected lastID: number;
+    protected observeLocations: DwarfObserverLocation[];
+    private static instanceRef: DwarfObserver;
 
     private constructor() {
         if (DwarfObserver.instanceRef) {
@@ -34,7 +42,7 @@ export class DwarfObserver {
         this.allowedTypes = new Array<string>();
         this.allowedModes = new Array<string>();
 
-        //TODO: add others
+        // TODO: add others
         this.allowedTypes.push("byte");
         this.allowedTypes.push("bytes");
         this.allowedTypes.push("int");
@@ -51,26 +59,19 @@ export class DwarfObserver {
         this.lastID = 0;
     }
 
-    static getInstance() {
-        if (!DwarfObserver.instanceRef) {
-            DwarfObserver.instanceRef = new this();
-        }
-        return DwarfObserver.instanceRef;
-    }
-
     public addLocation = (
         name: string,
         npAddress: NativePointer | string,
         watchType: string,
         nSize: number = 0,
         watchMode: string,
-        handler: string | Function
+        handler: string | fEmptyReturn
     ) => {
         trace("DwarfObserver::addLocation()");
 
         npAddress = makeNativePointer(npAddress);
 
-        //check address
+        // check address
         if (npAddress === null || npAddress.isNull()) {
             throw new Error("DwarfObserver::addLocation() => Invalid Address!");
         }
@@ -79,28 +80,28 @@ export class DwarfObserver {
             throw new Error("DwarfObserver::addLocation() => Unable to read given Address!");
         }
 
-        if (!isString(name) || name.length == 0) {
+        if (!isString(name) || name.length === 0) {
             name = npAddress.toString();
         }
 
-        //'#' not allowed in name (used intern)
+        // '#' not allowed in name (used intern)
         name = name.replace("#", "_");
 
-        //check name
-        for (let observeLocation of this.observeLocations) {
-            if (observeLocation.address.toString() == npAddress.toString()) {
+        // check name
+        for (const observeLocation of this.observeLocations) {
+            if (observeLocation.address.toString() === npAddress.toString()) {
                 logDebug("DwarfObserver::addLocation() => Address already exists!");
                 return;
             }
         }
 
-        //check type
+        // check type
         if (!isDefined(watchType)) {
             throw new Error("DwarfObserver::addLocation() => Invalid Argument: type");
         } else {
-            let isValidType: Boolean = false;
+            let isValidType: boolean = false;
 
-            for (let allowedType of this.allowedTypes) {
+            for (const allowedType of this.allowedTypes) {
                 if (watchType === allowedType) {
                     isValidType = true;
                     break;
@@ -111,13 +112,13 @@ export class DwarfObserver {
             }
         }
 
-        //check mode
+        // check mode
         if (!isDefined(watchMode)) {
             throw new Error("DwarfObserver::addLocation() => Invalid Argument: mode");
         } else {
-            let isValidMode: Boolean = false;
+            let isValidMode: boolean = false;
 
-            for (let allowedMode of this.allowedModes) {
+            for (const allowedMode of this.allowedModes) {
                 if (watchMode === allowedMode) {
                     isValidMode = true;
                     break;
@@ -135,77 +136,58 @@ export class DwarfObserver {
         if (watchType === "bytes" && nSize === 0) {
             throw new Error("DwarfObserver::addLocation() => Invalid Size!");
         } else {
-            //throws error if wrong type
+            // throws error if wrong type
             nSize = this.getSizeForType(watchType);
         }
 
-        let storedValue: any = this.getValue(npAddress, watchType, nSize);
+        const storedValue: any = this.getValue(npAddress, watchType, nSize);
 
-        //add to array
+        // add to array
         this.observeLocations.push({
             id: ++this.lastID,
-            name: name,
+            name,
             address: npAddress,
             size: nSize,
             type: watchType,
             mode: watchMode,
-            handler: handler,
-            storedValue: storedValue,
+            handler,
+            storedValue,
             fromPtr: null,
             event: "",
         });
 
-        //add to memoryaccesmon
+        // add to memoryaccesmon
         DwarfCore.getInstance().getHooksManager().updateMemoryHooks();
 
-        //sync ui
+        // sync ui
         DwarfCore.getInstance().sync({ observer: this.observeLocations });
     };
 
-    public removeById = (observeId: number): boolean => {
-        trace("DwarfObserver::removeById()");
+    /**
+     * Helper to get our locations in MemoryAccessMonitor
+     * @returns Array
+     */
+    public getLocationsInternal = (): MemoryAccessRange[] => {
+        trace("DwarfObserver::getLocationsInternal()");
 
-        this.observeLocations = this.observeLocations.filter((observeLocation) => {
-            return observeLocation.id !== observeId;
+        const locations: MemoryAccessRange[] = new Array<MemoryAccessRange>();
+        for (const location of this.observeLocations) {
+            locations.push({
+                base: location.address,
+                size: location.size,
+            });
+        }
+        return locations;
+    };
+
+    public getSizes = () => {
+        trace("DwarfObserver::getSizes()");
+
+        const retSizes = [];
+        this.allowedTypes.forEach((type) => {
+            retSizes.push({ typeName: type, typeSize: this.getSizeForType(type) });
         });
-        DwarfCore.getInstance().getHooksManager().updateMemoryHooks();
-        DwarfCore.getInstance().sync({ observer: this.observeLocations });
-        return true;
-    };
-
-    public removeByName = (observeName: string): boolean => {
-        trace("DwarfObserver::removeByName()");
-
-        if (!isString(observeName) || observeName.length < 1) {
-            throw new Error("DwarfObserver::addLocation() => Invalid Name!");
-        }
-
-        let locExists = false;
-        let locId = 0;
-
-        //get id
-        for (let observeLocation of this.observeLocations) {
-            if (observeLocation.name.toLowerCase() === observeName.toLowerCase()) {
-                locExists = true;
-                locId = observeLocation.id;
-                break;
-            }
-        }
-
-        if (locExists && locId > 0) {
-            return this.removeById(locId);
-        }
-        return false;
-    };
-
-    public removeAll = (): boolean => {
-        trace("DwarfObserver::removeAll()");
-
-        this.observeLocations = new Array<DwarfObserverLocation>();
-
-        DwarfCore.getInstance().getHooksManager().updateMemoryHooks();
-        DwarfCore.getInstance().sync({ observer: this.observeLocations });
-        return true;
+        DwarfCore.getInstance().sync({ observer_sizes: retSizes });
     };
 
     public handleMemoryAccess(details: MemoryAccessDetails) {
@@ -213,9 +195,9 @@ export class DwarfObserver {
 
         const self = DwarfObserver.getInstance();
         const memAddress = details.address;
-        for (let location of self.observeLocations) {
+        for (const location of self.observeLocations) {
             if (location.address === memAddress) {
-                let storedValue = location.storedValue;
+                const storedValue = location.storedValue;
 
                 if (!self.isAddressReadable(location.address)) {
                     return;
@@ -227,13 +209,13 @@ export class DwarfObserver {
                     let hasChanged: boolean = false;
                     if (location.type === "bytes") {
                         for (let i = 0; i < location.size; i++) {
-                            if (location.storedValue[i] != newValue[i]) {
+                            if (location.storedValue[i] !== newValue[i]) {
                                 hasChanged = true;
                                 break;
                             }
                         }
                     } else {
-                        if (storedValue != newValue) {
+                        if (storedValue !== newValue) {
                             hasChanged = true;
                         }
                     }
@@ -285,11 +267,13 @@ export class DwarfObserver {
                     logDebug("DwarfObserver::handleMemoryAccess() => Unknown Mode: " + location.mode);
                 }
 
-                //TODO: callbacks
+                // TODO: callbacks
                 if (isDefined(location.handler)) {
                     if (isString(location.handler) && location.handler === "breakpoint") {
-                        //DwarfCore.getInstance().onBreakpoint(DwarfHaltReason.BREAKPOINT, location.fromPtr, );
+                        DwarfCore.getInstance().onBreakpoint(-1, Process.getCurrentThreadId(), DwarfHaltReason.BREAKPOINT, location.fromPtr, null);
                     } else if (typeof location.handler === "function") {
+                        // TODO: implement
+                        throw new Error("Not implemented");
                     }
                 }
 
@@ -297,6 +281,52 @@ export class DwarfObserver {
             }
         }
     }
+
+    public removeAll = (): boolean => {
+        trace("DwarfObserver::removeAll()");
+
+        this.observeLocations = new Array<DwarfObserverLocation>();
+
+        DwarfCore.getInstance().getHooksManager().updateMemoryHooks();
+        DwarfCore.getInstance().sync({ observer: this.observeLocations });
+        return true;
+    };
+
+    public removeById = (observeId: number): boolean => {
+        trace("DwarfObserver::removeById()");
+
+        this.observeLocations = this.observeLocations.filter((observeLocation) => {
+            return observeLocation.id !== observeId;
+        });
+        DwarfCore.getInstance().getHooksManager().updateMemoryHooks();
+        DwarfCore.getInstance().sync({ observer: this.observeLocations });
+        return true;
+    };
+
+    public removeByName = (observeName: string): boolean => {
+        trace("DwarfObserver::removeByName()");
+
+        if (!isString(observeName) || observeName.length < 1) {
+            throw new Error("DwarfObserver::addLocation() => Invalid Name!");
+        }
+
+        let locExists = false;
+        let locId = 0;
+
+        // get id
+        for (const observeLocation of this.observeLocations) {
+            if (observeLocation.name.toLowerCase() === observeName.toLowerCase()) {
+                locExists = true;
+                locId = observeLocation.id;
+                break;
+            }
+        }
+
+        if (locExists && locId > 0) {
+            return this.removeById(locId);
+        }
+        return false;
+    };
 
     private getSizeForType = (watchType: string): number => {
         trace("DwarfObserver::getSizeForType()");
@@ -336,7 +366,7 @@ export class DwarfObserver {
             case "byte":
                 return npAddress.readU8();
             case "bool":
-                return npAddress.readU8() == 0 ? false : true;
+                return npAddress.readU8() === 0 ? false : true;
             case "short":
                 return npAddress.readS16();
             case "ushort":
@@ -371,37 +401,10 @@ export class DwarfObserver {
             throw new Error("DwarfObserver::getRangePermissionsForAddress() -> Unable to find MemoryRange!");
         }
 
-        if (rangeDetails.protection.indexOf("r") != -1) {
+        if (rangeDetails.protection.indexOf("r") !== -1) {
             return true;
         }
 
         return false;
-    };
-
-    public getSizes = () => {
-        trace("DwarfObserver::getSizes()");
-
-        const retSizes = [];
-        this.allowedTypes.forEach((type) => {
-            retSizes.push({ typeName: type, typeSize: this.getSizeForType(type) });
-        });
-        DwarfCore.getInstance().sync({ observer_sizes: retSizes });
-    };
-
-    /**
-     * Helper to get our locations in MemoryAccessMonitor
-     * @returns Array
-     */
-    getLocationsInternal = (): Array<MemoryAccessRange> => {
-        trace("DwarfObserver::getLocationsInternal()");
-
-        let locations: Array<MemoryAccessRange> = new Array<MemoryAccessRange>();
-        for (let location of this.observeLocations) {
-            locations.push({
-                base: location.address,
-                size: location.size,
-            });
-        }
-        return locations;
     };
 }

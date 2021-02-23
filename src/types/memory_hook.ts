@@ -22,7 +22,6 @@ import { DwarfMemoryAccessType, DwarfHookType, DwarfHaltReason } from "../consts
 export class MemoryHook extends DwarfHook {
     protected bpFlags: number;
     protected memOrgPermissions: string;
-    protected callBackFunc: Function | null;
 
     /**
      * @param  {DwarfHookType} bpType
@@ -31,13 +30,14 @@ export class MemoryHook extends DwarfHook {
      */
     public constructor(
         bpAddress: NativePointer | string,
+        // tslint:disable-next-line: no-bitwise
         bpFlags: number = DwarfMemoryAccessType.READ | DwarfMemoryAccessType.WRITE,
-        userCallback: Function | string = "breakpoint",
+        userCallback: DwarfCallback,
         isSingleShot: boolean = false,
         isEnabled: boolean = true
     ) {
         trace("MemoryHook()");
-        let memPtr: NativePointer = makeNativePointer(bpAddress);
+        const memPtr: NativePointer = makeNativePointer(bpAddress);
 
         if (memPtr === null || memPtr.isNull()) {
             throw new Error("MemoryHook() -> Invalid Address!");
@@ -55,7 +55,7 @@ export class MemoryHook extends DwarfHook {
             throw new Error("MemoryHook() -> Unable to find MemoryRange!");
         }
 
-        //no onEnter/onLeave
+        // no onEnter/onLeave
         if(!isString(userCallback) && !isFunction(userCallback)) {
             throw new Error('MemoryHook() -> Invalid Callback!');
         }
@@ -65,10 +65,90 @@ export class MemoryHook extends DwarfHook {
         this.bpFlags = bpFlags;
         this.memOrgPermissions = rangeDetails.protection;
 
-        //Enable MemBP
+        // Enable MemBP
         if (this.isEnabled()) {
             this.enable();
         }
+    }
+
+    /**
+     * Disables dwarf breakpoint
+     */
+    public disable(): void {
+        trace("MemoryHook::disable()");
+        // MemoryAccessMonitor is available on all platforms with >12.7.10
+        super.disable();
+        DwarfCore.getInstance()
+            .getHooksManager()
+            .updateMemoryHooks();
+        return;
+        if (Process.platform === "windows") {
+            super.disable();
+            DwarfCore.getInstance()
+                .getHooksManager()
+                .updateMemoryHooks();
+            return;
+        }
+        if (Memory.protect(this.hookAddress as NativePointer, 1, this.memOrgPermissions)) {
+            super.disable();
+        } else {
+            throw new Error("MemoryHook::disable() -> Memory::protect failed!");
+        }
+    }
+
+    /**
+     * Enables dwarf breakpoint
+     */
+    public enable(): void {
+        trace("MemoryHook::enable()");
+
+        // MemoryAccessMonitor is available on all platforms with >12.7.10
+        super.enable();
+        DwarfCore.getInstance()
+            .getHooksManager()
+            .updateMemoryHooks();
+        return;
+        if (Process.platform === "windows") {
+            super.enable();
+            DwarfCore.getInstance()
+                .getHooksManager()
+                .updateMemoryHooks();
+            return;
+        }
+
+        let perm = "";
+        // tslint:disable-next-line: no-bitwise
+        if (this.bpFlags & DwarfMemoryAccessType.READ) {
+            perm += "-";
+        } else {
+            perm += this.memOrgPermissions[0];
+        }
+        // tslint:disable-next-line: no-bitwise
+        if (this.bpFlags & DwarfMemoryAccessType.WRITE) {
+            perm += "-";
+        } else {
+            perm += this.memOrgPermissions[1];
+        }
+        // tslint:disable-next-line: no-bitwise
+        if (this.bpFlags & DwarfMemoryAccessType.EXECUTE) {
+            perm += "-";
+        } else {
+            if (this.memOrgPermissions[2] === "x") {
+                perm += "x";
+            } else {
+                perm += "-";
+            }
+        }
+        if (Memory.protect(this.hookAddress as NativePointer, 1, perm)) {
+            super.enable();
+        } else {
+            throw new Error("MemoryHook::enable() -> Memory::protect failed!");
+        }
+    }
+
+    public getFlags() {
+        trace("MemoryHook::getFlags()");
+        return this.bpFlags;
     }
 
     /**
@@ -88,83 +168,6 @@ export class MemoryHook extends DwarfHook {
 
         if (wasEnabled) {
             this.enable();
-        }
-    }
-
-    public getFlags() {
-        trace("MemoryHook::getFlags()");
-        return this.bpFlags;
-    }
-
-    /**
-     * Enables dwarf breakpoint
-     */
-    public enable(): void {
-        trace("MemoryHook::enable()");
-
-        //MemoryAccessMonitor is available on all platforms with >12.7.10
-        super.enable();
-        DwarfCore.getInstance()
-            .getHooksManager()
-            .updateMemoryHooks();
-        return;
-        if (Process.platform === "windows") {
-            super.enable();
-            DwarfCore.getInstance()
-                .getHooksManager()
-                .updateMemoryHooks();
-            return;
-        }
-
-        let perm = "";
-        if (this.bpFlags & DwarfMemoryAccessType.READ) {
-            perm += "-";
-        } else {
-            perm += this.memOrgPermissions[0];
-        }
-        if (this.bpFlags & DwarfMemoryAccessType.WRITE) {
-            perm += "-";
-        } else {
-            perm += this.memOrgPermissions[1];
-        }
-        if (this.bpFlags & DwarfMemoryAccessType.EXECUTE) {
-            perm += "-";
-        } else {
-            if (this.memOrgPermissions[2] === "x") {
-                perm += "x";
-            } else {
-                perm += "-";
-            }
-        }
-        if (Memory.protect(this.hookAddress as NativePointer, 1, perm)) {
-            super.enable();
-        } else {
-            throw new Error("MemoryHook::enable() -> Memory::protect failed!");
-        }
-    }
-
-    /**
-     * Disables dwarf breakpoint
-     */
-    public disable(): void {
-        trace("MemoryHook::disable()");
-        //MemoryAccessMonitor is available on all platforms with >12.7.10
-        super.disable();
-        DwarfCore.getInstance()
-            .getHooksManager()
-            .updateMemoryHooks();
-        return;
-        if (Process.platform === "windows") {
-            super.disable();
-            DwarfCore.getInstance()
-                .getHooksManager()
-                .updateMemoryHooks();
-            return;
-        }
-        if (Memory.protect(this.hookAddress as NativePointer, 1, this.memOrgPermissions)) {
-            super.disable();
-        } else {
-            throw new Error("MemoryHook::disable() -> Memory::protect failed!");
         }
     }
 }

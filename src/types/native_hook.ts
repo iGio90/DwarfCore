@@ -20,7 +20,7 @@ import { DwarfHookType } from "../consts";
 
 export class NativeHook extends DwarfHook {
     protected bpDebugSymbol: DebugSymbol;
-    protected bpCondition: Function;
+    // protected bpCondition: fEmptyVoid;
     protected orgMem: string;
     protected invocationListener: InvocationListener;
 
@@ -57,10 +57,10 @@ export class NativeHook extends DwarfHook {
         const self = this;
         try {
             self.invocationListener = Interceptor.attach(nativePtr, {
-                onEnter: function (args) {
+                onEnter (args) {
                     self.onEnterCallback(self, this, args);
                 },
-                onLeave: function (returnVal) {
+                onLeave (returnVal) {
                     self.onLeaveCallback(self, this, returnVal);
                 },
             });
@@ -70,7 +70,7 @@ export class NativeHook extends DwarfHook {
         }
     }
 
-    public setCondition(bpCondition: string | Function): void {
+    /*public setCondition(bpCondition: string | fEmptyVoid ): void {
         if (typeof bpCondition === "string") {
             this.bpCondition = new Function(bpCondition);
         } else {
@@ -82,13 +82,13 @@ export class NativeHook extends DwarfHook {
         }
     }
 
-    public getCondition(): Function {
+    public getCondition(): fEmptyVoid {
         return this.bpCondition;
     }
 
     public removeCondition(): void {
         this.bpCondition = null;
-    }
+    }*/
 
     public detach(): void {
         if (isDefined(this.invocationListener)) {

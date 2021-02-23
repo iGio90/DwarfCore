@@ -1,11 +1,5 @@
-/**
- * @hidden
- * @ignore
- * @internal
- */
-
-/**
-    Dwarf - Copyright (C) 2018-2020 Giovanni Rocca (iGio90)
+/*
+    Dwarf - Copyright (C) 2018-2021 Giovanni Rocca (iGio90)
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -19,15 +13,15 @@
 
     You should have received a copy of the GNU General Public License
     along with this program.  If not, see <https://www.gnu.org/licenses/>
-**/
+*/
 
 export class ThreadContext {
-    tid: number;
-    context = null;
-    javaHandle = null;
 
     apiQueue = [];
+    context = null;
+    javaHandle = null;
     preventSleep = false;
+    tid: number;
 
     constructor(tid) {
         this.tid = tid;
