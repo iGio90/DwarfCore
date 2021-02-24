@@ -16,7 +16,7 @@
 */
 
 import { DwarfHookType } from "./consts";
-import { JavaHook } from "./types/java_hook";
+import { JavaHook } from "./types/JavaHook";
 import { DwarfHooksManager } from "./DwarfHooksManager";
 import { DwarfCore } from "./DwarfCore";
 

@@ -15,29 +15,26 @@
     along with this program.  If not, see <https://www.gnu.org/licenses/>
 */
 
-import { DwarfHook } from "./dwarf_hook";
+import { DwarfHook } from "./DwarfHook";
 import { DwarfHookType } from "../consts";
 
-export class ClassLoadHook extends DwarfHook {
-
+export class ModuleLoadHook extends DwarfHook {
     /**
      * Creates an instance of DwarfHook.
      *
      * @param  {DwarfHookType} bpType
      * @param  {NativePointer|string} bpAddress
      */
-    constructor(className: string, userCallback: DwarfCallback = "breakpoint", isEnabled: boolean = true, isSingleShot: boolean = false) {
-        trace("ClassLoadHook()");
-
-        if (!Java.available) {
-            throw new Error("Java not available!");
+    constructor(moduleName: string, userCallback: DwarfCallback = "breakpoint", isSingleShot: boolean = false, isEnabled: boolean = true) {
+        if (!isString(moduleName)) {
+            throw new Error("ModuleLoadHook() -> Invalid Arguments!");
         }
 
-        if (!isString(className)) {
-            throw new Error("ClassLoadHook() -> Invalid Arguments!");
+        if(!isFunction(userCallback) && !isString(userCallback) && !isValidFridaListener(userCallback)) {
+            throw new Error('ModuleLoadHook() -> Invalid Callback!');
         }
 
-        super(DwarfHookType.CLASS_LOAD, className, userCallback, isEnabled, isSingleShot);
+        super(DwarfHookType.MODULE_LOAD, moduleName, userCallback, isSingleShot, isEnabled);
         this.bAttached = true;
     }
 }

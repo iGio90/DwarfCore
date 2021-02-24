@@ -20,9 +20,9 @@ import "./_global_vars";
 
 import { DwarfCore } from "./DwarfCore";
 import { ThreadApi } from "./thread_api";
-import { ELFFile } from "./types/elf_file";
+import { ELFFile } from "./types/ELFFile";
 import { DwarfHooksManager } from "./DwarfHooksManager";
-import { DwarfJavaHelper } from "./java";
+import { DwarfJavaHelper } from "./DwarfJavaHelper";
 
 global.ELFFile = ELFFile;
 

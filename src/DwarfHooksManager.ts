@@ -15,15 +15,15 @@
     along with this program.  If not, see <https://www.gnu.org/licenses/>
 */
 
-import { DwarfHook } from "./types/dwarf_hook";
-import { NativeHook } from "./types/native_hook";
-import { JavaHook } from "./types/java_hook";
-import { MemoryHook } from "./types/memory_hook";
+import { DwarfHook } from "./types/DwarfHook";
+import { NativeHook } from "./types/NativeHook";
+import { JavaHook } from "./types/JavaHook";
+import { MemoryHook } from "./types/MemoryHook";
 import { DwarfCore } from "./DwarfCore";
 import { DwarfHookType, DwarfMemoryAccessType } from "./consts";
-import { DwarfObserver } from "./dwarf_observer";
-import { ModuleLoadHook } from "./types/module_load_hook";
-import { ClassLoadHook } from "./types/class_load_hook";
+import { DwarfObserver } from "./DwarfObserver";
+import { ModuleLoadHook } from "./types/ModuleLoadHook";
+import { ClassLoadHook } from "./types/ClassLoadHook";
 
 /**
  * DwarfHooksManager Singleton

@@ -15,9 +15,9 @@
     along with this program.  If not, see <https://www.gnu.org/licenses/>
 */
 
-import { DwarfHook } from "./dwarf_hook";
+import { DwarfHook } from "./DwarfHook";
 import { DwarfHookType } from "../consts";
-import { DwarfJavaHelper } from "../java";
+import { DwarfJavaHelper } from "../DwarfJavaHelper";
 import { DwarfCore } from "../DwarfCore";
 
 export class JavaHook extends DwarfHook {

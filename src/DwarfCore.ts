@@ -21,11 +21,11 @@ import { DwarfHooksManager } from "./DwarfHooksManager";
 import { ThreadContext } from "./thread_context";
 import { ThreadApi } from "./thread_api";
 import { DwarfHaltReason } from "./consts";
-import { DwarfProcessInfo } from "./types/dwarf_processinfo";
+import { DwarfProcessInfo } from "./types/DwarfProcessInfo";
 import { DwarfFS } from "./DwarfFS";
-import { DwarfObserver } from "./dwarf_observer";
-import { DwarfJavaHelper } from "./java";
-import { DwarfStalker } from "./stalker";
+import { DwarfObserver } from "./DwarfObserver";
+import { DwarfJavaHelper } from "./DwarfJavaHelper";
+import { DwarfStalker } from "./DwarfStalker";
 
 export class DwarfCore {
     /**
@@ -88,37 +88,30 @@ export class DwarfCore {
         this.hasUI = false;
     }
 
-    _processContext = (context: CpuContext) => {
-        const newCtx = {};
+    _prepareNativeContext = (context: CpuContext) => {
+        trace("DwarfCore::_prepareNativeContext()");
 
-        if (!context.pc) {
+        if (context.hasOwnProperty("pc") || !context.pc) {
+            logDebug("_prepNatContext: Invalid Argument!");
             return context;
         }
 
-        const symbol = DebugSymbol.fromAddress(context.pc);
+        const newCtx = {};
 
-        for (const reg of Object.keys(context)) {
-            const val = context[reg];
-            let isValidPtr = false;
-
+        for (const [reg, val] of Object.entries(context)) {
             const ts = DwarfCore.getInstance().getApi().getAddressTs(val);
-            isValidPtr = ts[0] !== -1;
             newCtx[reg] = {
                 value: val,
-                isValidPointer: isValidPtr,
+                isValidPointer: ts[0] !== -1,
                 telescope: ts,
+                debugSymbol: DebugSymbol.fromAddress(context.pc),
             };
             if (reg === "pc") {
-                if (symbol !== null) {
-                    newCtx[reg].symbol = symbol;
-                }
                 try {
                     const inst = Instruction.parse(val);
                     newCtx[reg].instruction = {
                         size: inst.size,
                         groups: inst.groups,
-                        // TODO: see https://github.com/iGio90/DwarfCore/pull/6
-                        // it was for disasm?
                         thumb: inst.groups.indexOf("thumb") >= 0 || inst.groups.indexOf("thumb2") >= 0,
                     };
                 } catch (e) {
@@ -428,7 +421,6 @@ export class DwarfCore {
 
         logDebug("[" + threadId + "] looping api");
 
-
         const op = recv("" + threadId, function (value: any) {
             logDebug("loopApi::recv()");
         });
@@ -536,7 +528,7 @@ export class DwarfCore {
             context: null,
             backtrace: null,
             java: false,
-            rawcontext: null
+            rawcontext: null,
         };
 
         if (!isDefined(context) && isDefined(this.context)) {
@@ -557,7 +549,7 @@ export class DwarfCore {
 
                 logDebug("[" + threadId + "] sendInfos - preparing context registers");
 
-                breakpointData.context = DwarfCore.getInstance()._processContext(context);
+                breakpointData.context = DwarfCore.getInstance()._prepareNativeContext(context);
                 breakpointData.rawcontext = context;
             } else {
                 breakpointData.java = true;
@@ -593,7 +585,6 @@ export class DwarfCore {
                 threads: Process.enumerateThreads(),
                 dwarfHooks: DwarfCore.getInstance().getHooksManager().getHooks(),
             });
-
 
             logDebug("[" + threadId + "] break " + addrOrClass + " - sleeping context. goodnight!");
             DwarfCore.getInstance().loopApi(threadId, threadContext);

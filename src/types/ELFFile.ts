@@ -59,7 +59,7 @@
 */
 
 import { DwarfApi } from "../DwarfApi";
-import { DwarfFS } from "./../DwarfFS";
+import { DwarfFS } from "../DwarfFS";
 
 /**
  * ELF Fileparser

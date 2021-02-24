@@ -15,7 +15,7 @@
     along with this program.  If not, see <https://www.gnu.org/licenses/>
 */
 
-import { DwarfHook } from "./dwarf_hook";
+import { DwarfHook } from "./DwarfHook";
 import { DwarfCore } from "../DwarfCore";
 import { DwarfMemoryAccessType, DwarfHookType, DwarfHaltReason } from "../consts";
 

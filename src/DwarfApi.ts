@@ -20,15 +20,15 @@ import { LogicJava } from "./logic_java";
 import { ThreadWrapper } from "./thread_wrapper";
 import { DwarfMemoryAccessType, DwarfHookType, DwarfDataDisplayType } from "./consts";
 import { DwarfCore } from "./DwarfCore";
-import { MemoryHook } from "./types/memory_hook";
+import { MemoryHook } from "./types/MemoryHook";
 import { DwarfHooksManager } from "./DwarfHooksManager";
-import { DwarfObserver } from "./dwarf_observer";
-import { NativeHook } from "./types/native_hook";
-import { JavaHook } from "./types/java_hook";
-import { ObjcHook } from "./types/objc_hook";
-import { DwarfJavaHelper } from "./java";
-import { ModuleLoadHook } from "./types/module_load_hook";
-import { ELFFile } from "./types/elf_file";
+import { DwarfObserver } from "./DwarfObserver";
+import { NativeHook } from "./types/NativeHook";
+import { JavaHook } from "./types/JavaHook";
+import { ObjcHook } from "./types/ObjcHook";
+import { DwarfJavaHelper } from "./DwarfJavaHelper";
+import { ModuleLoadHook } from "./types/ModuleLoadHook";
+import { ELFFile } from "./types/ELFFile";
 
 
 export class DwarfApi {
