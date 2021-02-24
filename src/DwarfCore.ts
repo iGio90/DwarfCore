@@ -416,6 +416,12 @@ export class DwarfCore {
         };
     };
 
+    isBlacklistedApi = (apiName: string): boolean => {
+        trace("DwarfCore::isBlacklistedApi()");
+
+        return this._blacklistedApis.indexOf(apiName) !== -1;
+    };
+
     isBlacklistedModule = (module: Module | string): boolean => {
         trace("DwarfCore::isBlacklistedModule()");
 
@@ -426,8 +432,6 @@ export class DwarfCore {
         } else {
             throw new Error("Invalid Argument!");
         }
-
-        return false;
     };
 
     loggedSend = (what: string) => {
@@ -612,7 +616,7 @@ export class DwarfCore {
         }
     };
 
-    registerApiFunction = (apiFunction: fArgReturn): boolean => {
+    registerApiFunction = (apiFunction: fArgReturn): void => {
         trace("DwarfCore::registerApiFunction()");
 
         if (!isFunction(apiFunction)) {
@@ -628,20 +632,18 @@ export class DwarfCore {
         }
 
         if (this._blacklistedApis.indexOf(apiFunction.name)) {
-            throw new Error("DwarfCore::registerApiFunction() => Name is blacklisted! > " + apiFunction.name);
+            throw new Error("DwarfCore::registerApiFunction() => Name is blacklisted!");
         }
 
         const lowerCase = /^[a-z]*$/.test(apiFunction.name);
         const upperCase = /^[A-Z]*$/.test(apiFunction.name);
 
-        const whiteList = ["backtrace", "alloc", "evaluate"];
-
-        if ((lowerCase || upperCase) && whiteList.indexOf(apiFunction.name) === -1) {
-            throw new Error("DwarfCore::registerApiFunction() => FunctionName not allowed! > " + apiFunction.name);
+        if (lowerCase || upperCase) {
+            throw new Error("DwarfCore::registerApiFunction() => FunctionName not allowed!");
         }
 
         if (global.hasOwnProperty(apiFunction.name)) {
-            throw new Error("DwarfCore::registerApiFunction() => Function already exists! > " + apiFunction.name);
+            throw new Error("DwarfCore::registerApiFunction() => Function already exists!");
         }
 
         Object.defineProperty(global, apiFunction.name, { value: apiFunction, enumerable: true });
@@ -651,11 +653,9 @@ export class DwarfCore {
         }
 
         this._apiFunctions.push(apiFunction.name);
-
-        return true;
     };
 
-    registerApiFunctions = (object: object): boolean => {
+    registerApiFunctions = (object: object): void => {
         trace("DwarfCore::registerApiFunctions()");
 
         if (!isDefined(object)) {
@@ -687,16 +687,18 @@ export class DwarfCore {
                 }
 
                 Object.defineProperty(global, propName, { value: object[propName], enumerable: true });
-                if (!global.hasOwnProperty(propName) || !isFunction(global[propName])) {
+                if (global.hasOwnProperty(propName) || isFunction(global[propName])) {
                     this._apiFunctions.push(propName);
+                } else {
+                    logDebug("DwarfCore::registerApiFunctions() => Unable to register Function! > " + propName);
                 }
             }
         });
-
-        return true;
     };
 
     start = () => {
+        trace("DwarfCore::start()");
+
         this.dwarfHooksManager.initialize();
 
         // attach init breakpoints
