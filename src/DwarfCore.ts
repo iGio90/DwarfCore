@@ -199,7 +199,7 @@ export class DwarfCore {
         return this.dwarfApi;
     };
 
-    getApiFunctions = (syncUi: boolean = false): string[] => {
+    getApiFunctions = (): string[] => {
         trace("DwarfCore::getApiFunctions()");
 
         const apiNames = [];
@@ -212,9 +212,6 @@ export class DwarfCore {
             }
         });
 
-        if (syncUi) {
-            DwarfCore.getInstance().sync({ apiFunctions: apiNames });
-        }
         return apiNames;
     };
 
@@ -653,6 +650,8 @@ export class DwarfCore {
         }
 
         this._apiFunctions.push(apiFunction.name);
+
+        this.sync({ apiFunctions: this.getApiFunctions() });
     };
 
     registerApiFunctions = (object: object): void => {
@@ -694,6 +693,8 @@ export class DwarfCore {
                 }
             }
         });
+
+        this.sync({ apiFunctions: this.getApiFunctions() });
     };
 
     start = () => {

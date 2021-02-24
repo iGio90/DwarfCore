@@ -30,9 +30,7 @@ import { DwarfJavaHelper } from "./DwarfJavaHelper";
 import { ModuleLoadHook } from "./types/ModuleLoadHook";
 import { ELFFile } from "./types/ELFFile";
 
-
 export class DwarfApi {
-
     /** @internal */
     static getInstance() {
         if (!DwarfApi.instanceRef) {
@@ -907,6 +905,10 @@ export class DwarfApi {
         return DwarfCore.getInstance().getAndroidSystemProperty(name);
     };
 
+    public getApiNames = () => {
+        return DwarfCore.getInstance().getApiFunctions();
+    };
+
     /**
      * Return an array of DebugSymbol for the requested pointers
      * @param ptrs: an array of NativePointer
@@ -1153,6 +1155,14 @@ export class DwarfApi {
         return false;
     };
 
+    public isBlacklistedApi = (apiName: string): boolean => {
+        return DwarfCore.getInstance().isBlacklistedApi(apiName);
+    };
+
+    public isBlacklistedModule = (module: string | Module): boolean => {
+        return DwarfCore.getInstance().isBlacklistedModule(module);
+    };
+
     /**
      * @return a java stack trace. Must be executed in JVM thread
      */
@@ -1279,6 +1289,14 @@ export class DwarfApi {
         }
 
         return fstring;
+    };
+
+    public registerApiFunction = (apiFunction) => {
+        DwarfCore.getInstance().registerApiFunction(apiFunction);
+    };
+
+    public registerApiFunctions = (object) => {
+        DwarfCore.getInstance().registerApiFunctions(object);
     };
 
     /**
