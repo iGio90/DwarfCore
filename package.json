@@ -12,13 +12,14 @@
     "scripts": {
         "prepare": "npm run build",
         "build": "npm run build_core && npm run build_docs && npm run build_types",
-        "build_core": "npm run tslint && frida-compile --no-sourcemap ./src/index.ts -o ./dist/core.js && python3 ./place_dwarf_license.py && python3 ./generate_dwarf_api.py && npm run copy",
+        "build_core": "npm run tslint && frida-compile --no-sourcemap ./src/index.ts -o ./dist/core.js && python3 ./place_dwarf_license.py && npm run create_py_api && npm run copy",
         "build_docs": "typedoc && npm run deploy_docs",
         "build_types": "tsc -d --removeComments false --declarationDir ./dwarf-typings --emitDeclarationOnly",
         "watch": "frida-compile --no-sourcemap ./src/index.ts -o ./dist/core.js -w",
         "copy": "cp ./dist/core.js ../Dwarf/dwarf_debugger/core/scripts/core.js",
         "tslint": "tslint --project tsconfig.json",
-        "deploy_docs": "gh-pages -d ./dist/docs"
+        "deploy_docs": "gh-pages -d ./dist/docs",
+        "create_py_api": "node createpyapi.js"
     },
     "devDependencies": {
         "@types/frida-gum": "^16.4.1",
