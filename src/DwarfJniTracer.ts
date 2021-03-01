@@ -118,7 +118,7 @@ export class DwarfJniTracer {
         });
 
         jniFuncStr += ")";
-        jniFuncStr = jniFuncStr.replace(", )", "");
+        jniFuncStr = jniFuncStr.replace(", )", ")");
 
         this._listeners[fncIdx] = Interceptor.attach(getJNIFuncPtr(fncIdx as number), {
             onEnter(args) {
