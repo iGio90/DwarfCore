@@ -24,7 +24,6 @@ import { DwarfCore } from "./DwarfCore";
  * @internal
  */
 export class DwarfJavaHelper {
-
     protected classCache: string[];
     protected excludedClasses: string[];
 
@@ -285,7 +284,7 @@ export class DwarfJavaHelper {
                 if (isDefined(javaWrapper) && isDefined(javaWrapper[methodName])) {
                     try {
                         const overloads = javaWrapper[methodName].overloads;
-                        for(const overload of overloads) {
+                        for (const overload of overloads) {
                             const parameters = [];
                             let returnType;
                             if (overload.hasOwnProperty("argumentTypes")) {
@@ -322,12 +321,15 @@ export class DwarfJavaHelper {
     };*/
 
     public initalize = (packagePath?: string) => {
-        if (this.initDone) {
-            logDebug("DwarfJavaHelper => Init already done!");
-        }
         trace("DwarfJavaHelper::initialize()");
 
-        this.checkRequirements();
+        if (this.initDone) {
+            throw new Error("DwarfJavaHelper => Init already done!");
+        }
+
+        if (!Java.available) {
+            throw new Error("DwarfJavaHelper not available");
+        }
 
         this.sdkVersion = DwarfCore.getInstance().getAndroidApiLevel();
 
@@ -391,9 +393,8 @@ export class DwarfJavaHelper {
                 }
             };
         });
-
-        this.initClassCache(packagePath);
         this.initDone = true;
+        this.initClassCache(packagePath);
     };
 
     initClassCache = (packagePath?: string) => {
@@ -412,6 +413,10 @@ export class DwarfJavaHelper {
     invalidateClassCache = () => {
         trace("JavaHelper::invalidateClassCache()");
         this.classCache = new Array<string>();
+    };
+
+    public isInitialized = () => {
+        return this.initDone === true;
     };
 
     public jvmExplore = (what?: any) => {

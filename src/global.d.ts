@@ -127,3 +127,9 @@ declare interface DwarfModule extends Module {
 declare interface NativeBreakpointInfo {
 
 }
+
+declare type ApiFunction = {
+    name: string;
+    args: string[];
+    //TODO: return value
+}

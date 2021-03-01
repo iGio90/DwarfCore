@@ -20,12 +20,13 @@ import { DwarfApi } from "./DwarfApi";
 import { DwarfHooksManager } from "./DwarfHooksManager";
 import { ThreadContext } from "./thread_context";
 import { ThreadApi } from "./thread_api";
-import { DwarfHaltReason } from "./consts";
+import { DwarfHaltReason, DWARF_CORE_VERSION } from "./consts";
 import { DwarfProcessInfo } from "./types/DwarfProcessInfo";
 import { DwarfFS } from "./DwarfFS";
 import { DwarfObserver } from "./DwarfObserver";
 import { DwarfJavaHelper } from "./DwarfJavaHelper";
 import { DwarfStalker } from "./DwarfStalker";
+import { DwarfJniTracer } from "./DwarfJniTracer";
 
 export class DwarfCore {
     /**
@@ -43,7 +44,7 @@ export class DwarfCore {
     protected modulesBlacklist: string[] = new Array<string>();
     protected processInfo: DwarfProcessInfo | null;
     protected threadContexts: { [index: string]: ThreadContext } = {};
-    protected _apiFunctions: string[] = new Array<string>();
+    protected _apiFunctions: ApiFunction[] = new Array<ApiFunction>();
     protected _blacklistedApis: string[] = new Array<string>();
     private static instanceRef: DwarfCore;
 
@@ -55,6 +56,7 @@ export class DwarfCore {
     private dwarfFS: DwarfFS;
     private dwarfHooksManager: DwarfHooksManager;
     private dwarfJavaHelper: DwarfJavaHelper;
+    private dwarfJniTracer: DwarfJniTracer;
     private dwarfObserver: DwarfObserver;
     private dwarfStalker: DwarfStalker;
 
@@ -85,10 +87,19 @@ export class DwarfCore {
         this.dwarfJavaHelper = DwarfJavaHelper.getInstance();
         this.dwarfObserver = DwarfObserver.getInstance();
         this.dwarfStalker = DwarfStalker.getInstance();
+        this.dwarfJniTracer = DwarfJniTracer.getInstance();
         this.breakAtStart = false;
         this.androidApiLevel = 0;
         this.hasUI = false;
+        Object.defineProperty(this, "version", { value: DWARF_CORE_VERSION, enumerable: true });
     }
+
+    _getParamNames = (func) => {
+        const fnStr = func.toString().replace(/((\/\/.*$)|(\/\*[\s\S]*?\*\/))/gm, "");
+        let result = fnStr.slice(fnStr.indexOf("(") + 1, fnStr.indexOf(")")).match(/([^\s,]+)/g);
+        if (result === null) result = [];
+        return result;
+    };
 
     _prepareNativeContext = (context: CpuContext) => {
         trace("DwarfCore::_prepareNativeContext()");
@@ -204,11 +215,9 @@ export class DwarfCore {
 
         const apiNames = [];
 
-        this._apiFunctions.forEach((apiName) => {
-            if (global.hasOwnProperty(apiName) && isFunction(global[apiName])) {
-                apiNames.push(apiName);
-            } else {
-                delete this._apiFunctions[apiName];
+        this._apiFunctions.forEach((apiFunc) => {
+            if (global.hasOwnProperty(apiFunc.name) && isFunction(global[apiFunc.name])) {
+                apiNames.push(apiFunc);
             }
         });
 
@@ -227,10 +236,15 @@ export class DwarfCore {
 
     getJavaHelper = (): DwarfJavaHelper => {
         trace("DwarfCore::getJavaHelper()");
-        if (this.dwarfJavaHelper === null) {
+        if (!this.dwarfJavaHelper.isInitialized()) {
             throw new Error("JavaHelper not initialized!");
         }
         return this.dwarfJavaHelper;
+    };
+
+    getJniTracer = () => {
+        trace("DwarfCore::getJniTracer()");
+        return this.dwarfJniTracer;
     };
 
     getObserver = (): DwarfObserver => {
@@ -255,6 +269,10 @@ export class DwarfCore {
             return null;
         }
         return this.threadContexts[threadId.toString()];
+    };
+
+    getVersion = () => {
+        return "DwarfCore " + DWARF_CORE_VERSION;
     };
 
     handleException = (exception: ExceptionDetails) => {
@@ -337,6 +355,7 @@ export class DwarfCore {
         // send initdata
         const initData = {
             frida: Frida.version,
+            core: DWARF_CORE_VERSION,
             process: this.processInfo,
             modules: Process.enumerateModules(),
             regions: Process.enumerateRanges("---"),
@@ -628,6 +647,10 @@ export class DwarfCore {
             throw new Error("DwarfCore::registerApiFunction() => No Anonymous functions!");
         }
 
+        if (isString(apiFunction.name) && apiFunction.name[0] === "_") {
+            throw new Error("DwarfCore::registerApiFunction() => No private functions!");
+        }
+
         if (this._blacklistedApis.indexOf(apiFunction.name)) {
             throw new Error("DwarfCore::registerApiFunction() => Name is blacklisted!");
         }
@@ -649,7 +672,10 @@ export class DwarfCore {
             throw new Error("DwarfCore::registerApiFunction() => Unable to register Function!");
         }
 
-        this._apiFunctions.push(apiFunction.name);
+        this._apiFunctions.push({
+            name: apiFunction.name,
+            args: this._getParamNames(apiFunction),
+        });
 
         this.sync({ apiFunctions: this.getApiFunctions() });
     };
@@ -661,38 +687,49 @@ export class DwarfCore {
             throw new Error("DwarfCore::registerApiFunctions() => Invalid usage!");
         }
 
-        Object.getOwnPropertyNames(object).forEach((propName) => {
-            const lowerCase = /^[a-z]*$/.test(propName);
-            const upperCase = /^[A-Z]*$/.test(propName);
+        Object.getOwnPropertyNames(object)
+            .filter((propName) => {
+                if (["constructor", "length", "name", "prototype", "getInstance"].indexOf(propName) === -1) {
+                    if (isString(propName) && isFunction(object[propName]) && propName.length > 1 && propName[0] !== "_") {
+                        return propName;
+                    }
+                }
+            })
+            .forEach((propName) => {
+                const lowerCase = /^[a-z]*$/.test(propName);
+                const upperCase = /^[A-Z]*$/.test(propName);
 
-            const whiteList = [];
-            const blackList = ["constructor", "length", "name", "prototype"];
+                const whiteList = [];
+                const blackList = [];
 
-            if (object.constructor.name === "DwarfApi") {
-                whiteList.push("backtrace", "alloc", "evaluate", "restart");
-            }
+                if (object.constructor.name === "DwarfApi") {
+                    whiteList.push("backtrace", "alloc", "evaluate", "restart");
+                }
 
-            this._blacklistedApis.forEach((apiName) => {
-                blackList.push(apiName);
+                this._blacklistedApis.forEach((apiName) => {
+                    blackList.push(apiName);
+                });
+
+                if ((lowerCase || upperCase) && whiteList.indexOf(propName) === -1) {
+                    throw new Error("DwarfCore::registerApiFunctions() => Name not allowed! > " + propName);
+                }
+
+                if (blackList.indexOf(propName) === -1 && isFunction(object[propName])) {
+                    if (global.hasOwnProperty(propName)) {
+                        throw new Error("DwarfCore::registerApiFunctions() => Name already exists! > " + propName);
+                    }
+
+                    Object.defineProperty(global, propName, { value: object[propName], enumerable: true });
+                    if (global.hasOwnProperty(propName) || isFunction(global[propName])) {
+                        this._apiFunctions.push({
+                            name: propName,
+                            args: this._getParamNames(object[propName]),
+                        });
+                    } else {
+                        logDebug("DwarfCore::registerApiFunctions() => Unable to register Function! > " + propName);
+                    }
+                }
             });
-
-            if ((lowerCase || upperCase) && whiteList.indexOf(propName) === -1) {
-                throw new Error("DwarfCore::registerApiFunctions() => Name not allowed! > " + propName);
-            }
-
-            if (blackList.indexOf(propName) === -1 && isFunction(object[propName])) {
-                if (global.hasOwnProperty(propName)) {
-                    throw new Error("DwarfCore::registerApiFunctions() => Name already exists! > " + propName);
-                }
-
-                Object.defineProperty(global, propName, { value: object[propName], enumerable: true });
-                if (global.hasOwnProperty(propName) || isFunction(global[propName])) {
-                    this._apiFunctions.push(propName);
-                } else {
-                    logDebug("DwarfCore::registerApiFunctions() => Unable to register Function! > " + propName);
-                }
-            }
-        });
 
         this.sync({ apiFunctions: this.getApiFunctions() });
     };

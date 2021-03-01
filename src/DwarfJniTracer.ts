@@ -24,10 +24,26 @@ import { JNI_Functions } from "./consts";
 import { DwarfCore } from "./DwarfCore";
 import { JNI_TEMPLATES } from "./_jni_templates";
 
+// TODO: remove templates and create handler at runtime > JNI_FUNCDECLS
+
 export class DwarfJniTracer {
+    private static instanceRef: DwarfJniTracer;
     private _listeners: InvocationListener[];
 
-    constructor() {
+    /** @internal */
+    static getInstance() {
+        if (!DwarfJniTracer.instanceRef) {
+            DwarfJniTracer.instanceRef = new this();
+        }
+        return DwarfJniTracer.instanceRef;
+    }
+
+    /** @internal */
+    private constructor() {
+        if (DwarfJniTracer.instanceRef) {
+            throw new Error("DwarfJniTracer already exists! Use DwarfJniTracer.getInstance()/Dwarf.getJniTracer()");
+        }
+
         trace("DwarfJniTracer()");
 
         this._listeners = new Array<InvocationListener>(JNI_Functions.GetObjectRefType);
