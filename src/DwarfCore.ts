@@ -711,12 +711,12 @@ export class DwarfCore {
                 });
 
                 if ((lowerCase || upperCase) && whiteList.indexOf(propName) === -1) {
-                    throw new Error("DwarfCore::registerApiFunctions() => Name not allowed! > " + propName);
+                    logDebug("DwarfCore::registerApiFunctions() => Name not allowed! > " + propName);
                 }
 
                 if (blackList.indexOf(propName) === -1 && isFunction(object[propName])) {
                     if (global.hasOwnProperty(propName)) {
-                        throw new Error("DwarfCore::registerApiFunctions() => Name already exists! > " + propName);
+                        logDebug("DwarfCore::registerApiFunctions() => Name already exists! > " + propName);
                     }
 
                     Object.defineProperty(global, propName, { value: object[propName], enumerable: true });

@@ -99,7 +99,7 @@ export class JavaHook extends DwarfHook {
                 return;
             }
             try {
-                DwarfCore.getInstance().getJavaHelper().hookInJVM(className, methodName, function () {
+                DwarfJavaHelper.getInstance().hookInJVM(className, methodName, function () {
                     try {
                         let result = null;
                         self.onEnterCallback(self, this, arguments);
@@ -114,6 +114,7 @@ export class JavaHook extends DwarfHook {
                 });
                 self.bAttached = true;
             } catch (e) {
+                logErr("javahook", e);
                 self.bAttached = false;
             }
         });

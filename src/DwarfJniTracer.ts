@@ -22,7 +22,7 @@
 */
 import { JNI_Functions } from "./consts";
 import { DwarfCore } from "./DwarfCore";
-import { JNI_TEMPLATES } from "./_jni_templates";
+import { JNI_FUNCDECLS } from "./_jni_funcs";
 
 // TODO: remove templates and create handler at runtime > JNI_FUNCDECLS
 
@@ -51,11 +51,12 @@ export class DwarfJniTracer {
             this._listeners[i] = null;
         }
 
-        DwarfCore.getInstance().sync({
+        // TODO: maxstack exceeded???
+        /*DwarfCore.getInstance().sync({
             JNITracer: {
-                available: Object.keys(JNI_TEMPLATES),
+                available: Object.keys(JNI_FUNCDECLS),
             },
-        });
+        });*/
     }
 
     removeAll = () => {
@@ -87,32 +88,93 @@ export class DwarfJniTracer {
         this._syncUI();
     };
 
-    traceFunction = (fncIdx: JNI_Functions, sync: boolean = true) => {
+    traceFunction = (fncIdx: number | string, sync: boolean = true) => {
         trace("DwarfJniTracer::traceFunction()");
 
-        if (fncIdx <= JNI_Functions.reserved3 || fncIdx > JNI_Functions.GetObjectRefType) {
-            throw new Error("JNITracer: Invalid function!");
+        if (isNumber(fncIdx)) {
+            if (fncIdx < 0 || fncIdx > JNI_Functions.GetObjectRefType) {
+                throw new Error("JNITracer: Invalid function!");
+            }
+        } else if (isString(fncIdx)) {
+            if (!JNI_FUNCDECLS.hasOwnProperty(fncIdx)) {
+                throw new Error("JNITracer: Invalid function!");
+            }
+            fncIdx = Object.keys(JNI_FUNCDECLS).indexOf(fncIdx as string);
+            if (fncIdx < 0 || fncIdx > JNI_Functions.GetObjectRefType) {
+                throw new Error("JNITracer: Invalid function!");
+            }
         }
 
         if (this._listeners[fncIdx] !== null) {
             throw new Error("JNITracer: already tracing");
         }
 
-        this._listeners[fncIdx] = Interceptor.attach(getJNIFuncPtr(fncIdx), Object.values(JNI_TEMPLATES)[fncIdx]);
+        const jniFuncDef = Object.entries(JNI_FUNCDECLS)[fncIdx];
+
+        let jniFuncStr = "" + jniFuncDef[1].type + " " + jniFuncDef[0] + "(";
+
+        jniFuncDef[1].args.forEach((arg) => {
+            jniFuncStr += arg.type + " " + arg.name + ", ";
+        });
+
+        jniFuncStr += ")";
+        jniFuncStr = jniFuncStr.replace(", )", "");
+
+        this._listeners[fncIdx] = Interceptor.attach(getJNIFuncPtr(fncIdx as number), {
+            onEnter(args) {
+                const defArgs = jniFuncDef[1].args;
+                const inArgs = [];
+
+                for (const arg of defArgs) {
+                    let tsValue = "";
+                    if (arg.type.indexOf("char") !== -1) {
+                        tsValue = args[inArgs.length].readCString();
+                    }
+                    inArgs.push({
+                        type: arg.type,
+                        name: arg.name,
+                        value: args[inArgs.length],
+                        ts: tsValue,
+                    });
+                }
+                DwarfCore.getInstance().sync({
+                    JNITracer: {
+                        in: jniFuncStr,
+                        args: inArgs,
+                    },
+                });
+            },
+            onLeave(retVal) {
+                const outVal = { type: jniFuncDef[1].type, value: retVal, ts: "" };
+                if (outVal.type.indexOf("char") !== -1) {
+                    outVal.ts = retVal.readCString();
+                }
+                DwarfCore.getInstance().sync({
+                    JNITracer: {
+                        out: jniFuncStr,
+                        return: outVal,
+                    },
+                });
+            },
+        });
 
         if (sync) {
             this._syncUI();
         }
     };
 
-    traceFunctions = (funcs: JNI_Functions[]) => {
+    traceFunctions = (funcs: number[] | string[]) => {
         trace("DwarfJniTracer::traceFunctions()");
 
         if (typeof funcs === "number") {
             return this.traceFunction(funcs);
         }
 
-        for(const func of funcs) {
+        if (typeof funcs === "string" && JNI_FUNCDECLS.hasOwnProperty(funcs)) {
+            return this.traceFunction(funcs);
+        }
+
+        for (const func of funcs) {
             this.traceFunction(func, false);
         }
 

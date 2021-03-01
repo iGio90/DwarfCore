@@ -217,16 +217,25 @@ global.readStdString = function (arg: NativePointer): string | null {
 
 global.getJNIFuncPtr = function (index: number): NativePointer {
     if (!Java.available) {
-        throw new Error("Java not available!");
+        throw new Error("getJNIFuncPtr() -> Java not available!");
     }
 
-    if (index <= JNI_Functions.reserved3 || index > JNI_Functions.GetObjectRefType) {
-        throw new Error("Invalid FunctionIndex!");
+    if (index < 0 || index > JNI_Functions.GetObjectRefType) {
+        throw new Error("getJNIFuncPtr() -> Invalid FunctionIndex!");
     }
 
-    return Java.vm
-        .getEnv()
-        .readPointer()
-        .add(index * Process.pointerSize)
-        .readPointer();
+    let funcPtr: NativePointer = NULL;
+    Java.performNow(() => {
+        funcPtr = Java.vm
+            .getEnv()
+            .handle.readPointer()
+            .add(index * Process.pointerSize)
+            .readPointer();
+    });
+
+    if (funcPtr === NULL) {
+        throw new Error("getJNIFuncPtr() -> Unable to get Pointer!");
+    }
+
+    return funcPtr;
 };
