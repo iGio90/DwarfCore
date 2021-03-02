@@ -80,18 +80,14 @@ export class DwarfJniTracer {
         }
 
         fnsToRemove
-            .filter((fncIdx) => {
+            .map((fncIdx) => {
                 if (isNumber(fncIdx)) {
-                    if (fncIdx >= 0 || fncIdx < Object.keys(JNI_FUNCDECLS).length) {
-                        return fncIdx;
-                    } else {
-                        console.log("Error: (JNITracer) -> Invalid function! > " + fncIdx);
-                    }
+                    return fncIdx;
                 } else if (isString(fncIdx)) {
                     if (JNI_FUNCDECLS.hasOwnProperty(fncIdx)) {
-                        fncIdx = Object.keys(JNI_FUNCDECLS).indexOf(fncIdx as string);
-                        if (fncIdx >= 0 || fncIdx < Object.keys(JNI_FUNCDECLS).length) {
-                            return fncIdx;
+                        const fncIdxNum = Object.keys(JNI_FUNCDECLS).indexOf(fncIdx as string);
+                        if (fncIdxNum >= 0 && fncIdxNum < Object.keys(JNI_FUNCDECLS).length) {
+                            return fncIdxNum;
                         } else {
                             console.log("Error: (JNITracer) -> Invalid function! > " + fncIdx);
                         }
@@ -99,6 +95,16 @@ export class DwarfJniTracer {
                         console.log("Error: (JNITracer) -> Invalid function! > " + fncIdx);
                     }
                 }
+            })
+            .filter((fncIdx) => {
+                if (isNumber(fncIdx)) {
+                    if (fncIdx >= 0 && fncIdx < Object.keys(JNI_FUNCDECLS).length) {
+                        return true;
+                    } else {
+                        console.log("Error: (JNITracer) -> Invalid function! > " + fncIdx);
+                    }
+                }
+                return false;
             })
             .forEach((fncIdx) => {
                 if (this._listeners[fncIdx] === null) {
@@ -127,25 +133,17 @@ export class DwarfJniTracer {
         }
 
         fnsToHook
-            .filter((fncIdx) => {
+            .map((fncIdx) => {
                 if (isNumber(fncIdx)) {
-                    if (fncIdx >= 0 || fncIdx < Object.keys(JNI_FUNCDECLS).length) {
-                        if (this._listeners[fncIdx] === null) {
-                            return fncIdx;
-                        } else {
-                            console.log("Error: (JNITracer) -> Already tracing: " + Object.entries(JNI_FUNCDECLS)[fncIdx][0]);
-                        }
-                    } else {
-                        console.log("Error: (JNITracer) -> Invalid function! > " + fncIdx);
-                    }
+                    return fncIdx;
                 } else if (isString(fncIdx)) {
                     if (JNI_FUNCDECLS.hasOwnProperty(fncIdx)) {
-                        fncIdx = Object.keys(JNI_FUNCDECLS).indexOf(fncIdx as string);
-                        if (fncIdx >= 0 || fncIdx < Object.keys(JNI_FUNCDECLS).length) {
-                            if (this._listeners[fncIdx] === null) {
-                                return fncIdx;
+                        const fncIdxNum = Object.keys(JNI_FUNCDECLS).indexOf(fncIdx as string);
+                        if (fncIdxNum >= 0 && fncIdxNum < Object.keys(JNI_FUNCDECLS).length) {
+                            if (this._listeners[fncIdxNum] === null) {
+                                return fncIdxNum;
                             } else {
-                                console.log("Error: (JNITracer) -> Already tracing: " + Object.entries(JNI_FUNCDECLS)[fncIdx][0]);
+                                console.log("Error: (JNITracer) -> Already tracing: " + Object.entries(JNI_FUNCDECLS)[fncIdxNum][0]);
                             }
                         } else {
                             console.log("Error: (JNITracer) -> Invalid function! > " + fncIdx);
@@ -155,7 +153,22 @@ export class DwarfJniTracer {
                     }
                 }
             })
+            .filter((fncIdx) => {
+                if (isNumber(fncIdx)) {
+                    if (fncIdx >= 0 && fncIdx < Object.keys(JNI_FUNCDECLS).length) {
+                        if (this._listeners[fncIdx] === null) {
+                            return true;
+                        } else {
+                            console.log("Error: (JNITracer) -> Already tracing: " + Object.entries(JNI_FUNCDECLS)[fncIdx][0]);
+                        }
+                    } else {
+                        console.log("Error: (JNITracer) -> Invalid function! > " + fncIdx);
+                    }
+                    return false;
+                }
+            })
             .forEach((fncIdx: number) => {
+                logDebug("JNITracer: hooking " + fncIdx);
                 const jniFuncDef = Object.entries(JNI_FUNCDECLS)[fncIdx];
 
                 if (this._listeners[fncIdx] === null) {

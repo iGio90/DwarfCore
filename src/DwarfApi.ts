@@ -1516,6 +1516,9 @@ export class DwarfApi {
      * ```javascript
      * stopJniTrace(["DefineClass", "FindClass"]);
      * ```
+     * ```javascript
+     * stopJniTrace([4, 5, "FindClass"])
+     * ```
      *
      * ```javascript
      * stopJniTrace([4, 5, 6]); // GetVersion, DefineClass, FindClass
@@ -1541,6 +1544,9 @@ export class DwarfApi {
      * ```
      * ```javascript
      * traceJniFunction(6); // 6 == FindClass
+     * ```
+     * ```javascript
+     * traceJniFunction([4, 5, "FindClass"])
      * ```
      *
      * ```javascript
