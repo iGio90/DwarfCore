@@ -1503,6 +1503,32 @@ export class DwarfApi {
         return LogicJava.stopTrace();
     };
 
+    /**
+     * Stops tracing the given JNIFunction
+     *
+     * ```javascript
+     * stopJniTrace("FindClass");
+     * ```
+     * ```javascript
+     * stopJniTrace(6); // 6 == FindClass
+     * ```
+     *
+     * ```javascript
+     * stopJniTrace(["DefineClass", "FindClass"]);
+     * ```
+     *
+     * ```javascript
+     * stopJniTrace([4, 5, 6]); // GetVersion, DefineClass, FindClass
+     * ```
+     *
+     * ```javascript
+     * //Stop all
+     * stopJniTrace() or
+     * stopJniTrace("all") or
+     * stopJniTrace(-1)
+     * ```
+     * @param func the function(s)
+     */
     public stopJniTrace = (func?: string | number) => {
         if (!isDefined(func) || (isString(func) && func === "all") || (isNumber(func) && func === -1)) {
             return DwarfCore.getInstance().getJniTracer().removeAll();
@@ -1510,12 +1536,26 @@ export class DwarfApi {
         return DwarfCore.getInstance().getJniTracer().removeTrace(func);
     };
 
-    public traceJniFunction = (func: string | number) => {
+    /**
+     * Starts tracing the given JNIFunction(s)
+     *
+     * ```javascript
+     * traceJniFunction("FindClass");
+     * ```
+     * ```javascript
+     * traceJniFunction(6); // 6 == FindClass
+     * ```
+     *
+     * ```javascript
+     * traceJniFunction(["DefineClass", "FindClass"]);
+     * ```
+     * ```javascript
+     * traceJniFunction([4, 5, 6]); // GetVersion, DefineClass, FindClass
+     * ```
+     * @param func the function(s)
+     */
+    public traceJniFunction = (func: string | number | string[] | number[]) => {
         return DwarfCore.getInstance().getJniTracer().traceFunction(func);
-    };
-
-    public traceJniFunctions = (funcs: string[] | number[]) => {
-        return DwarfCore.getInstance().getJniTracer().traceFunctions(funcs);
     };
 
     /**

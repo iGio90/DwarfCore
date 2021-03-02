@@ -65,139 +65,168 @@ export class DwarfJniTracer {
         this._syncUI();
     };
 
-    removeTrace = (fncIdx: string | number) => {
+    removeTrace = (funcs?: string | number | string[] | number[]) => {
         trace("DwarfJniTracer::removeTrace()");
 
-        if (isNumber(fncIdx)) {
-            if (fncIdx < 0 || fncIdx > Object.keys(JNI_FUNCDECLS).length) {
-                throw new Error("JNITracer: Invalid function!");
-            }
-        } else if (isString(fncIdx)) {
-            if (!JNI_FUNCDECLS.hasOwnProperty(fncIdx)) {
-                throw new Error("JNITracer: Invalid function!");
-            }
-            fncIdx = Object.keys(JNI_FUNCDECLS).indexOf(fncIdx as string);
-            if (fncIdx < 0 || fncIdx > Object.keys(JNI_FUNCDECLS).length) {
-                throw new Error("JNITracer: Invalid function!");
-            }
+        if (!isDefined(funcs) || (isString(funcs) && funcs === "all") || (isNumber(funcs) && funcs === -1)) {
+            return this.removeAll();
         }
 
-        if (this._listeners[fncIdx] === null) {
-            throw new Error("JNITracer: Not tracing!");
+        let fnsToRemove = [];
+        if (!Array.isArray(funcs)) {
+            fnsToRemove.push(funcs);
+        } else {
+            fnsToRemove = funcs;
         }
 
-        if (this._listeners[fncIdx] !== null) {
-            this._listeners[fncIdx].detach();
-            this._listeners[fncIdx] = null;
-        }
-
-        Interceptor.flush();
-        this._syncUI();
-    };
-
-    traceFunction = (fncIdx: number | string, sync: boolean = true) => {
-        trace("DwarfJniTracer::traceFunction()");
-
-        if (isNumber(fncIdx)) {
-            if (fncIdx < 0 || fncIdx > Object.keys(JNI_FUNCDECLS).length) {
-                throw new Error("JNITracer: Invalid function!");
-            }
-        } else if (isString(fncIdx)) {
-            if (!JNI_FUNCDECLS.hasOwnProperty(fncIdx)) {
-                throw new Error("JNITracer: Invalid function!");
-            }
-            fncIdx = Object.keys(JNI_FUNCDECLS).indexOf(fncIdx as string);
-            if (fncIdx < 0 || fncIdx > Object.keys(JNI_FUNCDECLS).length) {
-                throw new Error("JNITracer: Invalid function!");
-            }
-        }
-
-        if (this._listeners[fncIdx] !== null) {
-            throw new Error("JNITracer: already tracing");
-        }
-
-        const jniFuncDef = Object.entries(JNI_FUNCDECLS)[fncIdx];
-
-        let jniFuncStr = "" + jniFuncDef[1].type + " " + jniFuncDef[0] + "(";
-
-        jniFuncStr += jniFuncDef[1].args
-            .map((arg) => {
-                return arg.type + " " + arg.name;
-            })
-            .join(", ");
-
-        jniFuncStr += ")";
-
-        const rnd = Math.floor(Math.random() * Date.now());
-
-        // TODO: allow custom callbacks?
-        this._listeners[fncIdx] = Interceptor.attach(getJNIFuncPtr(fncIdx as number), {
-            onEnter(args) {
-                const defArgs = jniFuncDef[1].args;
-                const inArgs = [];
-
-                this._cid = Date.now() + rnd;
-
-                for (const arg of defArgs) {
-                    let tsValue = "";
-                    if (arg.type.indexOf("char") !== -1) {
-                        tsValue = args[inArgs.length].readCString();
+        fnsToRemove
+            .filter((fncIdx) => {
+                if (isNumber(fncIdx)) {
+                    if (fncIdx >= 0 || fncIdx < Object.keys(JNI_FUNCDECLS).length) {
+                        return fncIdx;
+                    } else {
+                        console.log("Error: (JNITracer) -> Invalid function! > " + fncIdx);
                     }
-                    inArgs.push({
-                        type: arg.type,
-                        name: arg.name,
-                        value: args[inArgs.length],
-                        ts: tsValue,
-                    });
+                } else if (isString(fncIdx)) {
+                    if (JNI_FUNCDECLS.hasOwnProperty(fncIdx)) {
+                        fncIdx = Object.keys(JNI_FUNCDECLS).indexOf(fncIdx as string);
+                        if (fncIdx >= 0 || fncIdx < Object.keys(JNI_FUNCDECLS).length) {
+                            return fncIdx;
+                        } else {
+                            console.log("Error: (JNITracer) -> Invalid function! > " + fncIdx);
+                        }
+                    } else {
+                        console.log("Error: (JNITracer) -> Invalid function! > " + fncIdx);
+                    }
                 }
-                DwarfCore.getInstance().sync({
-                    JNITracer: {
-                        id: fncIdx,
-                        in: jniFuncStr,
-                        args: inArgs,
-                        time: Date.now(),
-                        cid: this._cid,
-                    },
-                });
-            },
-            onLeave(retVal) {
-                const outVal = { type: jniFuncDef[1].type, value: retVal, ts: "" };
-                if (outVal.type.indexOf("char") !== -1) {
-                    outVal.ts = retVal.readCString();
+            })
+            .forEach((fncIdx) => {
+                if (this._listeners[fncIdx] === null) {
+                    console.log("Error: (JNITracer) -> Not tracing! > " + fncIdx);
+                } else {
+                    this._listeners[fncIdx].detach();
+                    this._listeners[fncIdx] = null;
                 }
-                DwarfCore.getInstance().sync({
-                    JNITracer: {
-                        id: fncIdx,
-                        out: jniFuncStr,
-                        return: outVal,
-                        time: Date.now(),
-                        cid: this._cid,
-                    },
-                });
-            },
-        });
+            });
 
-        if (sync) {
+        if (fnsToRemove.length) {
+            Interceptor.flush();
             this._syncUI();
         }
     };
 
-    traceFunctions = (funcs: number[] | string[]) => {
-        trace("DwarfJniTracer::traceFunctions()");
+    // TODO: allow custon callbacks?
+    traceFunction = (funcs: number | string | number[] | string[]) => {
+        trace("DwarfJniTracer::traceFunction()");
 
-        if (typeof funcs === "number") {
-            return this.traceFunction(funcs);
+        let fnsToHook = [];
+        if (!Array.isArray(funcs)) {
+            fnsToHook.push(funcs);
+        } else {
+            fnsToHook = funcs;
         }
 
-        if (typeof funcs === "string" && JNI_FUNCDECLS.hasOwnProperty(funcs)) {
-            return this.traceFunction(funcs);
-        }
+        fnsToHook
+            .filter((fncIdx) => {
+                if (isNumber(fncIdx)) {
+                    if (fncIdx >= 0 || fncIdx < Object.keys(JNI_FUNCDECLS).length) {
+                        if (this._listeners[fncIdx] === null) {
+                            return fncIdx;
+                        } else {
+                            console.log("Error: (JNITracer) -> Already tracing: " + Object.entries(JNI_FUNCDECLS)[fncIdx][0]);
+                        }
+                    } else {
+                        console.log("Error: (JNITracer) -> Invalid function! > " + fncIdx);
+                    }
+                } else if (isString(fncIdx)) {
+                    if (JNI_FUNCDECLS.hasOwnProperty(fncIdx)) {
+                        fncIdx = Object.keys(JNI_FUNCDECLS).indexOf(fncIdx as string);
+                        if (fncIdx >= 0 || fncIdx < Object.keys(JNI_FUNCDECLS).length) {
+                            if (this._listeners[fncIdx] !== null) {
+                                return fncIdx;
+                            } else {
+                                console.log("Error: (JNITracer) -> Already tracing: " + Object.entries(JNI_FUNCDECLS)[fncIdx][0]);
+                            }
+                        } else {
+                            console.log("Error: (JNITracer) -> Invalid function! > " + fncIdx);
+                        }
+                    } else {
+                        console.log("Error: (JNITracer) -> Invalid function! > " + fncIdx);
+                    }
+                }
+            })
+            .forEach((fncIdx: number) => {
+                const jniFuncDef = Object.entries(JNI_FUNCDECLS)[fncIdx];
 
-        for (const func of funcs) {
-            this.traceFunction(func, false);
-        }
+                if (this._listeners[fncIdx] === null) {
+                    let jniFuncStr = "" + jniFuncDef[1].type + " " + jniFuncDef[0] + "(";
 
-        this._syncUI();
+                    if (Array.isArray(jniFuncDef[1].args) && jniFuncDef[1].args.length) {
+                        const fnArgs = jniFuncDef[1].args as { name: string; type: string }[];
+                        jniFuncStr += fnArgs
+                            .map((arg) => {
+                                return arg.type + " " + arg.name;
+                            })
+                            .join(", ");
+                    }
+
+                    jniFuncStr += ")";
+
+                    const rnd = Math.floor(Math.random() * Date.now());
+
+                    // TODO: allow custom callbacks?
+                    this._listeners[fncIdx] = Interceptor.attach(getJNIFuncPtr(fncIdx as number), {
+                        onEnter(args) {
+                            const defArgs = jniFuncDef[1].args;
+                            const inArgs = [];
+
+                            this._cid = Date.now() + rnd;
+
+                            for (const arg of defArgs) {
+                                let tsValue = "";
+                                if (arg.type.indexOf("char") !== -1) {
+                                    tsValue = args[inArgs.length].readCString();
+                                }
+                                inArgs.push({
+                                    type: arg.type,
+                                    name: arg.name,
+                                    value: args[inArgs.length],
+                                    ts: tsValue,
+                                });
+                            }
+                            DwarfCore.getInstance().sync({
+                                JNITracer: {
+                                    id: fncIdx,
+                                    in: jniFuncStr,
+                                    args: inArgs,
+                                    time: Date.now(),
+                                    cid: this._cid,
+                                },
+                            });
+                        },
+                        onLeave(retVal) {
+                            const outVal = { type: jniFuncDef[1].type, value: retVal, ts: "" };
+                            if (outVal.type.indexOf("char") !== -1) {
+                                outVal.ts = retVal.readCString();
+                            }
+                            DwarfCore.getInstance().sync({
+                                JNITracer: {
+                                    id: fncIdx,
+                                    out: jniFuncStr,
+                                    return: outVal,
+                                    time: Date.now(),
+                                    cid: this._cid,
+                                },
+                            });
+                        },
+                    });
+                }
+            });
+
+        if (fnsToHook.length) {
+            Interceptor.flush();
+            this._syncUI();
+        }
     };
 
     private _syncUI = () => {
