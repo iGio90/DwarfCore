@@ -1529,10 +1529,7 @@ export class DwarfApi {
      * ```
      * @param func the function(s)
      */
-    public stopJniTrace = (func?: string | number) => {
-        if (!isDefined(func) || (isString(func) && func === "all") || (isNumber(func) && func === -1)) {
-            return DwarfCore.getInstance().getJniTracer().removeAll();
-        }
+    public stopJniTrace = (func?: string | number | string[] | number[]) => {
         return DwarfCore.getInstance().getJniTracer().removeTrace(func);
     };
 
