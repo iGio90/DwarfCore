@@ -115,7 +115,7 @@ export class DwarfJniTracer {
         }
     };
 
-    // TODO: allow custon callbacks?
+    // TODO: allow custom callbacks?
     traceFunction = (funcs: number | string | number[] | string[]) => {
         trace("DwarfJniTracer::traceFunction()");
 
@@ -142,7 +142,7 @@ export class DwarfJniTracer {
                     if (JNI_FUNCDECLS.hasOwnProperty(fncIdx)) {
                         fncIdx = Object.keys(JNI_FUNCDECLS).indexOf(fncIdx as string);
                         if (fncIdx >= 0 || fncIdx < Object.keys(JNI_FUNCDECLS).length) {
-                            if (this._listeners[fncIdx] !== null) {
+                            if (this._listeners[fncIdx] === null) {
                                 return fncIdx;
                             } else {
                                 console.log("Error: (JNITracer) -> Already tracing: " + Object.entries(JNI_FUNCDECLS)[fncIdx][0]);
@@ -174,7 +174,6 @@ export class DwarfJniTracer {
 
                     const rnd = Math.floor(Math.random() * Date.now());
 
-                    // TODO: allow custom callbacks?
                     this._listeners[fncIdx] = Interceptor.attach(getJNIFuncPtr(fncIdx as number), {
                         onEnter(args) {
                             const defArgs = jniFuncDef[1].args;
