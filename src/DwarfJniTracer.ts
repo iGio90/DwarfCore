@@ -126,18 +126,17 @@ export class DwarfJniTracer {
             })
             .join(", ");
 
-        /*jniFuncDef[1].args.forEach((arg) => {
-            jniFuncStr += arg.type + " " + arg.name + ", ";
-        });*/
-
         jniFuncStr += ")";
-        // jniFuncStr = jniFuncStr.replace(", )", ")");
+
+        const rnd = Math.floor(Math.random() * Date.now());
 
         // TODO: allow custom callbacks?
         this._listeners[fncIdx] = Interceptor.attach(getJNIFuncPtr(fncIdx as number), {
             onEnter(args) {
                 const defArgs = jniFuncDef[1].args;
                 const inArgs = [];
+
+                this._cid = Date.now() + rnd;
 
                 for (const arg of defArgs) {
                     let tsValue = "";
@@ -153,9 +152,11 @@ export class DwarfJniTracer {
                 }
                 DwarfCore.getInstance().sync({
                     JNITracer: {
+                        id: fncIdx,
                         in: jniFuncStr,
                         args: inArgs,
                         time: Date.now(),
+                        cid: this._cid,
                     },
                 });
             },
@@ -166,9 +167,11 @@ export class DwarfJniTracer {
                 }
                 DwarfCore.getInstance().sync({
                     JNITracer: {
+                        id: fncIdx,
                         out: jniFuncStr,
                         return: outVal,
                         time: Date.now(),
+                        cid: this._cid,
                     },
                 });
             },
