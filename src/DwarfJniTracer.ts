@@ -20,7 +20,6 @@
     https://github.com/mapbox/jni.hpp/blob/master/test/openjdk/jni.h
     https://docs.oracle.com/javase/8/docs/technotes/guides/jni/spec/functions.html
 */
-import { JNI_Functions } from "./consts";
 import { DwarfCore } from "./DwarfCore";
 import { JNI_FUNCDECLS } from "./_jni_funcs";
 
@@ -70,7 +69,7 @@ export class DwarfJniTracer {
         trace("DwarfJniTracer::removeTrace()");
 
         if (isNumber(fncIdx)) {
-            if (fncIdx < 0 || fncIdx > JNI_Functions.GetObjectRefType) {
+            if (fncIdx < 0 || fncIdx > Object.keys(JNI_FUNCDECLS).length) {
                 throw new Error("JNITracer: Invalid function!");
             }
         } else if (isString(fncIdx)) {
@@ -78,7 +77,7 @@ export class DwarfJniTracer {
                 throw new Error("JNITracer: Invalid function!");
             }
             fncIdx = Object.keys(JNI_FUNCDECLS).indexOf(fncIdx as string);
-            if (fncIdx < 0 || fncIdx > JNI_Functions.GetObjectRefType) {
+            if (fncIdx < 0 || fncIdx > Object.keys(JNI_FUNCDECLS).length) {
                 throw new Error("JNITracer: Invalid function!");
             }
         }
@@ -100,7 +99,7 @@ export class DwarfJniTracer {
         trace("DwarfJniTracer::traceFunction()");
 
         if (isNumber(fncIdx)) {
-            if (fncIdx < 0 || fncIdx > JNI_Functions.GetObjectRefType) {
+            if (fncIdx < 0 || fncIdx > Object.keys(JNI_FUNCDECLS).length) {
                 throw new Error("JNITracer: Invalid function!");
             }
         } else if (isString(fncIdx)) {
@@ -108,7 +107,7 @@ export class DwarfJniTracer {
                 throw new Error("JNITracer: Invalid function!");
             }
             fncIdx = Object.keys(JNI_FUNCDECLS).indexOf(fncIdx as string);
-            if (fncIdx < 0 || fncIdx > JNI_Functions.GetObjectRefType) {
+            if (fncIdx < 0 || fncIdx > Object.keys(JNI_FUNCDECLS).length) {
                 throw new Error("JNITracer: Invalid function!");
             }
         }

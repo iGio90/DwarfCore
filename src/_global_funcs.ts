@@ -15,7 +15,7 @@
     along with this program.  If not, see <https://www.gnu.org/licenses/>
 */
 
-import { JNI_Functions } from "./consts";
+import { JNI_FUNCDECLS } from "./_jni_funcs";
 
 global.timeStamp = function (): string {
     const date = new Date();
@@ -220,7 +220,7 @@ global.getJNIFuncPtr = function (index: number): NativePointer {
         throw new Error("getJNIFuncPtr() -> Java not available!");
     }
 
-    if (index < 0 || index > JNI_Functions.GetObjectRefType) {
+    if (index < 0 || index > Object.keys(JNI_FUNCDECLS).length) {
         throw new Error("getJNIFuncPtr() -> Invalid FunctionIndex!");
     }
 
