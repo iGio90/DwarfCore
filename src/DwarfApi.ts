@@ -1503,6 +1503,21 @@ export class DwarfApi {
         return LogicJava.stopTrace();
     };
 
+    public stopJniTrace = (func?: string | number) => {
+        if (!isDefined(func) || (isString(func) && func === "all") || (isNumber(func) && func === -1)) {
+            return DwarfCore.getInstance().getJniTracer().removeAll();
+        }
+        return DwarfCore.getInstance().getJniTracer().removeTrace(func);
+    };
+
+    public traceJniFunction = (func: string | number) => {
+        return DwarfCore.getInstance().getJniTracer().traceFunction(func);
+    };
+
+    public traceJniFunctions = (funcs: string[] | number[]) => {
+        return DwarfCore.getInstance().getJniTracer().traceFunctions(funcs);
+    };
+
     /**
      * start strace
      */

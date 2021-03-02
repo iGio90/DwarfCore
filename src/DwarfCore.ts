@@ -27,6 +27,7 @@ import { DwarfObserver } from "./DwarfObserver";
 import { DwarfJavaHelper } from "./DwarfJavaHelper";
 import { DwarfStalker } from "./DwarfStalker";
 import { DwarfJniTracer } from "./DwarfJniTracer";
+import { JNI_FUNCDECLS } from "./_jni_funcs";
 
 export class DwarfCore {
     /**
@@ -360,6 +361,9 @@ export class DwarfCore {
             modules: Process.enumerateModules(),
             regions: Process.enumerateRanges("---"),
             threads: Process.enumerateThreads(),
+            JNITracer: {
+                available: Object.keys(JNI_FUNCDECLS)
+            }
         };
 
         if (hasUI) {

@@ -46,17 +46,10 @@ export class DwarfJniTracer {
 
         trace("DwarfJniTracer()");
 
-        this._listeners = new Array<InvocationListener>(JNI_Functions.GetObjectRefType);
+        this._listeners = new Array<InvocationListener>(Object.keys(JNI_FUNCDECLS).length);
         for (let i = 0; i < this._listeners.length; i++) {
             this._listeners[i] = null;
         }
-
-        // TODO: maxstack exceeded???
-        /*DwarfCore.getInstance().sync({
-            JNITracer: {
-                available: Object.keys(JNI_FUNCDECLS),
-            },
-        });*/
     }
 
     removeAll = () => {
@@ -73,12 +66,27 @@ export class DwarfJniTracer {
         this._syncUI();
     };
 
-    removeTrace = (fncIdx: JNI_Functions) => {
+    removeTrace = (fncIdx: string | number) => {
         trace("DwarfJniTracer::removeTrace()");
 
-        if (fncIdx <= JNI_Functions.reserved3 || fncIdx > JNI_Functions.GetObjectRefType) {
-            throw new Error("JNITracer: Invalid function!");
+        if (isNumber(fncIdx)) {
+            if (fncIdx < 0 || fncIdx > JNI_Functions.GetObjectRefType) {
+                throw new Error("JNITracer: Invalid function!");
+            }
+        } else if (isString(fncIdx)) {
+            if (!JNI_FUNCDECLS.hasOwnProperty(fncIdx)) {
+                throw new Error("JNITracer: Invalid function!");
+            }
+            fncIdx = Object.keys(JNI_FUNCDECLS).indexOf(fncIdx as string);
+            if (fncIdx < 0 || fncIdx > JNI_Functions.GetObjectRefType) {
+                throw new Error("JNITracer: Invalid function!");
+            }
         }
+
+        if (this._listeners[fncIdx] === null) {
+            throw new Error("JNITracer: Not tracing!");
+        }
+
         if (this._listeners[fncIdx] !== null) {
             this._listeners[fncIdx].detach();
             this._listeners[fncIdx] = null;
@@ -113,13 +121,20 @@ export class DwarfJniTracer {
 
         let jniFuncStr = "" + jniFuncDef[1].type + " " + jniFuncDef[0] + "(";
 
-        jniFuncDef[1].args.forEach((arg) => {
+        jniFuncStr += jniFuncDef[1].args
+            .map((arg) => {
+                return arg.type + " " + arg.name;
+            })
+            .join(", ");
+
+        /*jniFuncDef[1].args.forEach((arg) => {
             jniFuncStr += arg.type + " " + arg.name + ", ";
-        });
+        });*/
 
         jniFuncStr += ")";
-        jniFuncStr = jniFuncStr.replace(", )", ")");
+        // jniFuncStr = jniFuncStr.replace(", )", ")");
 
+        // TODO: allow custom callbacks?
         this._listeners[fncIdx] = Interceptor.attach(getJNIFuncPtr(fncIdx as number), {
             onEnter(args) {
                 const defArgs = jniFuncDef[1].args;
@@ -141,6 +156,7 @@ export class DwarfJniTracer {
                     JNITracer: {
                         in: jniFuncStr,
                         args: inArgs,
+                        time: Date.now(),
                     },
                 });
             },
@@ -153,6 +169,7 @@ export class DwarfJniTracer {
                     JNITracer: {
                         out: jniFuncStr,
                         return: outVal,
+                        time: Date.now(),
                     },
                 });
             },
