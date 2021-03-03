@@ -1,0 +1,19 @@
+{
+    "name": "DwarfCore",
+    "hideGenerator": true,
+    "excludePrivate": true,
+    "excludeProtected": true,
+    "excludeInternal": true,
+    "disableSources": true,
+    "readme": "./README.md",
+    "out": "./dist/docs",
+    "highlightTheme": "github-dark",
+    "theme": "./doc_theme/minimal",
+    "entryPoints": [
+        "./node_modules/@types/frida-gum/index.d.ts",
+        "./src/global.d.ts",
+        "./src/consts.ts",
+        "./src/types",
+        "./src/DwarfApi.ts"
+    ]
+}

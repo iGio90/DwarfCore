@@ -1,107 +1,147 @@
-/**
- Dwarf - Copyright (C) 2019 Giovanni Rocca (iGio90)
+/*
+    Dwarf - Copyright (C) 2018-2021 Giovanni Rocca (iGio90)
 
- This program is free software: you can redistribute it and/or modify
- it under the terms of the GNU General Public License as published by
- the Free Software Foundation, either version 3 of the License, or
- (at your option) any later version.
+    This program is free software: you can redistribute it and/or modify
+    it under the terms of the GNU General Public License as published by
+    the Free Software Foundation, either version 3 of the License, or
+    (at your option) any later version.
 
- This program is distributed in the hope that it will be useful,
- but WITHOUT ANY WARRANTY; without even the implied warranty of
- MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- GNU General Public License for more details.
+    This program is distributed in the hope that it will be useful,
+    but WITHOUT ANY WARRANTY; without even the implied warranty of
+    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+    GNU General Public License for more details.
 
- You should have received a copy of the GNU General Public License
- along with this program.  If not, see <https://www.gnu.org/licenses/>
- **/
+    You should have received a copy of the GNU General Public License
+    along with this program.  If not, see <https://www.gnu.org/licenses/>
+*/
 
+import "./_global_funcs";
+import "./_global_vars";
 
-import { Api } from "./api";
-import { Dwarf } from "./dwarf";
+import { DwarfCore } from "./DwarfCore";
 import { ThreadApi } from "./thread_api";
-import { Utils } from "./utils";
-import isDefined = Utils.isDefined;
-import { ELF_File } from "./elf_file";
+import { ELFFile } from "./types/ELFFile";
+import { DwarfHooksManager } from "./DwarfHooksManager";
+import { DwarfJavaHelper } from "./DwarfJavaHelper";
 
-Date.prototype['getTwoDigitHour'] = function () {
-    return (this.getHours() < 10) ? '0' + this.getHours() : this.getHours();
-};
-
-Date.prototype['getTwoDigitMinute'] = function () {
-    return (this.getMinutes() < 10) ? '0' + this.getMinutes() : this.getMinutes();
-};
-
-Date.prototype['getTwoDigitSecond'] = function () {
-    return (this.getSeconds() < 10) ? '0' + this.getSeconds() : this.getSeconds();
-};
-
-Date.prototype['getHourMinuteSecond'] = function () {
-    return this.getTwoDigitHour() + ':' + this.getTwoDigitMinute() + ':' + this.getTwoDigitSecond();
-};
-
-
-let dwarf: Dwarf;
-global["ELF_File"] = ELF_File;
+global.ELFFile = ELFFile;
 
 rpc.exports = {
-    api: function (tid, apiFunction, apiArguments) {
-        if (Dwarf.DEBUG) {
-            Utils.logDebug('[' + tid + '] RPC-API: ' + apiFunction + ' | ' +
-                'args: ' + apiArguments + ' (' + Process.getCurrentThreadId() + ')');
-        }
+    api (tid: number, apiFunction, apiArguments) {
+        trace("RPC::API() -> " + apiFunction);
 
-        if (typeof apiArguments === 'undefined' || apiArguments === null) {
+        if (!DwarfCore.getInstance().getApi().hasOwnProperty(apiFunction) && apiFunction !== "release") {
+            throw new Error("Unknown ApiFunction!");
+        }
+        logDebug("[" + tid + "] RPC-API: " + apiFunction + " | " + "args: " + apiArguments + " (" + Process.getCurrentThreadId() + ")");
+
+        if (typeof apiArguments === "undefined" || apiArguments === null) {
             apiArguments = [];
         }
 
-        if (Object.keys(Dwarf.threadContexts).length > 0) {
-            const threadContext = Dwarf.threadContexts[tid];
-            if (Utils.isDefined(threadContext)) {
+        try {
+            const context = DwarfCore.getInstance().getThreadContext(tid);
+
+            if (isDefined(context)) {
                 const threadApi = new ThreadApi(apiFunction, apiArguments);
-                threadContext.apiQueue.push(threadApi);
+                context.apiQueue.push(threadApi);
                 const start = Date.now();
                 while (!threadApi.consumed) {
                     Thread.sleep(0.5);
-                    if (Dwarf.DEBUG) {
-                        Utils.logDebug('[' + tid + '] RPC-API: ' + apiFunction + ' waiting for api result');
-                    }
+
+                    // logDebug("[" + tid + "] RPC-API: " + apiFunction + " waiting for api result");
+
                     if (Date.now() - start > 3 * 1000) {
-                        threadApi.result = '';
+                        threadApi.result = "";
                         break;
                     }
                 }
 
                 let ret = threadApi.result;
                 if (!isDefined(ret)) {
-                    ret = '';
+                    ret = "";
                 }
-                if (Dwarf.DEBUG) {
-                    Utils.logDebug('[' + tid + '] RPC-API: ' + apiFunction + ' api result: ' + ret);
-                }
+
+                // logDebug("[" + tid + "] RPC-API: " + apiFunction + " api result: " + ret);
+
                 return ret;
             }
-        }
 
-        return Api[apiFunction].apply(this, apiArguments)
-    },
-    init: function (breakStart, debug, spawned, isUi?) {
-        if (!Utils.isDefined(isUi)) {
-            isUi = false;
+            return DwarfCore.getInstance().getApi()[apiFunction].apply(this, apiArguments);
+        } catch (e) {
+            logErr("Api()", e);
         }
-        Dwarf.init(breakStart, debug, spawned, isUi);
     },
-    keywords: function () {
+    init (procName, wasSpawned, breakStart, enableDebug, enableTrace, hasUI, globalApiFuncs?: string[]) {
+        // init dwarf
+        global.Dwarf = DwarfCore.getInstance();
+        global.Dwarf.init(procName, wasSpawned, breakStart, enableDebug, enableTrace, hasUI, globalApiFuncs);
+    },
+
+    start () {
+        DwarfCore.getInstance().start();
+    },
+    stop () {
+        DwarfJavaHelper.getInstance().detach();
+        DwarfHooksManager.getInstance()
+            .getHooks()
+            .forEach((dwarfHook) => {
+                dwarfHook.remove(true);
+            });
+        MemoryAccessMonitor.disable();
+    },
+    keywords () {
         const map = [];
         Object.getOwnPropertyNames(global).forEach(function (name) {
             map.push(name);
 
             // second level
-            if (Utils.isDefined(global[name])) {
-                Object.getOwnPropertyNames(global[name]).forEach(function (sec_name) {
-                    map.push(sec_name);
+            if (isDefined(global[name])) {
+                Object.getOwnPropertyNames(global[name]).forEach(function (secName) {
+                    map.push(secName);
                 });
             }
         });
-        return Utils.uniqueBy(map);
-    }
+        return uniqueBy(map);
+    },
+    moduleinfo (moduleName: string) {
+        if (DwarfCore.getInstance().isBlacklistedModule(moduleName)) {
+            return "{}";
+        }
+        return new Promise((resolve) => {
+            const procModule = Process.findModuleByName(moduleName);
+            if (isDefined(procModule)) {
+                const moduleInfo = Object.assign({ imports: [], exports: [], symbols: [] }, procModule);
+                moduleInfo.imports = procModule.enumerateImports();
+                moduleInfo.exports = procModule.enumerateExports();
+                moduleInfo.symbols = procModule.enumerateSymbols();
+                resolve(moduleInfo);
+            }
+            resolve({});
+        }).then((moduleInfo) => {
+            return moduleInfo;
+        });
+    },
+    fetchmem (address, length = 0) {
+        length = parseInt(length, 10);
+        let dwarfMem = {data:null};
+        const nativePointer = makeNativePointer(address);
+        const memoryRange:RangeDetails = Process.getRangeByAddress(nativePointer);
+        if (isDefined(memoryRange)) {
+            if (memoryRange && memoryRange.hasOwnProperty("protection") && memoryRange.protection.indexOf("r") === 0) {
+                dwarfMem = Object.assign(dwarfMem, memoryRange);
+                Memory.protect(memoryRange.base, length, "rwx");
+                if (!length) {
+                    dwarfMem.data = ba2hex(memoryRange.base.readByteArray(memoryRange.size));
+                } else {
+                    dwarfMem.data = ba2hex(nativePointer.readByteArray(length));
+                }
+                return dwarfMem;
+            } else {
+                return "Memory not readable!";
+            }
+        } else {
+            return "Unable to find Memory!";
+        }
+    },
 };

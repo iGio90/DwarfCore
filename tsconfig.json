@@ -1,24 +1,24 @@
 {
     "compilerOptions": {
-        "target": "esnext",
-        "lib": ["esnext"],
+        "module": "commonjs",
+        "lib": [
+            "ES6"
+        ],
+        "plugins": [{
+            "name": "typescript-tslint-plugin"
+        }],
         "allowJs": true,
         "removeComments": true,
-        "strict": false
+        "pretty": true,
+        "strict": false,
+        "forceConsistentCasingInFileNames": true,
+        "noUnusedLocals": false
     },
     "include": [
         "src/_copyright.ts",
         "src/**/*"
     ],
     "files": [
-        "./src/extfrida.d.ts"
-      ],
-    "typedocOptions": {
-        "mode": "modules",
-        "name": "DwarfCore",
-        "readme": "./README.md",
-        "theme": "node_modules/eledoc/bin/default/", //TODO: create own dwark theme
-        "exclude": "./src/_copyright.ts",
-        "out": "dist/docs"
-    }
+        "./src/global.d.ts"
+    ]
 }

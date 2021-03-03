@@ -15,15 +15,7 @@
     along with this program.  If not, see <https://www.gnu.org/licenses/>
 */
 
-export class ThreadContext {
-
-    apiQueue = [];
-    context = null;
-    javaHandle = null;
-    preventSleep = false;
-    tid: number;
-
-    constructor(tid) {
-        this.tid = tid;
-    }
+export declare class DwarfZipArchive {
+    constructor(archivePath:string);
+    extract(zipEntry: string, pathOnDisk:string);
 }

@@ -1,43 +1,35 @@
-/**
- Dwarf - Copyright (C) 2019 Giovanni Rocca (iGio90)
+/*
+    Dwarf - Copyright (C) 2018-2020 Giovanni Rocca (iGio90)
 
- This program is free software: you can redistribute it and/or modify
- it under the terms of the GNU General Public License as published by
- the Free Software Foundation, either version 3 of the License, or
- (at your option) any later version.
+    This program is free software: you can redistribute it and/or modify
+    it under the terms of the GNU General Public License as published by
+    the Free Software Foundation, either version 3 of the License, or
+    (at your option) any later version.
 
- This program is distributed in the hope that it will be useful,
- but WITHOUT ANY WARRANTY; without even the implied warranty of
- MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- GNU General Public License for more details.
+    This program is distributed in the hope that it will be useful,
+    but WITHOUT ANY WARRANTY; without even the implied warranty of
+    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+    GNU General Public License for more details.
 
- You should have received a copy of the GNU General Public License
- along with this program.  If not, see <https://www.gnu.org/licenses/>
- **/
+    You should have received a copy of the GNU General Public License
+    along with this program.  If not, see <https://www.gnu.org/licenses/>
+*/
 
 
-import { Dwarf } from "./dwarf";
-import { LogicBreakpoint } from "./logic_breakpoint";
+
 import { StalkerInfo } from "./stalker_info";
-import { Utils } from "./utils";
+import { DwarfHaltReason } from "./consts";
+import { DwarfCore } from "./DwarfCore";
 
-export interface NativeTracerCallbacks {
-    onInstruction?: Function;
-    onCall?: Function;
-    onJump?: Function;
-    onReturn?: Function;
-    onPrivilege?: Function;
-}
-
+/*
 export class LogicStalker {
     static stalkerInfoMap = {};
     static straceCallback: Function | null = null;
 
     static hitPreventRelease() {
-        const tid = Process.getCurrentThreadId();
-        const threadContext = Dwarf.threadContexts[tid];
-        if (Utils.isDefined(threadContext)) {
-            threadContext.preventSleep = true;
+        let context = Dwarf.getThreadContext(Process.getCurrentThreadId());
+        if(isDefined(context)) {
+            context.preventSleep = true;
         }
     }
 
@@ -53,16 +45,16 @@ export class LogicStalker {
         }
 
         let tid;
-        if (Utils.isDefined(threadId)) {
+        if (isDefined(threadId)) {
             tid = threadId;
         } else {
             tid = Process.getCurrentThreadId();
         }
 
         let stalkerInfo = LogicStalker.stalkerInfoMap[tid];
-        if (!Utils.isDefined(stalkerInfo)) {
-            const context = Dwarf.threadContexts[tid];
-            if (!Utils.isDefined(context)) {
+        if (!isDefined(stalkerInfo)) {
+            const context = Dwarf.getThreadContext(tid);
+            if (!isDefined(context)) {
                 console.log('cant start stalker outside a valid native context');
                 return null;
             }
@@ -81,17 +73,14 @@ export class LogicStalker {
             let firstBlockCallout = false;
             let calloutHandled = false;
 
-            if (Dwarf.DEBUG) {
-                Utils.logDebug('[' + tid + '] stalk: ' + 'attaching stalker')
+                logDebug('[' + tid + '] stalk: ' + 'attaching stalker')
             }
-
             Stalker.follow(tid, {
                 transform: function (iterator) {
                     let instruction;
 
-                    if (Dwarf.DEBUG) {
-                        Utils.logDebug('[' + tid + '] stalk: ' + 'transform begin')
-                    }
+                        logDebug('[' + tid + '] stalk: ' + 'transform begin')
+
 
                     while ((instruction = iterator.next()) !== null) {
                         iterator.keep();
@@ -109,8 +98,8 @@ export class LogicStalker {
                                 }
 
                                 if (!firstInstructionExec) {
-                                    if (Dwarf.DEBUG) {
-                                        Utils.logDebug('[' + tid + '] stalk: ' + 'executing first instruction',
+                                    if (DEBUG) {
+                                        logDebug('[' + tid + '] stalk: ' + 'executing first instruction',
                                             instruction.address.toString(), instruction.toString());
                                     }
 
@@ -119,10 +108,10 @@ export class LogicStalker {
                                     continue;
                                 }
 
-                                if (Dwarf.DEBUG) {
-                                    Utils.logDebug('[' + tid + '] stalk: ' + 'executing first basic block instructions',
+
+                                    logDebug('[' + tid + '] stalk: ' + 'executing first basic block instructions',
                                         instruction.address.toString(), instruction.toString());
-                                }
+
 
                                 calloutHandled = true;
                                 firstBlockCallout = true;
@@ -138,14 +127,14 @@ export class LogicStalker {
                         }
                     }
 
-                    if (Dwarf.DEBUG) {
-                        Utils.logDebug('[' + tid + '] stalk: ' + 'transform done')
-                    }
+
+                        logDebug('[' + tid + '] stalk: ' + 'transform done')
+
 
                     if (stalkerInfo.terminated) {
-                        if (Dwarf.DEBUG) {
-                            Utils.logDebug('[' + tid + '] stopStep: ' + 'unfollowing tid');
-                        }
+
+                            logDebug('[' + tid + '] stopStep: ' + 'unfollowing tid');
+
 
                         Stalker.flush();
                         Stalker.unfollow(tid);
@@ -169,39 +158,13 @@ export class LogicStalker {
     }
 
     private static putCalloutIfNeeded(iterator, stalkerInfo: StalkerInfo, instruction: Instruction): void {
-        let putCallout = false;
-
-        if (typeof stalkerInfo.currentMode === 'object') {
-            let callbacks = stalkerInfo.currentMode as NativeTracerCallbacks;
-            if (Utils.isDefined(callbacks.onInstruction)) {
-                putCallout = true;
-            } else if (Utils.isDefined(callbacks.onCall)) {
-                if (instruction.groups.indexOf('call') >= 0 ||
-                    instruction.groups.indexOf('branch_relative') >= 0) {
-                    putCallout = true;
-                }
-            } else if (Utils.isDefined(callbacks.onJump)) {
-                if (instruction.groups.indexOf('jump') >= 0) {
-                    putCallout = true;
-                }
-            } else if (Utils.isDefined(callbacks.onReturn)) {
-                if (instruction.groups.indexOf('return') >= 0) {
-                    putCallout = true;
-                }
-            } else if (Utils.isDefined(callbacks.onPrivilege)) {
-                if (instruction.groups.indexOf('privilege') >= 0) {
-                    putCallout = true;
-                }
-            }
-        } else {
-            putCallout = true;
-        }
-
+        let putCallout = true;
+        // todo: add conditions
         if (putCallout) {
-            if (Dwarf.DEBUG) {
-                Utils.logDebug('[' + Process.getCurrentThreadId() + '] stalk: ' + 'executing instruction',
+
+                logDebug('[' + Process.getCurrentThreadId() + '] stalk: ' + 'executing instruction',
                     instruction.address.toString(), instruction.toString());
-            }
+
 
             iterator.putCallout(LogicStalker.stalkerCallout);
         }
@@ -209,23 +172,23 @@ export class LogicStalker {
 
     static stalkerCallout(context) {
         const tid = Process.getCurrentThreadId();
-        const stalkerInfo: StalkerInfo = LogicStalker.stalkerInfoMap[tid];
+        const stalkerInfo = LogicStalker.stalkerInfoMap[tid];
 
-        if (!Utils.isDefined(stalkerInfo) || stalkerInfo.terminated) {
+        if (!isDefined(stalkerInfo) || stalkerInfo.terminated) {
             return;
         }
 
         let pc = context.pc;
         const insn = Instruction.parse(pc);
 
-        if (Dwarf.DEBUG) {
-            Utils.logDebug('[' + tid + '] stalkerCallout: ' + 'running callout', insn.address, insn.toString());
-        }
+
+            logDebug('[' + tid + '] stalkerCallout: ' + 'running callout', insn.address, insn.toString());
+
 
         if (!stalkerInfo.didFistJumpOut) {
             pc = stalkerInfo.initialContextAddress;
 
-            const lastInt = stalkerInfo.lastContextAddress.toInt32();
+            const lastInt = parseInt(stalkerInfo.lastContextAddress);
             if (lastInt > 0) {
                 const pcInt = parseInt(context.pc);
 
@@ -239,47 +202,23 @@ export class LogicStalker {
         let shouldBreak = false;
 
         if (stalkerInfo.currentMode !== null) {
-            const that = {
-                context: context,
-                instruction: insn,
-                stop: function () {
-                    stalkerInfo.terminated = true;
-                }
-            };
-
             if (typeof stalkerInfo.currentMode === 'function') {
                 shouldBreak = false;
 
-                stalkerInfo.currentMode.apply(that);
-            } else if (typeof stalkerInfo.currentMode === 'object') {
-                shouldBreak = false;
-                let callbacks = stalkerInfo.currentMode as NativeTracerCallbacks;
+                const that = {
+                    context: context,
+                    instruction: insn,
+                    stop: function () {
+                        stalkerInfo.terminated = true;
+                    }
+                };
 
-                if (Utils.isDefined(callbacks.onInstruction)) {
-                    callbacks.onInstruction.apply(that);
-                } else if (Utils.isDefined(callbacks.onCall)) {
-                    if (insn.groups.indexOf('call') >= 0 ||
-                        insn.groups.indexOf('branch_relative') >= 0) {
-                        callbacks.onCall.apply(that);
-                    }
-                } else if (Utils.isDefined(callbacks.onJump)) {
-                    if (insn.groups.indexOf('jump') >= 0) {
-                        callbacks.onJump.apply(that);
-                    }
-                } else if (Utils.isDefined(callbacks.onReturn)) {
-                    if (insn.groups.indexOf('return') >= 0) {
-                        callbacks.onReturn.apply(that);
-                    }
-                } else if (Utils.isDefined(callbacks.onPrivilege)) {
-                    if (insn.groups.indexOf('privilege') >= 0) {
-                        callbacks.onPrivilege.apply(that);
-                    }
-                }
+                stalkerInfo.currentMode.apply(that);
             } else if (stalkerInfo.lastContextAddress !== null &&
                 stalkerInfo.lastCallJumpInstruction !== null) {
-                if (Dwarf.DEBUG) {
-                    Utils.logDebug('[' + tid + '] stalkerCallout: ' + 'using mode ->', stalkerInfo.currentMode);
-                }
+
+                    logDebug('[' + tid + '] stalkerCallout: ' + 'using mode ->', stalkerInfo.currentMode);
+
                 // call and jumps doesn't receive callout
                 const isAddressBeforeJumpOrCall = parseInt(context.pc) === parseInt(
                     stalkerInfo.lastBlockInstruction.address);
@@ -304,11 +243,10 @@ export class LogicStalker {
             stalkerInfo.context = context;
             stalkerInfo.lastContextAddress = context.pc;
 
-            LogicBreakpoint.breakpoint(LogicBreakpoint.REASON_STEP, pc, stalkerInfo.context, null);
+            DwarfCore.getInstance().onBreakpoint(0, Process.getCurrentThreadId(), DwarfHaltReason.STEP, pc, stalkerInfo.context, null);
 
-            if (Dwarf.DEBUG) {
-                Utils.logDebug('[' + tid + '] callOut: ' + 'post onHook');
-            }
+                            logDebug('[' + tid + '] callOut: ' + 'post onHook');
+
         }
 
         if (!stalkerInfo.didFistJumpOut) {
@@ -361,3 +299,4 @@ export class LogicStalker {
         LogicStalker.straceCallback.apply(that);
     }
 }
+*/

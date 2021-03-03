@@ -5,6 +5,5 @@ compiled_agent.js
 dist
 docs*
 core.js
-typed*
 dwarf-typings
-.build_config.json
+.vscode

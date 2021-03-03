@@ -15,15 +15,7 @@
     along with this program.  If not, see <https://www.gnu.org/licenses/>
 */
 
-export class ThreadContext {
+import { DwarfHook } from "./DwarfHook";
+import { DwarfHookType } from "../consts";
 
-    apiQueue = [];
-    context = null;
-    javaHandle = null;
-    preventSleep = false;
-    tid: number;
-
-    constructor(tid) {
-        this.tid = tid;
-    }
-}
+export class ObjcHook extends DwarfHook {}
