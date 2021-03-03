@@ -1,9 +1,9 @@
 {
     "name": "dwarf-core",
-    "version": "1.0.0",
+    "version": "2.0.0",
     "description": "core of Dwarf",
     "main": "src/index.ts",
-    "types": "src/api.d.ts",
+    "types": "dwarf-typings/api.d.ts",
     "license": "GPL-3.0-or-later",
     "repository": {
         "type": "git",
@@ -12,10 +12,13 @@
     "scripts": {
         "prepare": "npm run build",
         "build": "npm run build_core && npm run build_docs && npm run build_types",
-        "build_core": "npm run tslint && frida-compile --no-sourcemap ./src/index.ts -o ./dist/core.js && python3 ./place_dwarf_license.py && npm run create_py_api && npm run copy",
-        "build_docs": "typedoc && npm run deploy_docs",
+        "build_dev": "npm run build_core_dev && npm run build_docs_dev && npm run build_types",
+        "build_core": "npm run tslint && frida-compile --no-sourcemap ./src/index.ts -o ./dist/core.js && python3 ./place_dwarf_license.py",
+        "build_core_dev": "npm run tslint && frida-compile --no-sourcemap ./src/index.ts -o ./dist/core.js && python3 ./place_dwarf_license.py && npm run create_py_api && npm run copy",
+        "build_docs": "typedoc",
+        "build_docs_dev": "typedoc && npm run deploy_docs",
         "build_types": "tsc -d --removeComments false --declarationDir ./dwarf-typings --emitDeclarationOnly",
-        "watch": "frida-compile --no-sourcemap ./src/index.ts -o ./dist/core.js -w",
+        "watch_dev": "frida-compile --no-sourcemap ./src/index.ts -o ./dist/core.js -w",
         "copy": "cp ./dist/core.js ../Dwarf/dwarf_debugger/core/scripts/core.js",
         "tslint": "tslint --project tsconfig.json",
         "deploy_docs": "gh-pages -d ./dist/docs",

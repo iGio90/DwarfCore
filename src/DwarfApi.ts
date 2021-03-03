@@ -1037,6 +1037,49 @@ export class DwarfApi {
     };
 
     /**
+     * Returns list of available JNITracers
+     *
+     * ```javascript
+     * getTraceableJniFunctions() returns ["Func1", "Func2", ...]
+     * ```
+     *
+     * ```javascript
+     * getTraceableJniFunctions(true) logs to console only
+     * ```
+     * @param showInConsole default: false
+     */
+    public getTraceableJniFunctions = (showInConsole: boolean = false): void | string[] => {
+        const availableTracers = DwarfCore.getInstance().getJniTracer().getAvailableFunctions();
+        if (showInConsole) {
+            return console.log(availableTracers.join(", "));
+        }
+        return availableTracers;
+    };
+
+    /**
+     * Returns list of active JNITracers
+     *
+     * ```javascript
+     * getTracedJniFunctions() returns ["Func1", "Func2", ...]
+     * ```
+     *
+     * ```javascript
+     * getTracedJniFunctions(true) logs to console only
+     * ```
+     * @param showInConsole default: false
+     */
+    public getTracedJniFunctions = (showInConsole: boolean = false): void | string[] => {
+        const activeTraces = DwarfCore.getInstance().getJniTracer().getTracedFunctions();
+        if (showInConsole) {
+            if (activeTraces.length === 0) {
+                return console.log("None");
+            }
+            return console.log(activeTraces.join(", "));
+        }
+        return activeTraces;
+    };
+
+    /**
      * Hook all the methods for the given java class
      *
      * ```javascript

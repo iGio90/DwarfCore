@@ -23,8 +23,6 @@
 import { DwarfCore } from "./DwarfCore";
 import { JNI_FUNCDECLS } from "./_jni_funcs";
 
-// TODO: remove templates and create handler at runtime > JNI_FUNCDECLS
-
 export class DwarfJniTracer {
     private static instanceRef: DwarfJniTracer;
     private _listeners: InvocationListener[];
@@ -50,6 +48,25 @@ export class DwarfJniTracer {
             this._listeners[i] = null;
         }
     }
+
+    getAvailableFunctions = () => {
+        trace("DwarfJniTracer::getAvailableFunctions()");
+
+        return Object.keys(JNI_FUNCDECLS);
+    };
+
+    getTracedFunctions = () => {
+        trace("DwarfJniTracer::getTracedFunctions()");
+
+        const enabledFuncs = [];
+
+        for (let i = 0; i < this._listeners.length; i++) {
+            if (this._listeners[i] !== null) {
+                enabledFuncs.push(Object.entries(JNI_FUNCDECLS)[i][0]);
+            }
+        }
+        return enabledFuncs;
+    };
 
     removeAll = () => {
         trace("DwarfJniTracer::removeAll()");
@@ -89,10 +106,10 @@ export class DwarfJniTracer {
                         if (fncIdxNum >= 0 && fncIdxNum < Object.keys(JNI_FUNCDECLS).length) {
                             return fncIdxNum;
                         } else {
-                            console.log("Error: (JNITracer) -> Invalid function! > " + fncIdx);
+                            console.error("(JNITracer) -> Invalid function! > " + fncIdx);
                         }
                     } else {
-                        console.log("Error: (JNITracer) -> Invalid function! > " + fncIdx);
+                        console.error("(JNITracer) -> Invalid function! > " + fncIdx);
                     }
                 }
             })
@@ -101,14 +118,14 @@ export class DwarfJniTracer {
                     if (fncIdx >= 0 && fncIdx < Object.keys(JNI_FUNCDECLS).length) {
                         return true;
                     } else {
-                        console.log("Error: (JNITracer) -> Invalid function! > " + fncIdx);
+                        console.error("(JNITracer) -> Invalid function! > " + fncIdx);
                     }
                 }
                 return false;
             })
             .forEach((fncIdx) => {
                 if (this._listeners[fncIdx] === null) {
-                    console.log("Error: (JNITracer) -> Not tracing! > " + fncIdx);
+                    console.error("(JNITracer) -> Not tracing: " + fncIdx);
                 } else {
                     this._listeners[fncIdx].detach();
                     this._listeners[fncIdx] = null;
@@ -143,13 +160,13 @@ export class DwarfJniTracer {
                             if (this._listeners[fncIdxNum] === null) {
                                 return fncIdxNum;
                             } else {
-                                console.log("Error: (JNITracer) -> Already tracing: " + Object.entries(JNI_FUNCDECLS)[fncIdxNum][0]);
+                                console.error("(JNITracer) -> Already tracing: " + Object.entries(JNI_FUNCDECLS)[fncIdxNum][0]);
                             }
                         } else {
-                            console.log("Error: (JNITracer) -> Invalid function! > " + fncIdx);
+                            console.error("(JNITracer) -> Invalid function! > " + fncIdx);
                         }
                     } else {
-                        console.log("Error: (JNITracer) -> Invalid function! > " + fncIdx);
+                        console.error("(JNITracer) -> Invalid function! > " + fncIdx);
                     }
                 }
             })
@@ -159,10 +176,10 @@ export class DwarfJniTracer {
                         if (this._listeners[fncIdx] === null) {
                             return true;
                         } else {
-                            console.log("Error: (JNITracer) -> Already tracing: " + Object.entries(JNI_FUNCDECLS)[fncIdx][0]);
+                            console.error("(JNITracer) -> Already tracing: " + Object.entries(JNI_FUNCDECLS)[fncIdx][0]);
                         }
                     } else {
-                        console.log("Error: (JNITracer) -> Invalid function! > " + fncIdx);
+                        console.error("(JNITracer) -> Invalid function! > " + fncIdx);
                     }
                     return false;
                 }
