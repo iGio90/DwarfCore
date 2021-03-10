@@ -224,17 +224,22 @@ global.getJNIFuncPtr = function (index: number | string): NativePointer {
     }
 
     if (isString(index)) {
-        const fnNames = Object.keys(JNI_FUNCDECLS).map((fnName) => fnName.toLowerCase());
-        const searchName = (index as string).toLowerCase();
-        if (fnNames.includes(searchName)) {
-            index = fnNames.indexOf(searchName);
+        const fns = Object.keys(JNI_FUNCDECLS).map((fnName, i) => {
+            if (fnName.toLowerCase() === (index as string).toLowerCase()) {
+                return i;
+            }
+        });
+        if (fns.length !== 1) {
+            throw new Error("getJNIFuncPtr() -> Something was wrong! > " + index);
         }
+        index = fns[0];
     }
 
     if (!isNumber(index)) {
         throw new Error("getJNIFuncPtr() -> Invalid usage!");
     }
 
+    // TODO: check for index > reserved3 ???
     if (index < 0 || index > Object.keys(JNI_FUNCDECLS).length) {
         throw new Error("getJNIFuncPtr() -> Invalid FunctionIndex!");
     }
