@@ -126,7 +126,7 @@ export class DwarfCore {
                     newCtx[reg].instruction = {
                         size: inst.size,
                         groups: inst.groups,
-                        thumb: inst.groups.indexOf("thumb") >= 0 || inst.groups.indexOf("thumb2") >= 0,
+                        thumb: inst.groups.includes("thumb") || inst.groups.includes("thumb2"),
                     };
                 } catch (e) {
                     logErr("_sendInfos", e);
@@ -141,9 +141,8 @@ export class DwarfCore {
 
         this.threadContexts[threadId.toString()] = context;
     };
-    debugEnabled = (): boolean => {
-        return DEBUG;
-    };
+
+    debugEnabled = () => DEBUG;
 
     deleteThreadContext = (threadId: number): boolean => {
         trace("DwarfCore::deleteThreadContext()");
@@ -197,19 +196,21 @@ export class DwarfCore {
 
         trace("DwarfCore::getAndroidSystemProperty()");
         if (this._systemPropertyGet === null) {
-            this._systemPropertyGet = new NativeFunction(Module.findExportByName("libc.so", "__system_property_get"), "int", ["pointer", "pointer"], {
-                exceptions: "propagate",
-            });
+            this._systemPropertyGet = new NativeFunction(
+                Module.findExportByName("libc.so", "__system_property_get"),
+                "int",
+                ["pointer", "pointer"],
+                {
+                    exceptions: "propagate",
+                }
+            );
         }
         const buf = Memory.alloc(92);
         this._systemPropertyGet(Memory.allocUtf8String(name), buf);
         return buf.readUtf8String();
     };
 
-    getApi = (): DwarfApi => {
-        trace("DwarfCore::getApi()");
-        return this.dwarfApi;
-    };
+    getApi = () => this.dwarfApi;
 
     getApiFunctions = (): string[] => {
         trace("DwarfCore::getApiFunctions()");
@@ -225,15 +226,8 @@ export class DwarfCore {
         return apiNames;
     };
 
-    getFS = (): DwarfFS => {
-        trace("DwarfCore::getFS()");
-        return this.dwarfFS;
-    };
-
-    getHooksManager = (): DwarfHooksManager => {
-        trace("DwarfCore::getHooksManager()");
-        return this.dwarfHooksManager;
-    };
+    getFS = () => this.dwarfFS;
+    getHooksManager = () => this.dwarfHooksManager;
 
     getJavaHelper = (): DwarfJavaHelper => {
         trace("DwarfCore::getJavaHelper()");
@@ -243,25 +237,11 @@ export class DwarfCore {
         return this.dwarfJavaHelper;
     };
 
-    getJniTracer = () => {
-        trace("DwarfCore::getJniTracer()");
-        return this.dwarfJniTracer;
-    };
-
-    getObserver = (): DwarfObserver => {
-        trace("DwarfCore::getObserver()");
-        return this.dwarfObserver;
-    };
-
-    getProcessInfo = () => {
-        trace("DwarfCore::getProcessInfo()");
-        return this.processInfo;
-    };
-
-    getStalker = (): DwarfStalker => {
-        trace("DwarfCore::getStalker()");
-        return this.dwarfStalker;
-    };
+    getJniTracer = () => this.dwarfJniTracer;
+    getMaxStack = () => MAX_STACK_SIZE;
+    getObserver = () => this.dwarfObserver;
+    getProcessInfo = () => this.processInfo;
+    getStalker = () => this.dwarfStalker;
 
     getThreadContext = (threadId: number): ThreadContext => {
         trace("DwarfCore::getThreadContext()");
@@ -272,9 +252,7 @@ export class DwarfCore {
         return this.threadContexts[threadId.toString()];
     };
 
-    getVersion = () => {
-        return "DwarfCore " + DWARF_CORE_VERSION;
-    };
+    getVersion = () => "DwarfCore " + DWARF_CORE_VERSION;
 
     handleException = (exception: ExceptionDetails) => {
         trace("DwarfCore::handleException()");
@@ -310,12 +288,13 @@ export class DwarfCore {
     ): void => {
         trace("DwarfCore::init()");
 
+        // TODO: add more argchecks
         if (enableDebug) {
-            DEBUG = true;
+            this.enableDebug();
         }
 
         if (enableTrace) {
-            TRACE = true;
+            this.enableTrace();
         }
 
         if (breakStart) {
@@ -330,7 +309,7 @@ export class DwarfCore {
             this.androidApiLevel = this.getAndroidApiLevel();
         }
 
-        if (procName.indexOf("|") !== -1) {
+        if (isString(procName) && procName.includes("|")) {
             const s = procName.split("|");
             procName = s[0];
             this.packagePath = s[1];
@@ -362,8 +341,8 @@ export class DwarfCore {
             regions: Process.enumerateRanges("---"),
             threads: Process.enumerateThreads(),
             JNITracer: {
-                available: Object.keys(JNI_FUNCDECLS)
-            }
+                available: Object.keys(JNI_FUNCDECLS),
+            },
         };
 
         if (hasUI) {
@@ -416,7 +395,10 @@ export class DwarfCore {
                     modifiedCallback = {};
                     if (callbacksOrProbe.hasOwnProperty("onEnter")) {
                         modifiedCallback.onEnter = function () {
-                            const retVal = (callbacksOrProbe as ScriptInvocationListenerCallbacks).onEnter.apply(this, arguments);
+                            const retVal = (callbacksOrProbe as ScriptInvocationListenerCallbacks).onEnter.apply(
+                                this,
+                                arguments
+                            );
                             DwarfCore.getInstance().deleteThreadContext(Process.getCurrentThreadId());
                             return retVal;
                         };
@@ -436,26 +418,18 @@ export class DwarfCore {
         };
     };
 
-    isBlacklistedApi = (apiName: string): boolean => {
-        trace("DwarfCore::isBlacklistedApi()");
-
-        return this._blacklistedApis.indexOf(apiName) !== -1;
-    };
+    isBlacklistedApi = (apiName: string): boolean => this._blacklistedApis.includes(apiName);
 
     isBlacklistedModule = (module: Module | string): boolean => {
         trace("DwarfCore::isBlacklistedModule()");
 
         if (module.constructor.name === "Module") {
-            return this.modulesBlacklist.indexOf((module as Module).name) !== -1;
+            return this.modulesBlacklist.includes((module as Module).name);
         } else if (isString(module)) {
-            return this.modulesBlacklist.indexOf(module as string) !== -1;
+            return this.modulesBlacklist.includes(module as string);
         } else {
             throw new Error("Invalid Argument!");
         }
-    };
-
-    loggedSend = (what: string) => {
-        throw new Error("DEPRECATED");
     };
 
     loopApi = (threadId: number, that) => {
@@ -651,23 +625,27 @@ export class DwarfCore {
             throw new Error("DwarfCore::registerApiFunction() => No Anonymous functions!");
         }
 
-        if (isString(apiFunction.name) && apiFunction.name[0] === "_") {
+        if (isString(apiFunction.name) && apiFunction.name.startsWith("_")) {
             throw new Error("DwarfCore::registerApiFunction() => No private functions!");
         }
 
-        if (this._blacklistedApis.indexOf(apiFunction.name)) {
+        if (this._blacklistedApis.includes(apiFunction.name)) {
             throw new Error("DwarfCore::registerApiFunction() => Name is blacklisted!");
         }
 
         const lowerCase = /^[a-z]*$/.test(apiFunction.name);
         const upperCase = /^[A-Z]*$/.test(apiFunction.name);
 
-        if (lowerCase || upperCase) {
+        if (
+            lowerCase ||
+            upperCase ||
+            ["constructor", "length", "name", "prototype", "getInstance"].includes(apiFunction.name)
+        ) {
             throw new Error("DwarfCore::registerApiFunction() => FunctionName not allowed!");
         }
 
         if (global.hasOwnProperty(apiFunction.name)) {
-            throw new Error("DwarfCore::registerApiFunction() => Function already exists!");
+            throw new Error("DwarfCore::registerApiFunction() => Name already exists!");
         }
 
         Object.defineProperty(global, apiFunction.name, { value: apiFunction, enumerable: true });
@@ -691,38 +669,43 @@ export class DwarfCore {
             throw new Error("DwarfCore::registerApiFunctions() => Invalid usage!");
         }
 
+        const whiteList = [];
+        if (object.constructor.name === "DwarfApi") {
+            whiteList.push("backtrace", "alloc", "evaluate", "restart");
+        }
+
         Object.getOwnPropertyNames(object)
             .filter((propName) => {
-                if (["constructor", "length", "name", "prototype", "getInstance"].indexOf(propName) === -1) {
-                    if (isString(propName) && isFunction(object[propName]) && propName.length > 1 && propName[0] !== "_") {
-                        return propName;
-                    }
+                if (global.hasOwnProperty(propName)) {
+                    logDebug("DwarfCore::registerApiFunctions() => Name already exists! > " + propName);
+                    return false;
                 }
-            })
-            .forEach((propName) => {
+                if (propName.startsWith("_")) {
+                    logDebug("DwarfCore::registerApiFunctions() => No private functions! > " + propName);
+                    return false;
+                }
+                if (["constructor", "length", "name", "prototype", "getInstance"].includes(propName)) {
+                    return false;
+                }
+                if (this._blacklistedApis.includes(propName)) {
+                    logDebug("DwarfCore::registerApiFunctions() => Name is blacklisted! > " + propName);
+                    return false;
+                }
                 const lowerCase = /^[a-z]*$/.test(propName);
                 const upperCase = /^[A-Z]*$/.test(propName);
 
-                const whiteList = [];
-                const blackList = [];
-
-                if (object.constructor.name === "DwarfApi") {
-                    whiteList.push("backtrace", "alloc", "evaluate", "restart");
-                }
-
-                this._blacklistedApis.forEach((apiName) => {
-                    blackList.push(apiName);
-                });
-
-                if ((lowerCase || upperCase) && whiteList.indexOf(propName) === -1) {
+                if ((lowerCase || upperCase) && !whiteList.includes(propName)) {
                     logDebug("DwarfCore::registerApiFunctions() => Name not allowed! > " + propName);
+                    return false;
+                }
+                if (isFunction(object[propName])) {
+                    return true;
                 }
 
-                if (blackList.indexOf(propName) === -1 && isFunction(object[propName])) {
-                    if (global.hasOwnProperty(propName)) {
-                        logDebug("DwarfCore::registerApiFunctions() => Name already exists! > " + propName);
-                    }
-
+                return false;
+            })
+            .forEach((propName) => {
+                if (isFunction(object[propName])) {
                     Object.defineProperty(global, propName, { value: object[propName], enumerable: true });
                     if (global.hasOwnProperty(propName) || isFunction(global[propName])) {
                         this._apiFunctions.push({
@@ -749,12 +732,24 @@ export class DwarfCore {
                 // TODO: to add this bp 3x Java.performNow is used before resume try to reduce
                 // android init breakpoint
                 if (this.getAndroidApiLevel() >= 23) {
-                    const initBreakpoint = this.getHooksManager().addJavaHook("com.android.internal.os.RuntimeInit", "commonInit", "breakpoint", true, true);
+                    const initBreakpoint = this.getHooksManager().addJavaHook(
+                        "com.android.internal.os.RuntimeInit",
+                        "commonInit",
+                        "breakpoint",
+                        true,
+                        true
+                    );
                     if (!isDefined(initBreakpoint)) {
                         logDebug("Failed to attach initHook!");
                     }
                 } else {
-                    const initBreakpoint = this.getHooksManager().addJavaHook("android.app.Application", "onCreate", "breakpoint", true, true);
+                    const initBreakpoint = this.getHooksManager().addJavaHook(
+                        "android.app.Application",
+                        "onCreate",
+                        "breakpoint",
+                        true,
+                        true
+                    );
                     if (!isDefined(initBreakpoint)) {
                         logDebug("Failed to attach initHook!");
                     }
@@ -771,25 +766,30 @@ export class DwarfCore {
             // break proc at main
             if (this.processInfo.wasSpawned && this.breakAtStart) {
                 // Inital breakpoint
-                const invocationListener = Interceptor.attach(this.dwarfApi.findExport("RtlUserThreadStart"), function () {
-                    const invocationContext: InvocationContext = this;
-                    let address = null;
-                    if (Process.arch === "ia32") {
-                        const context = invocationContext.context as Ia32CpuContext;
-                        address = context.eax;
-                    } else if (Process.arch === "x64") {
-                        const context = invocationContext.context as X64CpuContext;
-                        address = context.rax;
-                    }
-
-                    if (isDefined(address)) {
-                        const initBreakpoint = DwarfCore.getInstance().getHooksManager().addNativeHook(address, "breakpoint", true, true);
-                        if (!initBreakpoint || (initBreakpoint && !initBreakpoint.isAttached())) {
-                            logDebug("Failed to attach initBP!");
+                const invocationListener = Interceptor.attach(
+                    this.dwarfApi.findExport("RtlUserThreadStart"),
+                    function () {
+                        const invocationContext: InvocationContext = this;
+                        let address = null;
+                        if (Process.arch === "ia32") {
+                            const context = invocationContext.context as Ia32CpuContext;
+                            address = context.eax;
+                        } else if (Process.arch === "x64") {
+                            const context = invocationContext.context as X64CpuContext;
+                            address = context.rax;
                         }
+
+                        if (isDefined(address)) {
+                            const initBreakpoint = DwarfCore.getInstance()
+                                .getHooksManager()
+                                .addNativeHook(address, "breakpoint", true, true);
+                            if (!initBreakpoint || (initBreakpoint && !initBreakpoint.isAttached())) {
+                                logDebug("Failed to attach initBP!");
+                            }
+                        }
+                        invocationListener.detach();
                     }
-                    invocationListener.detach();
-                });
+                );
             } // breakatinit
         } // platform==windows
     };
@@ -817,7 +817,5 @@ export class DwarfCore {
         TRACE = !TRACE;
     };
 
-    traceEnabled = (): boolean => {
-        return TRACE;
-    };
+    traceEnabled = () => TRACE;
 }

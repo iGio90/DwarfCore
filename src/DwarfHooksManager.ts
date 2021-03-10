@@ -185,8 +185,7 @@ export class DwarfHooksManager {
     };
 
     public addMemoryHookInternal = (memBp: MemoryHook) => {
-        // tslint:disable-next-line: no-string-literal
-        memBp['isInternal'] = true;
+        memBp.isInternal = true;
         this.dwarfHooks.push(memBp);
         this.updateMemoryHooks();
     };

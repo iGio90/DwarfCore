@@ -22,6 +22,7 @@ import { DwarfMemoryAccessType, DwarfHookType, DwarfHaltReason } from "../consts
 export class MemoryHook extends DwarfHook {
     protected bpFlags: number;
     protected memOrgPermissions: string;
+    public isInternal?:boolean;
 
     /**
      * @param  {DwarfHookType} bpType

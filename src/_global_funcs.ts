@@ -203,6 +203,9 @@ global.checkNativePointer = function (ptrValue: NativePointer): boolean {
 
 // https://codeshare.frida.re/@oleavr/read-std-string/
 global.readStdString = function (arg: NativePointer): string | null {
+    if (!checkNativePointer(arg)) {
+        throw new Error("readStdString() -> Invalid usage!");
+    }
     // tslint:disable-next-line: no-bitwise
     const isTiny = (arg.readU8() & 1) === 0;
     if (isTiny) {
@@ -215,9 +218,21 @@ global.readStdString = function (arg: NativePointer): string | null {
         .readUtf8String();
 };
 
-global.getJNIFuncPtr = function (index: number): NativePointer {
+global.getJNIFuncPtr = function (index: number | string): NativePointer {
     if (!Java.available) {
         throw new Error("getJNIFuncPtr() -> Java not available!");
+    }
+
+    if (isString(index)) {
+        const fnNames = Object.keys(JNI_FUNCDECLS).map((fnName) => fnName.toLowerCase());
+        const searchName = (index as string).toLowerCase();
+        if (fnNames.includes(searchName)) {
+            index = fnNames.indexOf(searchName);
+        }
+    }
+
+    if (!isNumber(index)) {
+        throw new Error("getJNIFuncPtr() -> Invalid usage!");
     }
 
     if (index < 0 || index > Object.keys(JNI_FUNCDECLS).length) {
@@ -229,7 +244,7 @@ global.getJNIFuncPtr = function (index: number): NativePointer {
         funcPtr = Java.vm
             .getEnv()
             .handle.readPointer()
-            .add(index * Process.pointerSize)
+            .add((index as number) * Process.pointerSize)
             .readPointer();
     });
 

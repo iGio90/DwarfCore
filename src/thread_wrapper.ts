@@ -60,7 +60,7 @@ export class ThreadWrapper {
             );
             // replace pthread_create for fun and profit
             Interceptor.attach(ThreadWrapper.pthreadCreateAddress, function(args) {
-                DwarfCore.getInstance().loggedSend("new_thread:::" + Process.getCurrentThreadId() + ":::" + args[2]);
+                send("new_thread:::" + Process.getCurrentThreadId() + ":::" + args[2]);
                 if (ThreadWrapper.onCreateCallback !== null && typeof ThreadWrapper.onCreateCallback === "function") {
                     ThreadWrapper.onCreateCallback(args[2]);
                 }

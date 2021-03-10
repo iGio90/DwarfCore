@@ -452,7 +452,7 @@ export class LogicJava {
             const classMethod = className + "." + method;
 
             if (uiCallback) {
-                DwarfCore.getInstance().loggedSend("java_trace:::enter:::" + classMethod + ":::" + JSON.stringify(arguments));
+                send("java_trace:::enter:::" + classMethod + ":::" + JSON.stringify(arguments));
             } else {
                 if (isDefined(callback.onEnter)) {
                     callback.onEnter(arguments);
@@ -468,7 +468,7 @@ export class LogicJava {
                 } else if (typeof traceRet === "undefined") {
                     traceRet = "";
                 }
-                DwarfCore.getInstance().loggedSend("java_trace:::leave:::" + classMethod + ":::" + traceRet);
+                send("java_trace:::leave:::" + classMethod + ":::" + traceRet);
             } else {
                 if (isDefined(callback.onLeave)) {
                     const tempRet = callback.onLeave(ret);

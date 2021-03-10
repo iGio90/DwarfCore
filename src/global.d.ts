@@ -43,7 +43,7 @@ declare namespace NodeJS {
         getJNIFuncPtr: Function;
         Dwarf: any;
         ELFFile: any;
-        FridaInterceptor:typeof Interceptor;
+        FridaInterceptor: typeof Interceptor;
     }
 }
 
@@ -68,7 +68,30 @@ declare function trace(...data: Array<any>): void;
 declare function logErr(tag: string, err: Error): void;
 declare function makeNativePointer(value: any): NativePointer;
 declare function readStdString(str: any): string;
-declare function getJNIFuncPtr(index: number): NativePointer;
+
+/**
+ * Returns pointer to JNI function
+ *
+ * https://docs.oracle.com/javase/8/docs/technotes/guides/jni/spec/functions.html#interface_function_table
+ *
+ * ```javascript
+ * var ptr = getJNIFuncPtr("FindClass");
+ * var ptr = getJNIFuncPtr("findclass");
+ * var ptr = getJNIFuncPtr(4);
+ *
+ * if(checkNativePointer(ptr)) {
+ *  addNativeHook(ptr, {
+ *      onEnter: function(args) {
+ *          console.log('FindClass: ' + args[1].readCString());
+ *      }
+ *  });
+ * }
+ * ```
+ * @param index number | string
+ * @returns NativePointer
+ */
+declare function getJNIFuncPtr(index: number | string): NativePointer;
+
 /**
  * Checks if given ptrValue is NativePointer
  *
@@ -88,8 +111,7 @@ declare var MAX_STACK_SIZE: number;
  */
 declare var DEBUG: boolean;
 
-
-declare var FridaInterceptor:typeof Interceptor;
+declare var FridaInterceptor: typeof Interceptor;
 
 /**
  * @protected
@@ -119,17 +141,15 @@ declare interface DwarfObserverLocation {
 }
 
 declare interface DwarfModule extends Module {
-    imports:ModuleImportDetails[];
-    exports:ModuleExportDetails[];
-    symbols:ModuleSymbolDetails[];
+    imports: ModuleImportDetails[];
+    exports: ModuleExportDetails[];
+    symbols: ModuleSymbolDetails[];
 }
 
-declare interface NativeBreakpointInfo {
-
-}
+declare interface NativeBreakpointInfo {}
 
 declare type ApiFunction = {
     name: string;
     args: string[];
     //TODO: return value
-}
+};

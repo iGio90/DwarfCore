@@ -117,10 +117,9 @@ export class DwarfJniTracer {
                 if (isNumber(fncIdx)) {
                     if (fncIdx >= 0 && fncIdx < Object.keys(JNI_FUNCDECLS).length) {
                         return true;
-                    } else {
-                        console.error("(JNITracer) -> Invalid function! > " + fncIdx);
                     }
                 }
+                console.error("(JNITracer) -> Invalid function! > " + fncIdx);
                 return false;
             })
             .forEach((fncIdx) => {
