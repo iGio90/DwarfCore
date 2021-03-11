@@ -385,7 +385,7 @@ export class DwarfJavaHelper {
                             self.hooksToAttach = self.hooksToAttach.filter((hook) => !hook.isAttached());
                         }
                     } catch (e) {
-                        logErr("ClassLoader::loadClass", e);
+                        logErr("ClassLoader::loadClass(" + className + ")", e);
                     }
 
                     // sync ui

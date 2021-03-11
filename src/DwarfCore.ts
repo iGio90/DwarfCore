@@ -39,7 +39,9 @@ export class DwarfCore {
         if (!DwarfCore.instanceRef) {
             DwarfCore.instanceRef = new this();
         }
-        trace("DwarfCore::getInstance()");
+        if (DwarfCore.instanceRef.isStarted) {
+            trace("DwarfCore::getInstance()");
+        }
         return DwarfCore.instanceRef;
     }
     protected modulesBlacklist: string[] = new Array<string>();
@@ -62,6 +64,8 @@ export class DwarfCore {
     private dwarfStalker: DwarfStalker;
 
     private hasUI: boolean;
+    private isInitDone: boolean;
+    private isStarted: boolean;
     private packagePath: string;
 
     /** @internal */
@@ -92,6 +96,8 @@ export class DwarfCore {
         this.breakAtStart = false;
         this.androidApiLevel = 0;
         this.hasUI = false;
+        this.isInitDone = false;
+        this.isStarted = false;
         Object.defineProperty(this, "version", { value: DWARF_CORE_VERSION, enumerable: true });
     }
 
@@ -370,6 +376,7 @@ export class DwarfCore {
         }
 
         Process.setExceptionHandler(this.handleException);
+        this.isInitDone = true;
     };
 
     initInterceptor = () => {
@@ -421,7 +428,9 @@ export class DwarfCore {
     isBlacklistedApi = (apiName: string): boolean => this._blacklistedApis.includes(apiName);
 
     isBlacklistedModule = (module: Module | string): boolean => {
-        trace("DwarfCore::isBlacklistedModule()");
+        if (this.isStarted) {
+            trace("DwarfCore::isBlacklistedModule()");
+        }
 
         if (module.constructor.name === "Module") {
             return this.modulesBlacklist.includes((module as Module).name);
@@ -724,6 +733,10 @@ export class DwarfCore {
     start = () => {
         trace("DwarfCore::start()");
 
+        if (!this.isInitDone) {
+            throw new Error("DwarfCore => Not initialized!");
+        }
+
         this.dwarfHooksManager.initialize();
 
         // attach init breakpoints
@@ -792,6 +805,7 @@ export class DwarfCore {
                 );
             } // breakatinit
         } // platform==windows
+        this.isStarted = true;
     };
 
     sync = (extraData = {}, rawData?: ArrayBuffer | number[]) => {

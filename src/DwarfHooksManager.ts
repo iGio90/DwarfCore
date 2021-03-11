@@ -46,7 +46,9 @@ export class DwarfHooksManager {
 
     private constructor() {
         if (DwarfHooksManager.instanceRef) {
-            throw new Error("DwarfHooksManager already exists! Use DwarfHooksManager.getInstance()/Dwarf.getHooksManager()");
+            throw new Error(
+                "DwarfHooksManager already exists! Use DwarfHooksManager.getInstance()/Dwarf.getHooksManager()"
+            );
         }
         trace("DwarfHooksManager()");
         this.dwarfHooks = new Array<DwarfHook>();
@@ -173,7 +175,13 @@ export class DwarfHooksManager {
         this.checkExists(hookAddress);
 
         try {
-            const memHook = new MemoryHook(makeNativePointer(hookAddress), bpFlags, userCallback, isSingleShot, isEnabled);
+            const memHook = new MemoryHook(
+                makeNativePointer(hookAddress),
+                bpFlags,
+                userCallback,
+                isSingleShot,
+                isEnabled
+            );
             this.dwarfHooks.push(memHook);
             this.updateMemoryHooks();
             this.update(true);
@@ -194,7 +202,12 @@ export class DwarfHooksManager {
      * @param  {string} hookAddress
      * @param  {boolean} bpEnabled?
      */
-    public addModuleLoadHook = (moduleName: string, userCallback: DwarfCallback = "breakpoint", isSingleShot: boolean = false, isEnabled: boolean = true) => {
+    public addModuleLoadHook = (
+        moduleName: string,
+        userCallback: DwarfCallback = "breakpoint",
+        isSingleShot: boolean = false,
+        isEnabled: boolean = true
+    ) => {
         trace("DwarfHooksManager::addModuleLoadHook()");
 
         if (!isString(moduleName)) {
@@ -246,7 +259,12 @@ export class DwarfHooksManager {
      * @param  {string} hookAddress
      * @param  {boolean} bpEnabled?
      */
-    public addObjcHook = (hookAddress: string, userCallback: DwarfCallback = "breakpoint", isSingleShot: boolean = false, isEnabled: boolean = true) => {
+    public addObjcHook = (
+        hookAddress: string,
+        userCallback: DwarfCallback = "breakpoint",
+        isSingleShot: boolean = false,
+        isEnabled: boolean = true
+    ) => {
         trace("DwarfHooksManager::addObjcHook()");
 
         this.checkExists(hookAddress);
@@ -285,7 +303,11 @@ export class DwarfHooksManager {
      * @param  {NativePointer|string} hookAddress
      * @returns DwarfHook
      */
-    public getHookByAddress = (hookAddress: NativePointer | string, checkEnabled: boolean = false, checkForType?: DwarfHookType): DwarfHook | null => {
+    public getHookByAddress = (
+        hookAddress: NativePointer | string,
+        checkEnabled: boolean = false,
+        checkForType?: DwarfHookType
+    ): DwarfHook | null => {
         trace("DwarfHooksManager::getHookByAddress()");
 
         let bpFindAddress;
@@ -413,87 +435,135 @@ export class DwarfHooksManager {
                         loadlibexwPtr = symbol.address;
                     }
 
-                    if (loadlibaPtr !== NULL && loadlibwPtr !== NULL && loadlibexaPtr !== NULL && loadlibexwPtr !== NULL) {
+                    if (
+                        loadlibaPtr !== NULL &&
+                        loadlibwPtr !== NULL &&
+                        loadlibexaPtr !== NULL &&
+                        loadlibexwPtr !== NULL
+                    ) {
                         return;
                     }
                 });
 
                 if (loadlibaPtr !== NULL && loadlibwPtr !== NULL && loadlibexaPtr !== NULL && loadlibexwPtr !== NULL) {
                     Interceptor.attach(loadlibaPtr, {
-                        onEnter (args) {
+                        onEnter(args) {
                             const moduleName = args[0].readAnsiString();
                             self.handleModuleLoadOnEnter.apply(null, [this, moduleName, args]);
                         },
-                        onLeave (retVal) {
+                        onLeave(retVal) {
                             self.handleModuleLoadOnLeave.apply(null, [this, retVal]);
                         },
                     });
                     Interceptor.attach(loadlibexaPtr, {
-                        onEnter (args) {
+                        onEnter(args) {
                             const moduleName = args[0].readAnsiString();
                             self.handleModuleLoadOnEnter.apply(null, [this, moduleName, args]);
                         },
-                        onLeave (retVal) {
+                        onLeave(retVal) {
                             self.handleModuleLoadOnLeave.apply(null, [this, retVal]);
                         },
                     });
                     Interceptor.attach(loadlibwPtr, {
-                        onEnter (args) {
+                        onEnter(args) {
                             const moduleName = args[0].readUtf16String();
                             self.handleModuleLoadOnEnter.apply(null, [this, moduleName, args]);
                         },
-                        onLeave (retVal) {
+                        onLeave(retVal) {
                             self.handleModuleLoadOnLeave.apply(null, [this, retVal]);
                         },
                     });
                     Interceptor.attach(loadlibexwPtr, {
-                        onEnter (args) {
+                        onEnter(args) {
                             const moduleName = args[0].readUtf16String();
                             self.handleModuleLoadOnEnter.apply(null, [this, moduleName, args]);
                         },
-                        onLeave (retVal) {
+                        onLeave(retVal) {
                             self.handleModuleLoadOnLeave.apply(null, [this, retVal]);
                         },
                     });
                 }
             }
-        } else if (Java.available) {
-            // https://android.googlesource.com/platform/art/+/android-6.0.0_r26/runtime/java_vm_ext.cc#596
-            const artModule = Process.findModuleByName("libart.so");
-            if (artModule) {
-                for (const moduleExportDetail of artModule.enumerateExports()) {
-                    if (moduleExportDetail.name.indexOf("LoadNativeLibrary") !== -1) {
-                        // changed in sdk 22, 23, 25 but we're only interested in path arg
-                        // <=22 args = (void *JavaVMExt, std::string &path,...)
-                        // >=23 args = (void *JavaVMExt, JNIEnv *env, std::string &path, ...)
-                        const argNum = DwarfCore.getInstance().getAndroidApiLevel() <= 22 ? 1 : 2;
-                        Interceptor.attach(moduleExportDetail.address, {
-                            onEnter (args) {
-                                const moduleName = readStdString(args[argNum]);
-                                self.handleModuleLoadOnEnter.apply(null, [this, moduleName, args]);
+        }
+
+        // TODO: add some real android check
+        else if (Java.available && Process.platform === "linux") {
+            let useFallback = true;
+            const linker = Process.findModuleByName(Process.pointerSize === 4 ? "linker" : "linker64");
+            if (linker) {
+                linker.enumerateSymbols().forEach((moduleSymbol) => {
+                    // __dl__Z9do_dlopenPKciPK17android_dlextinfoPKv
+                    if (moduleSymbol.name.includes("do_dlopen")) {
+                        logDebug(
+                            "DwarfHooksManager: Hooking (do_dlopen) -> " +
+                                moduleSymbol.name +
+                                " at " +
+                                moduleSymbol.address
+                        );
+                        Interceptor.attach(moduleSymbol.address, {
+                            onEnter(args) {
+                                const modulePath = args[0].readUtf8String();
+                                self.handleModuleLoadOnEnter.apply(null, [this, modulePath, args]);
                             },
-                            onLeave (retVal) {
+                            onLeave(retVal) {
                                 self.handleModuleLoadOnLeave.apply(null, [this, retVal]);
                             },
                         });
+                        useFallback = false;
                     }
-                }
+                });
             }
-            // https://android.googlesource.com/platform/dalvik/+/eclair-release/vm/Native.c#443
-            const dvmModule = Process.findModuleByName("libdvm.so");
-            if (dvmModule) {
-                for (const moduleExportDetail of dvmModule.enumerateExports()) {
-                    if (moduleExportDetail.name.indexOf("dvmLoadNativeCode") !== -1) {
-                        Interceptor.attach(moduleExportDetail.address, {
-                            onEnter (args) {
-                                const moduleName = args[0].readUtf8String();
-                                self.handleModuleLoadOnEnter.apply(null, [this, moduleName, args]);
-                            },
-                            onLeave (retVal) {
-                                self.handleModuleLoadOnLeave.apply(null, [this, retVal]);
-                            },
-                        });
-                    }
+
+            if (useFallback) {
+                // https://android.googlesource.com/platform/art/+/android-6.0.0_r26/runtime/java_vm_ext.cc#596
+                const artModule = Process.findModuleByName("libart.so");
+                if (artModule) {
+                    artModule.enumerateExports().forEach((moduleExport) => {
+                        if (moduleExport.name.includes("LoadNativeLibrary")) {
+                            logDebug(
+                                "DwarfHooksManager: Hooking (LoadNativeLibrary) -> " +
+                                    moduleExport.name +
+                                    " at " +
+                                    moduleExport.address
+                            );
+                            // changed in sdk 22, 23, 25 but we're only interested in path arg
+                            // <=22 args = (void *JavaVMExt, std::string &path,...)
+                            // >=23 args = (void *JavaVMExt, JNIEnv *env, std::string &path, ...)
+                            const argNum = DwarfCore.getInstance().getAndroidApiLevel() <= 22 ? 1 : 2;
+                            Interceptor.attach(moduleExport.address, {
+                                onEnter(args) {
+                                    const modulePath = readStdString(args[argNum]);
+                                    self.handleModuleLoadOnEnter.apply(null, [this, modulePath, args]);
+                                },
+                                onLeave(retVal) {
+                                    self.handleModuleLoadOnLeave.apply(null, [this, retVal]);
+                                },
+                            });
+                        }
+                    });
+                }
+                // https://android.googlesource.com/platform/dalvik/+/eclair-release/vm/Native.c#443
+                const dvmModule = Process.findModuleByName("libdvm.so");
+                if (dvmModule) {
+                    dvmModule.enumerateExports().forEach((moduleExport) => {
+                        if (moduleExport.name.includes("dvmLoadNativeCode")) {
+                            logDebug(
+                                "DwarfHooksManager: Hooking (dvmLoadNativeCode) -> " +
+                                    moduleExport.name +
+                                    " at " +
+                                    moduleExport.address
+                            );
+                            Interceptor.attach(moduleExport.address, {
+                                onEnter(args) {
+                                    const modulePath = args[0].readUtf8String();
+                                    self.handleModuleLoadOnEnter.apply(null, [this, modulePath, args]);
+                                },
+                                onLeave(retVal) {
+                                    self.handleModuleLoadOnLeave.apply(null, [this, retVal]);
+                                },
+                            });
+                        }
+                    });
                 }
             }
         }
@@ -626,28 +696,30 @@ export class DwarfHooksManager {
      * Internal Helper to find the ModuleLoadHook and calling the hookCallback
      *
      * @param  {any} thisArg
-     * @param  {string} moduleName
+     * @param  {string} modulePath
      * @param  {InvocationArguments} funcArgs
      */
-    private handleModuleLoadOnEnter = (thisArg: any, moduleName: string, funcArgs: InvocationArguments) => {
+    private handleModuleLoadOnEnter = (thisArg: any, modulePath: string, funcArgs: InvocationArguments) => {
         trace("DwarfHooksManager::handleModuleLoadOnEnter()");
 
-        let moduleBaseName = "";
-        if (moduleName.indexOf("/") !== -1) {
-            moduleBaseName = moduleName.substring(moduleName.lastIndexOf("/") + 1);
+        if (Process.platform === "windows") {
+            modulePath = modulePath.includes("\\") ? modulePath.replace("\\", "/") : modulePath;
         }
+        const moduleName = modulePath.includes("/")
+            ? modulePath.substring(modulePath.lastIndexOf("/") + 1)
+            : modulePath;
 
-        for (const dwarfHook of this.dwarfHooks) {
+        this.dwarfHooks.forEach((dwarfHook) => {
             if (dwarfHook.getType() === DwarfHookType.MODULE_LOAD) {
-                if (dwarfHook.getAddress() === moduleName || dwarfHook.getAddress() === moduleBaseName) {
+                if (dwarfHook.getAddress() === moduleName || dwarfHook.getAddress() === modulePath) {
                     // store the hook so we can call onLeave then
                     this.moduleLoadHook = dwarfHook as ModuleLoadHook;
                     // handle userCallback
                     this.moduleLoadHook.onEnterCallback(dwarfHook, thisArg, funcArgs);
                 }
             }
-        }
-        DwarfCore.getInstance().sync({ module_loaded: { name: moduleName } });
+        });
+        DwarfCore.getInstance().sync({ moduleLoaded: { name: moduleName, path: modulePath } });
     };
 
     /**
