@@ -19,15 +19,16 @@ import { DwarfArch, DwarfBits, DwarfPlatform } from "../consts";
 
 export class DwarfProcessInfo {
     protected architecture: DwarfArch;
-    protected javaAvailable: boolean;
     protected name: string;
-    protected objcAvailable: boolean;
     protected pageSize: number;
     protected pid: number;
     protected platform: DwarfPlatform;
     protected pointerSize: number;
     protected spawned: boolean;
     protected threadId: number;
+    protected modules: DwarfModuleInfo[];
+    protected threads: ThreadDetails[];
+    protected regions: RangeDetails[];
 
     /**
      * @internal
@@ -35,24 +36,19 @@ export class DwarfProcessInfo {
     constructor(
         name: string = "",
         spawned: boolean = false,
-        pid: number = 0,
-        tid: number = 0,
-        architecture = "",
-        platform = "",
-        pageSize: number = 0,
-        pointerSize: number = 0,
-        java: boolean = false,
-        objc: boolean = false
+        fullParse:boolean = true
     ) {
         trace("DwarfProcessInfo()");
 
         this.name = name;
         this.spawned = spawned;
-        this.pid = pid;
-        this.threadId = tid;
+        this.pointerSize = Process.pointerSize;
+        this.pageSize = Process.pageSize;
+        this.pid = Process.id;
+        this.threadId = Process.getCurrentThreadId();
 
-        if (typeof architecture === "string") {
-            switch (architecture.toLowerCase()) {
+        if (typeof Process.arch === "string") {
+            switch (Process.arch.toLowerCase()) {
                 case "ia32":
                     this.architecture = DwarfArch.ARCH_X86;
                     break;
@@ -68,18 +64,10 @@ export class DwarfProcessInfo {
                 default:
                     throw new Error("Unknown architecture!");
             }
-        } else if (typeof architecture === "number") {
-            if (architecture >= DwarfArch.ARCH_X86 && architecture <= DwarfArch.ARCH_ARM64) {
-                this.architecture = architecture;
-            } else {
-                throw new Error("Unknown architecture!");
-            }
-        } else {
-            throw new Error("Unknown architecture!");
         }
 
-        if (typeof platform === "string") {
-            switch (platform.toLowerCase()) {
+        if (typeof Process.platform === "string") {
+            switch (Process.platform.toLowerCase()) {
                 case "windows":
                     this.platform = DwarfPlatform.OS_WINDOWS;
                     break;
@@ -95,20 +83,22 @@ export class DwarfProcessInfo {
                 default:
                     throw new Error("Unknown platform!");
             }
-        } else if (typeof platform === "number") {
-            if (platform >= DwarfPlatform.OS_WINDOWS && platform <= DwarfPlatform.OS_QNX) {
-                this.platform = platform;
-            } else {
-                throw new Error("Unknown platform!");
-            }
-        } else {
-            throw new Error("Unknown platform!");
         }
 
-        this.pageSize = pageSize;
-        this.pointerSize = pointerSize;
-        this.javaAvailable = java;
-        this.objcAvailable = objc;
+        this.modules = [];
+        Process.enumerateModules().forEach((module) => {
+            this.modules.push({
+                name: module.name,
+                base: module.base.toString(),
+                size: module.size,
+                path: module.path,
+                imports: fullParse ? module.enumerateImports() : [],
+                exports: fullParse ? module.enumerateExports() : [],
+                symbols: fullParse ? module.enumerateSymbols() : [],
+            });
+        });
+        this.regions = Process.enumerateRanges("---");
+        this.threads = Process.enumerateThreads();
     }
 
     public getArchitecture(): DwarfArch {
@@ -144,14 +134,6 @@ export class DwarfProcessInfo {
 
     public getTID(): number {
         return this.threadId;
-    }
-
-    public isJavaAvailable(): boolean {
-        return this.javaAvailable;
-    }
-
-    public isObjCAvailable(): boolean {
-        return this.objcAvailable;
     }
 
     public wasSpawned(): boolean {

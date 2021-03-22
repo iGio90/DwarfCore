@@ -140,7 +140,34 @@ declare interface DwarfObserverLocation {
     fromPtr: NativePointer;
 }
 
+
 declare interface DwarfModule extends Module {
+    imports: ModuleImportDetails[];
+    exports: ModuleExportDetails[];
+    symbols: ModuleSymbolDetails[];
+}
+
+declare interface DwarfModuleInfo {
+    /**
+     * Canonical module name.
+     */
+    name: string;
+
+    /**
+     * Base address.
+     */
+    base: string;
+
+    /**
+     * Size in bytes.
+     */
+    size: number;
+
+    /**
+     * Full filesystem path.
+     */
+    path: string;
+
     imports: ModuleImportDetails[];
     exports: ModuleExportDetails[];
     symbols: ModuleSymbolDetails[];

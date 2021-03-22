@@ -702,12 +702,14 @@ export class DwarfHooksManager {
     private handleModuleLoadOnEnter = (thisArg: any, modulePath: string, funcArgs: InvocationArguments) => {
         trace("DwarfHooksManager::handleModuleLoadOnEnter()");
 
+        let moduleName = "";
         if (Process.platform === "windows") {
-            modulePath = modulePath.includes("\\") ? modulePath.replace("\\", "/") : modulePath;
+            moduleName = modulePath.includes("\\")
+                ? modulePath.substring(modulePath.lastIndexOf("\\") + 1)
+                : modulePath;
+        } else {
+            moduleName = modulePath.includes("/") ? modulePath.substring(modulePath.lastIndexOf("/") + 1) : modulePath;
         }
-        const moduleName = modulePath.includes("/")
-            ? modulePath.substring(modulePath.lastIndexOf("/") + 1)
-            : modulePath;
 
         this.dwarfHooks.forEach((dwarfHook) => {
             if (dwarfHook.getType() === DwarfHookType.MODULE_LOAD) {
@@ -719,7 +721,13 @@ export class DwarfHooksManager {
                 }
             }
         });
-        DwarfCore.getInstance().sync({ moduleLoaded: { name: moduleName, path: modulePath } });
+
+        DwarfCore.getInstance().sync({
+            moduleLoad: {
+                name: moduleName,
+                path: moduleName === modulePath ? Process.findModuleByName(moduleName)?.path || modulePath : modulePath,
+            },
+        });
     };
 
     /**
@@ -737,5 +745,19 @@ export class DwarfHooksManager {
         }
         // reset
         this.moduleLoadHook = null;
+
+        const procModule = Process.findModuleByAddress(retVal);
+
+        DwarfCore.getInstance().sync({
+            moduleLoaded: {
+                name: procModule.name,
+                base: procModule.base.toString(),
+                size: procModule.size,
+                path: procModule.path,
+                imports: procModule.enumerateImports(),
+                exports: procModule.enumerateExports(),
+                symbols: procModule.enumerateSymbols(),
+            },
+        });
     };
 }

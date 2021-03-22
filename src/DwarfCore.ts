@@ -28,6 +28,7 @@ import { DwarfJavaHelper } from "./DwarfJavaHelper";
 import { DwarfStalker } from "./DwarfStalker";
 import { DwarfJniTracer } from "./DwarfJniTracer";
 import { JNI_FUNCDECLS } from "./_jni_funcs";
+import { DwarfInitResponse } from "./types/CoreResponses";
 
 export class DwarfCore {
     /**
@@ -290,7 +291,8 @@ export class DwarfCore {
         enableDebug: boolean = false,
         enableTrace: boolean = false,
         hasUI: boolean = false,
-        disabledApis?: string[]
+        disabledApis?: string[],
+        fullParse: boolean = true
     ): void => {
         trace("DwarfCore::init()");
 
@@ -321,39 +323,7 @@ export class DwarfCore {
             this.packagePath = s[1];
         }
 
-        this.processInfo = new DwarfProcessInfo(
-            procName,
-            wasSpawned,
-            Process.id,
-            Process.getCurrentThreadId(),
-            Process.arch,
-            Process.platform,
-            Process.pageSize,
-            Process.pointerSize,
-            Java.available,
-            ObjC.available
-        );
-
-        /**
-         * ** DONT add some Java.xxx stuff in here!!! put to start() ***
-         */
-
-        // send initdata
-        const initData = {
-            frida: Frida.version,
-            core: DWARF_CORE_VERSION,
-            process: this.processInfo,
-            modules: Process.enumerateModules(),
-            regions: Process.enumerateRanges("---"),
-            threads: Process.enumerateThreads(),
-            JNITracer: {
-                available: Object.keys(JNI_FUNCDECLS),
-            },
-        };
-
-        if (hasUI) {
-            send({ initData });
-        }
+        this.processInfo = new DwarfProcessInfo(procName, wasSpawned, fullParse);
 
         if (isDefined(disabledApis)) {
             disabledApis.forEach((apiName) => {
@@ -376,6 +346,27 @@ export class DwarfCore {
         }
 
         Process.setExceptionHandler(this.handleException);
+
+        if (hasUI) {
+            // send initdata
+            const initData: DwarfInitResponse = {
+                fridaVersion: Frida.version,
+                coreVersion: DWARF_CORE_VERSION,
+                processInfo: this.processInfo,
+                moduleBlacklist: this.modulesBlacklist,
+                apiFunctions: this._apiFunctions,
+                javaAvailable: Java.available,
+                objcAvailable: ObjC.available,
+            };
+
+            if(Java.available) {
+                initData.JNITracer = {
+                    available: Object.keys(JNI_FUNCDECLS)
+                }
+            }
+
+            send({ initData });
+        }
         this.isInitDone = true;
     };
 
@@ -668,7 +659,9 @@ export class DwarfCore {
             args: this._getParamNames(apiFunction),
         });
 
-        this.sync({ apiFunctions: this.getApiFunctions() });
+        if (this.isInitDone && this.hasUI) {
+            this.sync({ apiFunctions: this.getApiFunctions() });
+        }
     };
 
     registerApiFunctions = (object: object): void => {
@@ -727,7 +720,9 @@ export class DwarfCore {
                 }
             });
 
-        this.sync({ apiFunctions: this.getApiFunctions() });
+        if (this.isInitDone && this.hasUI) {
+            this.sync({ apiFunctions: this.getApiFunctions() });
+        }
     };
 
     start = () => {
