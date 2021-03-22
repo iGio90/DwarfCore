@@ -15,7 +15,6 @@
         "noUnusedLocals": false
     },
     "include": [
-        "src/_copyright.ts",
         "src/**/*"
     ],
     "files": [

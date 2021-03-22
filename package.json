@@ -9,14 +9,18 @@
         "type": "git",
         "url": "git://github.com/iGio90/DwarfCore.git"
     },
+    "engines": {
+        "node": ">=14.16.0"
+    },
     "scripts": {
         "prepare": "npm run build",
         "build": "npm run build_core && npm run build_docs && npm run build_types",
         "build_dev": "npm run build_core_dev && npm run build_docs_dev && npm run build_types",
-        "build_core": "npm run tslint && frida-compile --no-sourcemap ./src/index.ts -o ./dist/core.js && python3 ./place_dwarf_license.py",
+        "build_core": "rm -r ./dist && npm run tslint && frida-compile --no-sourcemap ./src/index.ts -o ./dist/core.tmp.js && npm run build:place_license",
         "build_core_dev": "npm run tslint && frida-compile --no-sourcemap ./src/index.ts -o ./dist/core.js && python3 ./place_dwarf_license.py && npm run copy",
         "build_docs": "typedoc",
         "build_docs_dev": "typedoc && npm run deploy_docs",
+        "build:place_license": "cat ./src/license.tpl ./dist/core.tmp.js | sed \"s/{YEAR}/$(date '+%Y')/g; s/{VERSION}/$(node -p \"require('./package.json').version\")/g\" > ./dist/core.js && rm ./dist/core.tmp.js",
         "build_types": "tsc -d --removeComments false --declarationDir ./dwarf-typings --emitDeclarationOnly",
         "watch_dev": "frida-compile --no-sourcemap ./src/index.ts -o ./dist/core.js -w",
         "copy": "cp ./dist/core.js ../Dwarf/assets/corejs/core.js && cp ./src/types/CoreResponses.ts ../Dwarf/src/core/types/CoreJSResponses.ts",

@@ -15,7 +15,7 @@
     along with this program.  If not, see <https://www.gnu.org/licenses/>
 */
 
-export const DWARF_CORE_VERSION = "2.0.0";
+export const DWARF_CORE_VERSION = "{VERSION}";
 
 export const enum DwarfLogType {
     PRINT = 1,
