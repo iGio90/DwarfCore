@@ -150,7 +150,7 @@ export class LogicWatchpoint {
             memPtr = address;
         }
 
-        if (memPtr.isNull()) {
+        if ((address.constructor.name !== 'NativePointer') || memPtr.isNull()) {
             throw new Error('putWatchpoint: Invalid PointerValue!');
         }
 
@@ -196,7 +196,7 @@ export class LogicWatchpoint {
             memPtr = address;
         }
 
-        if (memPtr.isNull()) {
+        if ((address.constructor.name !== 'NativePointer') || memPtr.isNull()) {
             throw new Error('removeWatchpoint: Invalid PointerValue!');
         }
 
