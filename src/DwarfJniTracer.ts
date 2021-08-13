@@ -171,14 +171,18 @@ export class DwarfJniTracer {
             })
             .filter((fncIdx) => {
                 if (isNumber(fncIdx)) {
-                    if (fncIdx >= 0 && fncIdx < Object.keys(JNI_FUNCDECLS).length) {
+                    if (fncIdx >= Object.keys(JNI_FUNCDECLS).indexOf("GetVersion") && fncIdx < Object.keys(JNI_FUNCDECLS).length) {
                         if (this._listeners[fncIdx] === null) {
                             return true;
                         } else {
                             console.error("(JNITracer) -> Already tracing: " + Object.entries(JNI_FUNCDECLS)[fncIdx][0]);
                         }
                     } else {
-                        console.error("(JNITracer) -> Invalid function! > " + fncIdx);
+                        if (fncIdx < Object.keys(JNI_FUNCDECLS).indexOf("GetVersion") ) {
+                            console.error("(JNITracer) -> Blocked to prevent AccessViolation 0x0! > " + Object.entries(JNI_FUNCDECLS)[fncIdx][0]);
+                        } else {
+                            console.error("(JNITracer) -> Invalid function! > " + fncIdx);
+                        }
                     }
                     return false;
                 }
