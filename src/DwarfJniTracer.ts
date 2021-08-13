@@ -137,6 +137,14 @@ export class DwarfJniTracer {
         }
     };
 
+    traceAll = () => {
+        this.traceFunction(
+            this.getAvailableFunctions().filter((_, i) => { 
+                return i >= Object.keys(JNI_FUNCDECLS).indexOf("GetVersion") 
+            })
+        );
+    };
+
     // TODO: allow custom callbacks?
     traceFunction = (funcs: number | string | number[] | string[]) => {
         trace("DwarfJniTracer::traceFunction()");
@@ -178,7 +186,7 @@ export class DwarfJniTracer {
                             console.error("(JNITracer) -> Already tracing: " + Object.entries(JNI_FUNCDECLS)[fncIdx][0]);
                         }
                     } else {
-                        if (fncIdx < Object.keys(JNI_FUNCDECLS).indexOf("GetVersion") ) {
+                        if (fncIdx < Object.keys(JNI_FUNCDECLS).indexOf("GetVersion")) {
                             console.error("(JNITracer) -> Blocked to prevent AccessViolation 0x0! > " + Object.entries(JNI_FUNCDECLS)[fncIdx][0]);
                         } else {
                             console.error("(JNITracer) -> Invalid function! > " + fncIdx);
