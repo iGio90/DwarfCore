@@ -182,7 +182,7 @@ export const JNI_FUNCDECLS = {
     },
     NewObject: {
         type: "jobject",
-        args: [{ type: "JNIEnv*", name: "env" }, { type: "jclass", name: "clazz" }, { type: "jmethodID", name: "methodID" }, { type: "..." }],
+        args: [{ type: "JNIEnv*", name: "env" }, { type: "jclass", name: "clazz" }, { type: "jmethodID", name: "methodID" }, { type: "jvalue[]", name: "params" }],
     },
     NewObjectV: {
         type: "jobject",
@@ -228,7 +228,7 @@ export const JNI_FUNCDECLS = {
     },
     CallObjectMethod: {
         type: "jobject",
-        args: [{ type: "JNIEnv*", name: "env" }, { type: "jobject", name: "obj" }, { type: "jmethodID", name: "methodID" }, { type: "..." }],
+        args: [{ type: "JNIEnv*", name: "env" }, { type: "jobject", name: "obj" }, { type: "jmethodID", name: "methodID" }, { type: "jvalue[]", name: "params" }],
     },
     CallObjectMethodV: {
         type: "jobject",
@@ -250,7 +250,7 @@ export const JNI_FUNCDECLS = {
     },
     CallBooleanMethod: {
         type: "jboolean",
-        args: [{ type: "JNIEnv*", name: "env" }, { type: "jobject", name: "obj" }, { type: "jmethodID", name: "methodID" }, { type: "..." }],
+        args: [{ type: "JNIEnv*", name: "env" }, { type: "jobject", name: "obj" }, { type: "jmethodID", name: "methodID" }, { type: "jvalue[]", name: "params" }],
     },
     CallBooleanMethodV: {
         type: "jboolean",
@@ -272,7 +272,7 @@ export const JNI_FUNCDECLS = {
     },
     CallByteMethod: {
         type: "jbyte",
-        args: [{ type: "JNIEnv*", name: "env" }, { type: "jobject", name: "obj" }, { type: "jmethodID", name: "methodID" }, { type: "..." }],
+        args: [{ type: "JNIEnv*", name: "env" }, { type: "jobject", name: "obj" }, { type: "jmethodID", name: "methodID" }, { type: "jvalue[]", name: "params" }],
     },
     CallByteMethodV: {
         type: "jbyte",
@@ -294,7 +294,7 @@ export const JNI_FUNCDECLS = {
     },
     CallCharMethod: {
         type: "jchar",
-        args: [{ type: "JNIEnv*", name: "env" }, { type: "jobject", name: "obj" }, { type: "jmethodID", name: "methodID" }, { type: "..." }],
+        args: [{ type: "JNIEnv*", name: "env" }, { type: "jobject", name: "obj" }, { type: "jmethodID", name: "methodID" }, { type: "jvalue[]", name: "params" }],
     },
     CallCharMethodV: {
         type: "jchar",
@@ -316,7 +316,7 @@ export const JNI_FUNCDECLS = {
     },
     CallShortMethod: {
         type: "jshort",
-        args: [{ type: "JNIEnv*", name: "env" }, { type: "jobject", name: "obj" }, { type: "jmethodID", name: "methodID" }, { type: "..." }],
+        args: [{ type: "JNIEnv*", name: "env" }, { type: "jobject", name: "obj" }, { type: "jmethodID", name: "methodID" }, { type: "jvalue[]", name: "params" }],
     },
     CallShortMethodV: {
         type: "jshort",
@@ -338,7 +338,7 @@ export const JNI_FUNCDECLS = {
     },
     CallIntMethod: {
         type: "jint",
-        args: [{ type: "JNIEnv*", name: "env" }, { type: "jobject", name: "obj" }, { type: "jmethodID", name: "methodID" }, { type: "..." }],
+        args: [{ type: "JNIEnv*", name: "env" }, { type: "jobject", name: "obj" }, { type: "jmethodID", name: "methodID" }, { type: "jvalue[]", name: "params" }],
     },
     CallIntMethodV: {
         type: "jint",
@@ -360,7 +360,7 @@ export const JNI_FUNCDECLS = {
     },
     CallLongMethod: {
         type: "jlong",
-        args: [{ type: "JNIEnv*", name: "env" }, { type: "jobject", name: "obj" }, { type: "jmethodID", name: "methodID" }, { type: "..." }],
+        args: [{ type: "JNIEnv*", name: "env" }, { type: "jobject", name: "obj" }, { type: "jmethodID", name: "methodID" }, { type: "jvalue[]", name: "params" }],
     },
     CallLongMethodV: {
         type: "jlong",
@@ -382,7 +382,7 @@ export const JNI_FUNCDECLS = {
     },
     CallFloatMethod: {
         type: "jfloat",
-        args: [{ type: "JNIEnv*", name: "env" }, { type: "jobject", name: "obj" }, { type: "jmethodID", name: "methodID" }, { type: "..." }],
+        args: [{ type: "JNIEnv*", name: "env" }, { type: "jobject", name: "obj" }, { type: "jmethodID", name: "methodID" }, { type: "jvalue[]", name: "params" }],
     },
     CallFloatMethodV: {
         type: "jfloat",
@@ -404,7 +404,7 @@ export const JNI_FUNCDECLS = {
     },
     CallDoubleMethod: {
         type: "jdouble",
-        args: [{ type: "JNIEnv*", name: "env" }, { type: "jobject", name: "obj" }, { type: "jmethodID", name: "methodID" }, { type: "..." }],
+        args: [{ type: "JNIEnv*", name: "env" }, { type: "jobject", name: "obj" }, { type: "jmethodID", name: "methodID" }, { type: "jvalue[]", name: "params" }],
     },
     CallDoubleMethodV: {
         type: "jdouble",
@@ -426,7 +426,7 @@ export const JNI_FUNCDECLS = {
     },
     CallVoidMethod: {
         type: "void",
-        args: [{ type: "JNIEnv*", name: "env" }, { type: "jobject", name: "obj" }, { type: "jmethodID", name: "methodID" }, { type: "..." }],
+        args: [{ type: "JNIEnv*", name: "env" }, { type: "jobject", name: "obj" }, { type: "jmethodID", name: "methodID" }, { type: "jvalue[]", name: "params" }],
     },
     CallVoidMethodV: {
         type: "void",
@@ -453,7 +453,7 @@ export const JNI_FUNCDECLS = {
             { type: "jobject", name: "obj" },
             { type: "jclass", name: "clazz" },
             { type: "jmethodID", name: "methodID" },
-            { type: "..." },
+            { type: "jvalue[]", name: "params" },
         ],
     },
     CallNonvirtualObjectMethodV: {
@@ -483,7 +483,7 @@ export const JNI_FUNCDECLS = {
             { type: "jobject", name: "obj" },
             { type: "jclass", name: "clazz" },
             { type: "jmethodID", name: "methodID" },
-            { type: "..." },
+            { type: "jvalue[]", name: "params" },
         ],
     },
     CallNonvirtualBooleanMethodV: {
@@ -513,7 +513,7 @@ export const JNI_FUNCDECLS = {
             { type: "jobject", name: "obj" },
             { type: "jclass", name: "clazz" },
             { type: "jmethodID", name: "methodID" },
-            { type: "..." },
+            { type: "jvalue[]", name: "params" },
         ],
     },
     CallNonvirtualByteMethodV: {
@@ -543,7 +543,7 @@ export const JNI_FUNCDECLS = {
             { type: "jobject", name: "obj" },
             { type: "jclass", name: "clazz" },
             { type: "jmethodID", name: "methodID" },
-            { type: "..." },
+            { type: "jvalue[]", name: "params" },
         ],
     },
     CallNonvirtualCharMethodV: {
@@ -573,7 +573,7 @@ export const JNI_FUNCDECLS = {
             { type: "jobject", name: "obj" },
             { type: "jclass", name: "clazz" },
             { type: "jmethodID", name: "methodID" },
-            { type: "..." },
+            { type: "jvalue[]", name: "params" },
         ],
     },
     CallNonvirtualShortMethodV: {
@@ -603,7 +603,7 @@ export const JNI_FUNCDECLS = {
             { type: "jobject", name: "obj" },
             { type: "jclass", name: "clazz" },
             { type: "jmethodID", name: "methodID" },
-            { type: "..." },
+            { type: "jvalue[]", name: "params" },
         ],
     },
     CallNonvirtualIntMethodV: {
@@ -633,7 +633,7 @@ export const JNI_FUNCDECLS = {
             { type: "jobject", name: "obj" },
             { type: "jclass", name: "clazz" },
             { type: "jmethodID", name: "methodID" },
-            { type: "..." },
+            { type: "jvalue[]", name: "params" },
         ],
     },
     CallNonvirtualLongMethodV: {
@@ -663,7 +663,7 @@ export const JNI_FUNCDECLS = {
             { type: "jobject", name: "obj" },
             { type: "jclass", name: "clazz" },
             { type: "jmethodID", name: "methodID" },
-            { type: "..." },
+            { type: "jvalue[]", name: "params" },
         ],
     },
     CallNonvirtualFloatMethodV: {
@@ -693,7 +693,7 @@ export const JNI_FUNCDECLS = {
             { type: "jobject", name: "obj" },
             { type: "jclass", name: "clazz" },
             { type: "jmethodID", name: "methodID" },
-            { type: "..." },
+            { type: "jvalue[]", name: "params" },
         ],
     },
     CallNonvirtualDoubleMethodV: {
@@ -723,7 +723,7 @@ export const JNI_FUNCDECLS = {
             { type: "jobject", name: "obj" },
             { type: "jclass", name: "clazz" },
             { type: "jmethodID", name: "methodID" },
-            { type: "..." },
+            { type: "jvalue[]", name: "params" },
         ],
     },
     CallNonvirtualVoidMethodV: {
@@ -919,7 +919,7 @@ export const JNI_FUNCDECLS = {
     },
     CallStaticObjectMethod: {
         type: "jobject",
-        args: [{ type: "JNIEnv*", name: "env" }, { type: "jclass", name: "clazz" }, { type: "jmethodID", name: "methodID" }, { type: "..." }],
+        args: [{ type: "JNIEnv*", name: "env" }, { type: "jclass", name: "clazz" }, { type: "jmethodID", name: "methodID" }, { type: "jvalue[]", name: "params" }],
     },
     CallStaticObjectMethodV: {
         type: "jobject",
@@ -941,7 +941,7 @@ export const JNI_FUNCDECLS = {
     },
     CallStaticBooleanMethod: {
         type: "jboolean",
-        args: [{ type: "JNIEnv*", name: "env" }, { type: "jclass", name: "clazz" }, { type: "jmethodID", name: "methodID" }, { type: "..." }],
+        args: [{ type: "JNIEnv*", name: "env" }, { type: "jclass", name: "clazz" }, { type: "jmethodID", name: "methodID" }, { type: "jvalue[]", name: "params" }],
     },
     CallStaticBooleanMethodV: {
         type: "jboolean",
@@ -963,7 +963,7 @@ export const JNI_FUNCDECLS = {
     },
     CallStaticByteMethod: {
         type: "jbyte",
-        args: [{ type: "JNIEnv*", name: "env" }, { type: "jclass", name: "clazz" }, { type: "jmethodID", name: "methodID" }, { type: "..." }],
+        args: [{ type: "JNIEnv*", name: "env" }, { type: "jclass", name: "clazz" }, { type: "jmethodID", name: "methodID" }, { type: "jvalue[]", name: "params" }],
     },
     CallStaticByteMethodV: {
         type: "jbyte",
@@ -985,7 +985,7 @@ export const JNI_FUNCDECLS = {
     },
     CallStaticCharMethod: {
         type: "jchar",
-        args: [{ type: "JNIEnv*", name: "env" }, { type: "jclass", name: "clazz" }, { type: "jmethodID", name: "methodID" }, { type: "..." }],
+        args: [{ type: "JNIEnv*", name: "env" }, { type: "jclass", name: "clazz" }, { type: "jmethodID", name: "methodID" }, { type: "jvalue[]", name: "params" }],
     },
     CallStaticCharMethodV: {
         type: "jchar",
@@ -1007,7 +1007,7 @@ export const JNI_FUNCDECLS = {
     },
     CallStaticShortMethod: {
         type: "jshort",
-        args: [{ type: "JNIEnv*", name: "env" }, { type: "jclass", name: "clazz" }, { type: "jmethodID", name: "methodID" }, { type: "..." }],
+        args: [{ type: "JNIEnv*", name: "env" }, { type: "jclass", name: "clazz" }, { type: "jmethodID", name: "methodID" }, { type: "jvalue[]", name: "params" }],
     },
     CallStaticShortMethodV: {
         type: "jshort",
@@ -1029,7 +1029,7 @@ export const JNI_FUNCDECLS = {
     },
     CallStaticIntMethod: {
         type: "jint",
-        args: [{ type: "JNIEnv*", name: "env" }, { type: "jclass", name: "clazz" }, { type: "jmethodID", name: "methodID" }, { type: "..." }],
+        args: [{ type: "JNIEnv*", name: "env" }, { type: "jclass", name: "clazz" }, { type: "jmethodID", name: "methodID" }, { type: "jvalue[]", name: "params" }],
     },
     CallStaticIntMethodV: {
         type: "jint",
@@ -1051,7 +1051,7 @@ export const JNI_FUNCDECLS = {
     },
     CallStaticLongMethod: {
         type: "jlong",
-        args: [{ type: "JNIEnv*", name: "env" }, { type: "jclass", name: "clazz" }, { type: "jmethodID", name: "methodID" }, { type: "..." }],
+        args: [{ type: "JNIEnv*", name: "env" }, { type: "jclass", name: "clazz" }, { type: "jmethodID", name: "methodID" }, { type: "jvalue[]", name: "params" }],
     },
     CallStaticLongMethodV: {
         type: "jlong",
@@ -1073,7 +1073,7 @@ export const JNI_FUNCDECLS = {
     },
     CallStaticFloatMethod: {
         type: "jfloat",
-        args: [{ type: "JNIEnv*", name: "env" }, { type: "jclass", name: "clazz" }, { type: "jmethodID", name: "methodID" }, { type: "..." }],
+        args: [{ type: "JNIEnv*", name: "env" }, { type: "jclass", name: "clazz" }, { type: "jmethodID", name: "methodID" }, { type: "jvalue[]", name: "params" }],
     },
     CallStaticFloatMethodV: {
         type: "jfloat",
@@ -1095,7 +1095,7 @@ export const JNI_FUNCDECLS = {
     },
     CallStaticDoubleMethod: {
         type: "jdouble",
-        args: [{ type: "JNIEnv*", name: "env" }, { type: "jclass", name: "clazz" }, { type: "jmethodID", name: "methodID" }, { type: "..." }],
+        args: [{ type: "JNIEnv*", name: "env" }, { type: "jclass", name: "clazz" }, { type: "jmethodID", name: "methodID" }, { type: "jvalue[]", name: "params" }],
     },
     CallStaticDoubleMethodV: {
         type: "jdouble",
@@ -1117,7 +1117,7 @@ export const JNI_FUNCDECLS = {
     },
     CallStaticVoidMethod: {
         type: "void",
-        args: [{ type: "JNIEnv*", name: "env" }, { type: "jclass", name: "cls" }, { type: "jmethodID", name: "methodID" }, { type: "..." }],
+        args: [{ type: "JNIEnv*", name: "env" }, { type: "jclass", name: "cls" }, { type: "jmethodID", name: "methodID" }, { type: "jvalue[]", name: "params" }],
     },
     CallStaticVoidMethodV: {
         type: "void",
