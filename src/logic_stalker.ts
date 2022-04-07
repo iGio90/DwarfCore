@@ -171,7 +171,7 @@ export class LogicStalker {
     private static putCalloutIfNeeded(iterator, stalkerInfo: StalkerInfo, instruction: Instruction): void {
         let putCallout = false;
 
-        if (typeof stalkerInfo.currentMode === 'object') {
+        if (stalkerInfo.currentMode !== null && (typeof stalkerInfo.currentMode === 'object')) {
             let callbacks = stalkerInfo.currentMode as NativeTracerCallbacks;
             if (Utils.isDefined(callbacks.onInstruction)) {
                 putCallout = true;
