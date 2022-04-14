@@ -2686,6 +2686,9 @@ img {
 			<a href="../interfaces/src_global.dwarfmodule.html" class="tsd-kind-icon">Dwarf<wbr>Module</a>
 		</li>
 		<li class=" tsd-kind-interface tsd-parent-kind-module">
+			<a href="../interfaces/src_global.dwarfmoduleinfo.html" class="tsd-kind-icon">Dwarf<wbr>Module<wbr>Info</a>
+		</li>
+		<li class=" tsd-kind-interface tsd-parent-kind-module">
 			<a href="../interfaces/src_global.dwarfobserverlocation.html" class="tsd-kind-icon">Dwarf<wbr>Observer<wbr>Location</a>
 		</li>
 		<li class=" tsd-kind-interface tsd-parent-kind-module">
@@ -2784,6 +2787,7 @@ img {
 						<h3>Interfaces</h3>
 						<ul class="tsd-index-list">
 							<li class="tsd-kind-interface tsd-parent-kind-module"><a href="../interfaces/src_global.dwarfmodule.html" class="tsd-kind-icon">Dwarf<wbr>Module</a></li>
+							<li class="tsd-kind-interface tsd-parent-kind-module"><a href="../interfaces/src_global.dwarfmoduleinfo.html" class="tsd-kind-icon">Dwarf<wbr>Module<wbr>Info</a></li>
 							<li class="tsd-kind-interface tsd-parent-kind-module"><a href="../interfaces/src_global.dwarfobserverlocation.html" class="tsd-kind-icon">Dwarf<wbr>Observer<wbr>Location</a></li>
 							<li class="tsd-kind-interface tsd-parent-kind-module"><a href="../interfaces/src_global.nativebreakpointinfo.html" class="tsd-kind-icon">Native<wbr>Breakpoint<wbr>Info</a></li>
 							<li class="tsd-kind-interface tsd-parent-kind-module"><a href="../interfaces/src_global.stringsearchresult.html" class="tsd-kind-icon">String<wbr>Search<wbr>Result</a></li>
@@ -3050,19 +3054,41 @@ img {
 				<a name="getjnifuncptr" class="tsd-anchor"></a>
 				<h3>getJNIFunc<wbr>Ptr</h3>
 				<ul class="tsd-signatures tsd-kind-function tsd-parent-kind-module">
-					<li class="tsd-signature tsd-kind-icon">getJNIFunc<wbr>Ptr<span class="tsd-signature-symbol">(</span>index<span class="tsd-signature-symbol">: </span><span class="tsd-signature-type">number</span><span class="tsd-signature-symbol">)</span><span class="tsd-signature-symbol">: </span><a href="../classes/node_modules__types_frida_gum.nativepointer.html" class="tsd-signature-type" data-tsd-kind="Class">NativePointer</a></li>
+					<li class="tsd-signature tsd-kind-icon">getJNIFunc<wbr>Ptr<span class="tsd-signature-symbol">(</span>index<span class="tsd-signature-symbol">: </span><span class="tsd-signature-type">number</span><span class="tsd-signature-symbol"> | </span><span class="tsd-signature-type">string</span><span class="tsd-signature-symbol">)</span><span class="tsd-signature-symbol">: </span><a href="../classes/node_modules__types_frida_gum.nativepointer.html" class="tsd-signature-type" data-tsd-kind="Class">NativePointer</a></li>
 				</ul>
 				<ul class="tsd-descriptions">
 					<li class="tsd-description">
 						<aside class="tsd-sources">
 						</aside>
+						<div class="tsd-comment tsd-typography">
+							<div class="lead">
+								<p>Returns pointer to JNI function</p>
+							</div>
+							<p><a href="https://docs.oracle.com/javase/8/docs/technotes/guides/jni/spec/functions.html#interface_function_table">https://docs.oracle.com/javase/8/docs/technotes/guides/jni/spec/functions.html#interface_function_table</a></p>
+							<pre><code class="language-javascript"><span style="color: #F97583">var</span><span style="color: #E1E4E8"> ptr </span><span style="color: #F97583">=</span><span style="color: #E1E4E8"> </span><span style="color: #B392F0">getJNIFuncPtr</span><span style="color: #E1E4E8">(</span><span style="color: #9ECBFF">&quot;FindClass&quot;</span><span style="color: #E1E4E8">);</span>
+<span style="color: #F97583">var</span><span style="color: #E1E4E8"> ptr </span><span style="color: #F97583">=</span><span style="color: #E1E4E8"> </span><span style="color: #B392F0">getJNIFuncPtr</span><span style="color: #E1E4E8">(</span><span style="color: #9ECBFF">&quot;findclass&quot;</span><span style="color: #E1E4E8">);</span>
+<span style="color: #F97583">var</span><span style="color: #E1E4E8"> ptr </span><span style="color: #F97583">=</span><span style="color: #E1E4E8"> </span><span style="color: #B392F0">getJNIFuncPtr</span><span style="color: #E1E4E8">(</span><span style="color: #79B8FF">4</span><span style="color: #E1E4E8">);</span>
+
+<span style="color: #F97583">if</span><span style="color: #E1E4E8">(</span><span style="color: #B392F0">checkNativePointer</span><span style="color: #E1E4E8">(ptr)) {</span>
+<span style="color: #E1E4E8"> </span><span style="color: #B392F0">addNativeHook</span><span style="color: #E1E4E8">(ptr, {</span>
+<span style="color: #E1E4E8">     </span><span style="color: #B392F0">onEnter</span><span style="color: #E1E4E8">: </span><span style="color: #F97583">function</span><span style="color: #E1E4E8">(</span><span style="color: #FFAB70">args</span><span style="color: #E1E4E8">) {</span>
+<span style="color: #E1E4E8">         console.</span><span style="color: #B392F0">log</span><span style="color: #E1E4E8">(</span><span style="color: #9ECBFF">&#039;FindClass: &#039;</span><span style="color: #E1E4E8"> </span><span style="color: #F97583">+</span><span style="color: #E1E4E8"> args[</span><span style="color: #79B8FF">1</span><span style="color: #E1E4E8">].</span><span style="color: #B392F0">readCString</span><span style="color: #E1E4E8">());</span>
+<span style="color: #E1E4E8">     }</span>
+<span style="color: #E1E4E8"> });</span>
+<span style="color: #E1E4E8">}</span>
+</code></pre>
+						</div>
 						<h4 class="tsd-parameters-title">Parameters</h4>
 						<ul class="tsd-parameters">
 							<li>
-								<h5>index: <span class="tsd-signature-type">number</span></h5>
+								<h5>index: <span class="tsd-signature-type">number</span><span class="tsd-signature-symbol"> | </span><span class="tsd-signature-type">string</span></h5>
+								<div class="tsd-comment tsd-typography">
+									<p>number | string</p>
+								</div>
 							</li>
 						</ul>
 						<h4 class="tsd-returns-title">Returns <a href="../classes/node_modules__types_frida_gum.nativepointer.html" class="tsd-signature-type" data-tsd-kind="Class">NativePointer</a></h4>
+						<p>NativePointer</p>
 					</li>
 				</ul>
 			</section>
