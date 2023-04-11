@@ -1,31 +1,31 @@
-/*
-    Dwarf - Copyright (C) 2018-2021 Giovanni Rocca (iGio90)
-
-    This program is free software: you can redistribute it and/or modify
-    it under the terms of the GNU General Public License as published by
-    the Free Software Foundation, either version 3 of the License, or
-    (at your option) any later version.
-
-    This program is distributed in the hope that it will be useful,
-    but WITHOUT ANY WARRANTY; without even the implied warranty of
-    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-    GNU General Public License for more details.
-
-    You should have received a copy of the GNU General Public License
-    along with this program.  If not, see <https://www.gnu.org/licenses/>
-*/
+/**
+ * Dwarf - Copyright (C) 2018-2023 Giovanni Rocca (iGio90), PinkiePieStyle
+ *
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this program.  If not, see <https://www.gnu.org/licenses/>
+ */
 
 /*
     based on
     https://github.com/mapbox/jni.hpp/blob/master/test/openjdk/jni.h
     https://docs.oracle.com/javase/8/docs/technotes/guides/jni/spec/functions.html
 */
-import { DwarfCore } from "./DwarfCore";
-import { JNI_FUNCDECLS } from "./_jni_funcs";
+import {DwarfCore} from "./DwarfCore";
+import {JNI_FUNCDECLS} from "./_jni_funcs";
 
 export class DwarfJniTracer {
     private static instanceRef: DwarfJniTracer;
-    private _listeners: InvocationListener[];
+    private readonly _listeners: InvocationListener[];
 
     /** @internal */
     static getInstance() {
@@ -139,8 +139,8 @@ export class DwarfJniTracer {
 
     traceAll = () => {
         this.traceFunction(
-            this.getAvailableFunctions().filter((_, i) => { 
-                return i >= Object.keys(JNI_FUNCDECLS).indexOf("GetVersion") 
+            this.getAvailableFunctions().filter((_, i) => {
+                return i >= Object.keys(JNI_FUNCDECLS).indexOf("GetVersion")
             })
         );
     };
@@ -245,7 +245,7 @@ export class DwarfJniTracer {
                             });
                         },
                         onLeave(retVal) {
-                            const outVal = { type: jniFuncDef[1].type, value: retVal, ts: "" };
+                            const outVal = {type: jniFuncDef[1].type, value: retVal, ts: ""};
                             if (outVal.type.indexOf("char") !== -1) {
                                 outVal.ts = retVal.readCString();
                             }

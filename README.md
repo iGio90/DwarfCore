@@ -2,6 +2,8 @@
 
 The JavaScript core of https://github.com/iGio90/Dwarf
 
+**IMPORTANT**: This is a work in progress and not ready for production use
+
 ### Setup
 ```
 git clone https://github.com/iGio90/DwarfCore.git

@@ -1,28 +1,28 @@
-/*
-    Dwarf - Copyright (C) 2018-2020 Giovanni Rocca (iGio90)
+/**
+ * Dwarf - Copyright (C) 2018-2023 Giovanni Rocca (iGio90), PinkiePieStyle
+ *
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this program.  If not, see <https://www.gnu.org/licenses/>
+ */
 
-    This program is free software: you can redistribute it and/or modify
-    it under the terms of the GNU General Public License as published by
-    the Free Software Foundation, either version 3 of the License, or
-    (at your option) any later version.
-
-    This program is distributed in the hope that it will be useful,
-    but WITHOUT ANY WARRANTY; without even the implied warranty of
-    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-    GNU General Public License for more details.
-
-    You should have received a copy of the GNU General Public License
-    along with this program.  If not, see <https://www.gnu.org/licenses/>
-*/
-
-import { DwarfCore } from "./DwarfCore";
+import {DwarfCore} from "./DwarfCore";
 
 export class ThreadWrapper {
     static handler: NativePointer = NULL;
     static handlerFunction: fArgReturn | null = null;
     static onCreateCallback = null;
     static pthreadCreateAddress: NativePointer | null = null;
-    static pthreadCreateImplementation: NativeFunction;
+    static pthreadCreateImplementation: NativeFunction<number, [NativePointerValue, NativePointerValue, NativePointerValue, NativePointerValue]> | null = null;
 
     private static init() {
         // attempt to retrieve pthread_create
@@ -42,7 +42,7 @@ export class ThreadWrapper {
             Interceptor.replace(
                 ThreadWrapper.handler,
                 new NativeCallback(
-                    function() {
+                    function () {
                         // null check for handler function
                         if (ThreadWrapper.handlerFunction !== null) {
                             // invoke callback
@@ -59,7 +59,7 @@ export class ThreadWrapper {
                 )
             );
             // replace pthread_create for fun and profit
-            Interceptor.attach(ThreadWrapper.pthreadCreateAddress, function(args) {
+            Interceptor.attach(ThreadWrapper.pthreadCreateAddress, function (args) {
                 send("new_thread:::" + Process.getCurrentThreadId() + ":::" + args[2]);
                 if (ThreadWrapper.onCreateCallback !== null && typeof ThreadWrapper.onCreateCallback === "function") {
                     ThreadWrapper.onCreateCallback(args[2]);

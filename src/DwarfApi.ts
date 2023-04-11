@@ -1,19 +1,19 @@
-/*
-    Dwarf - Copyright (C) 2018-2021 Giovanni Rocca (iGio90)
-
-    This program is free software: you can redistribute it and/or modify
-    it under the terms of the GNU General Public License as published by
-    the Free Software Foundation, either version 3 of the License, or
-    (at your option) any later version.
-
-    This program is distributed in the hope that it will be useful,
-    but WITHOUT ANY WARRANTY; without even the implied warranty of
-    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-    GNU General Public License for more details.
-
-    You should have received a copy of the GNU General Public License
-    along with this program.  If not, see <https://www.gnu.org/licenses/>
-*/
+/**
+ * Dwarf - Copyright (C) 2018-2023 Giovanni Rocca (iGio90), PinkiePieStyle
+ *
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this program.  If not, see <https://www.gnu.org/licenses/>
+ */
 
 import { DwarfFS } from "./DwarfFS";
 import { LogicJava } from "./logic_java";
@@ -26,11 +26,13 @@ import { DwarfObserver } from "./DwarfObserver";
 import { NativeHook } from "./types/NativeHook";
 import { JavaHook } from "./types/JavaHook";
 import { ObjcHook } from "./types/ObjcHook";
-import { DwarfJavaHelper } from "./DwarfJavaHelper";
 import { ModuleLoadHook } from "./types/ModuleLoadHook";
 import { ELFFile } from "./types/ELFFile";
 
 export class DwarfApi {
+    private static instanceRef: DwarfApi;
+    private readonly _isPrintFunc: NativeFunction<number, [number]>;
+
     /** @internal */
     static getInstance() {
         if (!DwarfApi.instanceRef) {
@@ -38,8 +40,6 @@ export class DwarfApi {
         }
         return DwarfApi.instanceRef;
     }
-    private static instanceRef: DwarfApi;
-    private _isPrintFunc: NativeFunction;
 
     /** @internal */
     private constructor() {
@@ -115,7 +115,9 @@ export class DwarfApi {
      *
      * @param  {DwarfHookType|string|number} breakpointType
      * @param  {NativePointer|string|number} bpAddress
-     * @param  {boolean} bpEnabled? (default: enabled)
+     * @param userCallback
+     * @param isSingleShot
+     * @param isEnabled
      *
      * TODO: add ObjcHooks
      */
@@ -128,7 +130,7 @@ export class DwarfApi {
     ): NativeHook | MemoryHook | JavaHook | ObjcHook | ModuleLoadHook => {
         trace("DwarfApi::addHook()");
 
-        let bpType: DwarfHookType = 0;
+        let bpType: DwarfHookType = undefined;
         let checkedAddress: DwarfHookAddress = null;
 
         // check type
@@ -162,7 +164,7 @@ export class DwarfApi {
             }
         }
 
-        if (bpType < DwarfHookType.NATIVE || bpType > DwarfHookType.CLASS_LOAD) {
+        if (bpType === undefined || bpType < DwarfHookType.NATIVE || bpType > DwarfHookType.CLASS_LOAD) {
             throw new Error("DwarfApi::addHook() => Invalid BreakpointType!");
         }
 
@@ -705,7 +707,6 @@ export class DwarfApi {
 
         Memory.protect(startAddress, scanLength, "rwx");
 
-        // @ts-ignore
         const arrayBuffer = new Uint8Array(ArrayBuffer.wrap(startAddress, scanLength));
 
         if (isString(filter)) {
@@ -738,7 +739,7 @@ export class DwarfApi {
                                 const result = {
                                     string: str,
                                     length: str.length,
-                                    address: startAddress.add(i),
+                                    address: (startAddress as NativePointer).add(i),
                                 };
                                 if (isDefined(fromUi) && fromUi === true) {
                                     DwarfCore.getInstance().sync({
@@ -774,7 +775,7 @@ export class DwarfApi {
 
     /**
      * Evaluate javascript. Used from the UI to inject javascript code into the process
-     * @param w
+     * @param jsCode
      */
     public evaluate = (jsCode: string): any => {
         if (!jsCode.length) {
@@ -786,8 +787,9 @@ export class DwarfApi {
         jsCode = jsCode.replace(/\'/g, '"');
         const Thread = ThreadWrapper; // keep
         try {
+            const evalFn = eval;
             // tslint:disable-next-line: no-eval
-            return eval(jsCode);
+            return evalFn(jsCode);
         } catch (e) {
             logErr("evaluate", e);
             return null;
@@ -796,7 +798,7 @@ export class DwarfApi {
 
     /**
      * Evaluate javascript. Used from the UI to inject javascript code into the process
-     * @param w
+     * @param jsCode
      */
     public evaluateFunction = (jsCode: string): any => {
         if (!jsCode.length) return;
@@ -818,8 +820,9 @@ export class DwarfApi {
         if(!w) return;
 
         try {
+            const evalFn = eval;
             // tslint:disable-next-line: no-eval
-            return ptr(eval(w));
+            return ptr(evalFn(w));
         } catch (e) {
             return NULL;
         }
@@ -833,8 +836,8 @@ export class DwarfApi {
      * const myTargetAddress = findExport('target_func', 'target_module.so');
      * ```
      *
-     * @param name: the name of the export
-     * @param module: optional name of the module
+     * @param exportName
+     * @param moduleName
      */
     public findExport = (exportName: string, moduleName?: string): NativePointer | null => {
         if (!isString(exportName)) {
@@ -951,18 +954,18 @@ export class DwarfApi {
 
     /**
      * Return an array of DebugSymbol for the requested pointers
-     * @param ptrs: an array of NativePointer
+     * @param aNativePointers: an array of NativePointer
      */
-    public getDebugSymbols = (ptrs): DebugSymbol[] => {
+    public getDebugSymbols = (aNativePointers): DebugSymbol[] => {
         const symbols = [];
-        if (isDefined(ptrs)) {
+        if (isDefined(aNativePointers)) {
             try {
-                ptrs = JSON.parse(ptrs);
+                aNativePointers = JSON.parse(aNativePointers);
             } catch (e) {
                 logErr("getDebugSymbols", e);
                 return symbols;
             }
-            for (const p of ptrs) {
+            for (const p of aNativePointers) {
                 symbols.push(this.getSymbolByAddress(p));
             }
         }
@@ -1235,15 +1238,16 @@ export class DwarfApi {
     };
 
     /**
+     * isAddressWatched
+     *
+     *
+     * @param pointer   the pointer to check
      * @return a boolean indicating if the given pointer is currently watched
-     * TODO:
      */
-    public isAddressWatched = (pt: any): boolean => {
-        const memHook = DwarfHooksManager.getInstance().getHookByAddress(pt);
-        if (memHook.isEnabled()) {
-            return true;
-        }
-        return false;
+    public isAddressWatched = (pointer:NativePointer | string) => {
+        const memHook = DwarfHooksManager.getInstance().getHookByAddress(pointer);
+
+        return memHook !== null && memHook.isEnabled();
     };
 
     public isBlacklistedApi = (apiName: string): boolean => {
@@ -1505,8 +1509,9 @@ export class DwarfApi {
             }
         }
 
+        //should be number now or something went wrong
         if (isNumber(dataType)) {
-            if (dataType < DwarfDataDisplayType.TEXT || dataType > DwarfDataDisplayType.SQLITE3) {
+            if ((dataType as number) < DwarfDataDisplayType.TEXT || (dataType as number) > DwarfDataDisplayType.SQLITE3) {
                 throw new Error("DwarfApi::showData() -> Invalid Arguments!");
             }
         } else {
@@ -1697,7 +1702,7 @@ export class DwarfApi {
     private isPrintable = (char: number): boolean => {
         try {
             if (isDefined(this._isPrintFunc)) {
-                return this._isPrintFunc(char) as boolean;
+                return this._isPrintFunc(char) === 1;
             } else {
                 if (char > 31 && char < 127) {
                     return true;

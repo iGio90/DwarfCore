@@ -1,41 +1,45 @@
-/*
-    Dwarf - Copyright (C) 2018-2021 Giovanni Rocca (iGio90)
+/**
+ * Dwarf - Copyright (C) 2018-2023 Giovanni Rocca (iGio90), PinkiePieStyle
+ *
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this program.  If not, see <https://www.gnu.org/licenses/>
+ */
 
-    This program is free software: you can redistribute it and/or modify
-    it under the terms of the GNU General Public License as published by
-    the Free Software Foundation, either version 3 of the License, or
-    (at your option) any later version.
-
-    This program is distributed in the hope that it will be useful,
-    but WITHOUT ANY WARRANTY; without even the implied warranty of
-    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-    GNU General Public License for more details.
-
-    You should have received a copy of the GNU General Public License
-    along with this program.  If not, see <https://www.gnu.org/licenses/>
-*/
-
-import { DwarfHook } from "./DwarfHook";
-import { DwarfCore } from "../DwarfCore";
-import { DwarfMemoryAccessType, DwarfHookType, DwarfHaltReason } from "../consts";
+import {DwarfHook} from "./DwarfHook";
+import {DwarfCore} from "../DwarfCore";
+import {DwarfMemoryAccessType, DwarfHookType} from "../consts";
 
 export class MemoryHook extends DwarfHook {
+    public isInternal?: boolean;
     protected bpFlags: number;
     protected memOrgPermissions: string;
-    public isInternal?:boolean;
 
     /**
-     * @param  {DwarfHookType} bpType
+     * Creates an instance of DwarfHook.
+     *
      * @param  {NativePointer|string} bpAddress
      * @param  {number} bpFlags
+     * @param userCallback
+     * @param isSingleShot
+     * @param isEnabled
      */
     public constructor(
         bpAddress: NativePointer | string,
-        // tslint:disable-next-line: no-bitwise
+        // eslint-disable-next-line no-bitwise
         bpFlags: number = DwarfMemoryAccessType.READ | DwarfMemoryAccessType.WRITE,
         userCallback: DwarfCallback,
-        isSingleShot: boolean = false,
-        isEnabled: boolean = true
+        isSingleShot = false,
+        isEnabled = true
     ) {
         trace("MemoryHook()");
         const memPtr: NativePointer = makeNativePointer(bpAddress);
@@ -57,7 +61,7 @@ export class MemoryHook extends DwarfHook {
         }
 
         // no onEnter/onLeave
-        if(!isString(userCallback) && !isFunction(userCallback)) {
+        if (!isString(userCallback) && !isFunction(userCallback)) {
             throw new Error('MemoryHook() -> Invalid Callback!');
         }
 
@@ -79,22 +83,8 @@ export class MemoryHook extends DwarfHook {
         trace("MemoryHook::disable()");
         // MemoryAccessMonitor is available on all platforms with >12.7.10
         super.disable();
-        DwarfCore.getInstance()
-            .getHooksManager()
-            .updateMemoryHooks();
-        return;
-        if (Process.platform === "windows") {
-            super.disable();
-            DwarfCore.getInstance()
-                .getHooksManager()
-                .updateMemoryHooks();
-            return;
-        }
-        if (Memory.protect(this.hookAddress as NativePointer, 1, this.memOrgPermissions)) {
-            super.disable();
-        } else {
-            throw new Error("MemoryHook::disable() -> Memory::protect failed!");
-        }
+
+        return DwarfCore.getInstance().getHooksManager().updateMemoryHooks();
     }
 
     /**
@@ -105,46 +95,7 @@ export class MemoryHook extends DwarfHook {
 
         // MemoryAccessMonitor is available on all platforms with >12.7.10
         super.enable();
-        DwarfCore.getInstance()
-            .getHooksManager()
-            .updateMemoryHooks();
-        return;
-        if (Process.platform === "windows") {
-            super.enable();
-            DwarfCore.getInstance()
-                .getHooksManager()
-                .updateMemoryHooks();
-            return;
-        }
-
-        let perm = "";
-        // tslint:disable-next-line: no-bitwise
-        if (this.bpFlags & DwarfMemoryAccessType.READ) {
-            perm += "-";
-        } else {
-            perm += this.memOrgPermissions[0];
-        }
-        // tslint:disable-next-line: no-bitwise
-        if (this.bpFlags & DwarfMemoryAccessType.WRITE) {
-            perm += "-";
-        } else {
-            perm += this.memOrgPermissions[1];
-        }
-        // tslint:disable-next-line: no-bitwise
-        if (this.bpFlags & DwarfMemoryAccessType.EXECUTE) {
-            perm += "-";
-        } else {
-            if (this.memOrgPermissions[2] === "x") {
-                perm += "x";
-            } else {
-                perm += "-";
-            }
-        }
-        if (Memory.protect(this.hookAddress as NativePointer, 1, perm)) {
-            super.enable();
-        } else {
-            throw new Error("MemoryHook::enable() -> Memory::protect failed!");
-        }
+        return DwarfCore.getInstance().getHooksManager().updateMemoryHooks();
     }
 
     public getFlags() {

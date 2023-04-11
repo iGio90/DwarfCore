@@ -7,13 +7,12 @@
     "disableSources": true,
     "readme": "./README.md",
     "out": "./dist/docs",
-    "highlightTheme": "github-dark",
-    "theme": "./doc_theme/minimal",
+    "darkHighlightTheme": "dark-plus",
     "entryPoints": [
         "./node_modules/@types/frida-gum/index.d.ts",
         "./src/global.d.ts",
         "./src/consts.ts",
-        "./src/types",
+        "./src/types/*.ts",
         "./src/DwarfApi.ts"
     ]
 }

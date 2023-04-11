@@ -1,19 +1,19 @@
-/*
-    Dwarf - Copyright (C) 2018-2021 Giovanni Rocca (iGio90)
-
-    This program is free software: you can redistribute it and/or modify
-    it under the terms of the GNU General Public License as published by
-    the Free Software Foundation, either version 3 of the License, or
-    (at your option) any later version.
-
-    This program is distributed in the hope that it will be useful,
-    but WITHOUT ANY WARRANTY; without even the implied warranty of
-    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-    GNU General Public License for more details.
-
-    You should have received a copy of the GNU General Public License
-    along with this program.  If not, see <https://www.gnu.org/licenses/>
-*/
+/**
+ * Dwarf - Copyright (C) 2018-2023 Giovanni Rocca (iGio90), PinkiePieStyle
+ *
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this program.  If not, see <https://www.gnu.org/licenses/>
+ */
 
 import { DwarfHook } from "./DwarfHook";
 import { DwarfHookType } from "../consts";
@@ -27,10 +27,12 @@ export class NativeHook extends DwarfHook {
     /**
      * Creates an instance of DwarfHook.
      *
-     * @param  {DwarfHookType} bpType
      * @param  {NativePointer|string} bpAddress
+     * @param userCallback
+     * @param isSingleShot
+     * @param isEnabled
      */
-    constructor(bpAddress: NativePointer | string, userCallback: DwarfCallback = "breakpoint", isSingleShot: boolean = false, isEnabled: boolean = true) {
+    constructor(bpAddress: NativePointer | string, userCallback: DwarfCallback = "breakpoint", isSingleShot = false, isEnabled = true) {
         const nativePtr = makeNativePointer(bpAddress);
 
         if (nativePtr.isNull()) {
@@ -70,7 +72,7 @@ export class NativeHook extends DwarfHook {
         }
     }
 
-    /*public setCondition(bpCondition: string | fEmptyVoid ): void {
+    /* public setCondition(bpCondition: string | fEmptyVoid ): void {
         if (typeof bpCondition === "string") {
             this.bpCondition = new Function(bpCondition);
         } else {
@@ -100,7 +102,7 @@ export class NativeHook extends DwarfHook {
         }
     }
 
-    public remove(syncUi: boolean = true): void {
+    public remove(syncUi = true): void {
         trace("NativeHook::remove()");
 
         if (this.bAttached && isDefined(this.invocationListener)) {

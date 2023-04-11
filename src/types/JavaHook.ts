@@ -1,34 +1,35 @@
-/*
-    Dwarf - Copyright (C) 2018-2021 Giovanni Rocca (iGio90)
+/**
+ * Dwarf - Copyright (C) 2018-2023 Giovanni Rocca (iGio90), PinkiePieStyle
+ *
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this program.  If not, see <https://www.gnu.org/licenses/>
+ */
 
-    This program is free software: you can redistribute it and/or modify
-    it under the terms of the GNU General Public License as published by
-    the Free Software Foundation, either version 3 of the License, or
-    (at your option) any later version.
-
-    This program is distributed in the hope that it will be useful,
-    but WITHOUT ANY WARRANTY; without even the implied warranty of
-    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-    GNU General Public License for more details.
-
-    You should have received a copy of the GNU General Public License
-    along with this program.  If not, see <https://www.gnu.org/licenses/>
-*/
-
-import { DwarfHook } from "./DwarfHook";
-import { DwarfHookType } from "../consts";
-import { DwarfJavaHelper } from "../DwarfJavaHelper";
-import { DwarfCore } from "../DwarfCore";
+import {DwarfHook} from "./DwarfHook";
+import {DwarfHookType} from "../consts";
+import {DwarfJavaHelper} from "../DwarfJavaHelper";
 
 export class JavaHook extends DwarfHook {
     protected warningShown: boolean;
+    protected _className: string;
+    protected _methodName: string;
 
     constructor(
         className: string,
-        methodName: string = "$init",
+        methodName = "$init",
         userCallback: DwarfCallback = "breakpoint",
-        isEnabled: boolean = true,
-        isSingleShot: boolean = false
+        isEnabled = true,
+        isSingleShot = false
     ) {
         trace("JavaHook()");
 
@@ -58,6 +59,8 @@ export class JavaHook extends DwarfHook {
             try {
                 const testWrapper = Java.use(className);
                 if (isDefined(testWrapper) && isDefined(testWrapper[methodName])) {
+                    this._className = className;
+                    this._methodName = methodName;
                     this.setup();
                 } else {
                     console.log("Warning: Class or Method not found! (" + className + "." + methodName + ")");
@@ -70,7 +73,7 @@ export class JavaHook extends DwarfHook {
         });
     }
 
-    public remove(syncUi: boolean = true): void {
+    public remove(syncUi = true): void {
         trace("JavaHook::remove()");
 
         if (this.bAttached) {
@@ -83,28 +86,20 @@ export class JavaHook extends DwarfHook {
     }
 
     public setup(): void {
-        const self = this;
-        if (self.bAttached) {
+        if (this.bAttached) {
             return;
         }
-        Java.performNow(function () {
-            const className = (self.hookAddress as string).substr(0, (self.hookAddress as string).lastIndexOf("."));
-            const methodName = (self.hookAddress as string).substr((self.hookAddress as string).lastIndexOf(".") + 1);
-            const testWrapper = Java.use(className);
-            if (!isDefined(testWrapper) || !isDefined(testWrapper[methodName])) {
-                if (!self.warningShown) {
-                    console.log("Warning: Class or Method not found! (" + self.hookAddress + ")");
-                    self.warningShown = true;
-                }
-                return;
-            }
+
+        const self = this; //eslint-disable-line
+        Java.performNow(() => {
             try {
-                DwarfJavaHelper.getInstance().hookInJVM(className, methodName, function () {
+                DwarfJavaHelper.getInstance().hookInJVM(this._className, this._methodName, function () {
                     try {
                         let result = null;
+
                         self.onEnterCallback(self, this, arguments);
 
-                        result = this[methodName].apply(this, arguments);
+                        result = this[self._methodName].apply(this, arguments);
 
                         self.onLeaveCallback(self, this, result);
                         return result;

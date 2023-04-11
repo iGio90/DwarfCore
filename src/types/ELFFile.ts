@@ -1,19 +1,19 @@
-/*
-    Dwarf - Copyright (C) 2018-2021 Giovanni Rocca (iGio90)
-
-    This program is free software: you can redistribute it and/or modify
-    it under the terms of the GNU General Public License as published by
-    the Free Software Foundation, either version 3 of the License, or
-    (at your option) any later version.
-
-    This program is distributed in the hope that it will be useful,
-    but WITHOUT ANY WARRANTY; without even the implied warranty of
-    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-    GNU General Public License for more details.
-
-    You should have received a copy of the GNU General Public License
-    along with this program.  If not, see <https://www.gnu.org/licenses/>
-*/
+/**
+ * Dwarf - Copyright (C) 2018-2023 Giovanni Rocca (iGio90), PinkiePieStyle
+ *
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this program.  If not, see <https://www.gnu.org/licenses/>
+ */
 
 /*
     http://man7.org/linux/man-pages/man5/elf.5.html
@@ -58,6 +58,8 @@
     } Elf32_Shdr;                   } Elf64_Shdr;
 */
 
+/* eslint-disable max-classes-per-file */
+
 import { DwarfApi } from "../DwarfApi";
 import { DwarfFS } from "../DwarfFS";
 
@@ -65,9 +67,9 @@ import { DwarfFS } from "../DwarfFS";
  * ELF Fileparser
  */
 export class ELFFile {
-    endian: string = "little";
+    endian = "little";
     fileHeader: ELFFile.Header | null = null;
-    is64Bit: boolean = false;
+    is64Bit = false;
     programHeaders: ELFFile.ProgamHeader[] = [];
     sectionHeaders: ELFFile.SectionHeader[] = [];
 
@@ -92,12 +94,12 @@ export class ELFFile {
             throw new Error("DwarfFs missing!");
         }
 
-        const _file: NativePointer = dwarfFS.fopen(filePath, "r") as NativePointer;
+        const _file = dwarfFS.fopen(filePath, "r");
         if (!isDefined(_file) || _file.isNull()) {
             throw new Error("Failed to open File: " + filePath);
         }
 
-        const headerBuffer: NativePointer = dwarfFS.allocateRw(0x40);
+        const headerBuffer = dwarfFS.allocateRw(0x40);
         if (!isDefined(headerBuffer) || headerBuffer.isNull()) {
             dwarfFS.fclose(_file);
             throw new Error("Failed to allocate Memory!");
@@ -605,3 +607,4 @@ export namespace ELFFile {
         };
     }
 }
+/* eslint-enable max-classes-per-file */

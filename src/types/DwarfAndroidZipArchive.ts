@@ -1,32 +1,32 @@
-/*
-    Dwarf - Copyright (C) 2018-2021 Giovanni Rocca (iGio90)
+/**
+ * Dwarf - Copyright (C) 2018-2023 Giovanni Rocca (iGio90), PinkiePieStyle
+ *
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this program.  If not, see <https://www.gnu.org/licenses/>
+ */
 
-    This program is free software: you can redistribute it and/or modify
-    it under the terms of the GNU General Public License as published by
-    the Free Software Foundation, either version 3 of the License, or
-    (at your option) any later version.
-
-    This program is distributed in the hope that it will be useful,
-    but WITHOUT ANY WARRANTY; without even the implied warranty of
-    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-    GNU General Public License for more details.
-
-    You should have received a copy of the GNU General Public License
-    along with this program.  If not, see <https://www.gnu.org/licenses/>
-*/
-
-import { DwarfCore } from "../DwarfCore";
-import { DwarfZipArchive } from "./DwarfZipArchive";
+import {DwarfCore} from "../DwarfCore";
+import {DwarfZipArchive} from "./DwarfZipArchive";
 
 // TODO: optimize android extract without (re)iteration
-// TODO: add errors if filecreation fails
+// TODO: add errors if file creation fails
 export class DwarfAndroidZipArchive implements DwarfZipArchive {
     protected _nativeFunctions: {
-        closeArchive: NativeFunction;
-        extractEntryToFile: NativeFunction;
-        nextEntry: NativeFunction;
-        openArchive: NativeFunction;
-        startIteration: NativeFunction;
+        closeArchive: NativeFunction<void, [NativePointer]>;
+        extractEntryToFile: NativeFunction<number, [NativePointer, NativePointer, number]>;
+        nextEntry: NativeFunction<number, [NativePointer, NativePointer, NativePointer]>;
+        openArchive: NativeFunction<number, [NativePointer, NativePointer]>;
+        startIteration: NativeFunction<number, [NativePointer, NativePointer, NativePointer]> | NativeFunction<number, [NativePointer, NativePointer, NativePointer, NativePointer]>;
     };
     protected _archiveHandle: NativePointer;
     protected _archivePath: NativePointer;
@@ -134,7 +134,8 @@ export class DwarfAndroidZipArchive implements DwarfZipArchive {
             const cookie = Memory.alloc(Process.pointerSize);
             Memory.protect(cookie, Process.pointerSize, "rw-");
             if (DwarfCore.getInstance().getAndroidApiLevel() <= 22) {
-                if (this._nativeFunctions.startIteration(this._archiveHandle.readPointer(), cookie, NULL) === 0) {
+                const startIterFn = this._nativeFunctions.startIteration as NativeFunction<number, [NativePointer, NativePointer, NativePointer]>;
+                if (startIterFn && startIterFn(this._archiveHandle.readPointer(), cookie, NULL) === 0) {
                     const zipEntry = Memory.alloc(500); // TODO: calc real size
                     const zipName = Memory.alloc(Process.pointerSize + 3); // struct ZipEntryName { const char* name;  uint16_t name_length; };
                     Memory.protect(zipEntry, 500, "rw-");
@@ -193,7 +194,8 @@ export class DwarfAndroidZipArchive implements DwarfZipArchive {
             const cookie = Memory.alloc(Process.pointerSize);
             Memory.protect(cookie, Process.pointerSize, "rw-");
             if (DwarfCore.getInstance().getAndroidApiLevel() <= 22) {
-                if (this._nativeFunctions.startIteration(this._archiveHandle.readPointer(), cookie, NULL) === 0) {
+                const startIterFn = this._nativeFunctions.startIteration as NativeFunction<number, [NativePointer, NativePointer, NativePointer]>;
+                if (startIterFn && startIterFn(this._archiveHandle.readPointer(), cookie, NULL) === 0) {
                     const zipEntry = Memory.alloc(500); // TODO: calc real size
                     const zipName = Memory.alloc(Process.pointerSize + 3); // struct ZipEntryName { const char* name;  uint16_t name_length; };
                     Memory.protect(zipEntry, 500, "rw-");

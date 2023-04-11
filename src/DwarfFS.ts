@@ -1,36 +1,36 @@
-/*
-    Dwarf - Copyright (C) 2018-2021 Giovanni Rocca (iGio90)
-
-    This program is free software: you can redistribute it and/or modify
-    it under the terms of the GNU General Public License as published by
-    the Free Software Foundation, either version 3 of the License, or
-    (at your option) any later version.
-
-    This program is distributed in the hope that it will be useful,
-    but WITHOUT ANY WARRANTY; without even the implied warranty of
-    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-    GNU General Public License for more details.
-
-    You should have received a copy of the GNU General Public License
-    along with this program.  If not, see <https://www.gnu.org/licenses/>
-*/
+/**
+ * Dwarf - Copyright (C) 2018-2023 Giovanni Rocca (iGio90), PinkiePieStyle
+ *
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this program.  If not, see <https://www.gnu.org/licenses/>
+ */
 
 import { DwarfApi } from "./DwarfApi";
 
 export class DwarfFS {
-    protected _access: NativeFunction | null;
-    protected _fclose: NativeFunction | null;
-    protected _fcntl: NativeFunction | null;
-    protected _fgets: NativeFunction | null;
-    protected _fileno: NativeFunction | null;
-    protected _fopen: NativeFunction | null;
-    protected _fputs: NativeFunction | null;
-    protected _fread: NativeFunction | null;
-    protected _fseek: NativeFunction | null;
-    protected _ftell: NativeFunction | null;
-    protected _getline: NativeFunction | null;
-    protected _pclose: NativeFunction | null;
-    protected _popen: NativeFunction | null;
+    protected _access: NativeFunction<number, [NativePointer, number]> | null;
+    protected _fclose: NativeFunction<number, [NativePointer]> | null;
+    protected _fcntl: NativeFunction<number, [number,number,number]> | null;
+    protected _fgets: NativeFunction<number, [NativePointer, number, NativePointer]> | null;
+    protected _fileno: NativeFunction<number, [NativePointer]> | null;
+    protected _fopen: NativeFunction<NativePointer, [NativePointer, NativePointer]> | null;
+    protected _fputs: NativeFunction<number, [NativePointer, NativePointer]> | null;
+    protected _fread: NativeFunction<number, [NativePointer, number, number, NativePointer]> | null;
+    protected _fseek: NativeFunction<number, [NativePointer, number, number]> | null;
+    protected _ftell: NativeFunction<number, [NativePointer]> | null;
+    protected _getline: NativeFunction<number, [NativePointer, NativePointer, NativePointer]> | null;
+    protected _pclose: NativeFunction <number, [NativePointer]>| null;
+    protected _popen: NativeFunction<NativePointer, [NativePointer, NativePointer]> | null;
 
     private static instanceRef: DwarfFS;
 
@@ -49,7 +49,7 @@ export class DwarfFS {
         }
         trace("DwarfFS()");
 
-        const exportToFunction = (exp: string, ret: string, args: string[]): NativeFunction | null => {
+        const exportToFunction = (exp: string, ret: NativeFunctionReturnType, args: NativeFunctionArgumentType[]): NativeFunction<any,any> | null => {
             const p = Module.findExportByName(null, exp);
             if (p !== null && !p.isNull()) {
                 return new NativeFunction(p, ret, args);
@@ -137,7 +137,7 @@ export class DwarfFS {
         }
     };
 
-    fseek = (filePointer: NativePointer, offset: number | NativePointer, origin: number) => {
+    fseek = (filePointer: NativePointer, offset: number, origin: number) => {
         if (this._fseek === null || this._fseek.isNull()) {
             throw new Error("DwarfFS::fread not available!");
         }
@@ -158,7 +158,7 @@ export class DwarfFS {
     /**
      * Call native popen with filePath and perm
      */
-    popen = (filePath: string, perm: string): NativeReturnValue => {
+    popen = (filePath: string, perm: string): NativeFunctionReturnValue => {
         if (this._popen === null) {
             return NULL;
         }

@@ -4,9 +4,6 @@
         "lib": [
             "ES6"
         ],
-        "plugins": [{
-            "name": "typescript-tslint-plugin"
-        }],
         "allowJs": true,
         "removeComments": true,
         "pretty": true,
