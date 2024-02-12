@@ -903,6 +903,8 @@ export class DwarfApi {
      * @param p: pointer
      */
     public getAddressTs = (p): [number, any] => {
+        if(!isString(p) && !isNumber(p)) return [-1, p];
+        
         const _ptr = ptr(p);
         const _range = Process.findRangeByAddress(_ptr);
         if (isDefined(_range)) {
